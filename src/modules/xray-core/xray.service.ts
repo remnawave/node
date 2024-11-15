@@ -33,6 +33,8 @@ export class XrayService {
                     try {
                         const fullConfig = generateApiConfig(config);
 
+                        this.logger.debug(fullConfig);
+
                         if (this.xrayProcess) {
                             this.logger.warn('Xray process is already running');
                             this.stopXray();

@@ -41,6 +41,4 @@ lerna-debug.log*
 
 .env.production
 
-package-lock.json
-
 /samples

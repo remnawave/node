@@ -48,6 +48,7 @@ export class StatsService {
             const response = await this.xtlsSdk.stats.getSysStats();
 
             if (!response.isOk || !response.data) {
+                this.logger.error(response);
                 return {
                     isOk: false,
                     ...ERRORS.FAILED_TO_GET_SYSTEM_STATS,

@@ -1,0 +1,16 @@
+{
+  "name": "@remnawave/node-contract",
+  "version": "0.0.1",
+  "description": "A node-contract library for Remnawave Panel",
+  "main": "index.js",
+  "scripts": {
+    "prepublish": "rm -rf build && tsc",
+    "build": "tsc"
+  },
+  "keywords": [],
+  "author": "REMNAWAVE",
+  "license": "MIT",
+  "dependencies": {
+    "zod": "^3.22.4"
+  }
+}

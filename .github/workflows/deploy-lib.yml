@@ -3,6 +3,7 @@ on:
   push:
     tags:
       - '*'
+
 jobs:
   send-start-deploy-telegram-message:
     name: Send Telegram message
@@ -35,11 +36,11 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies and build
-        working-directory: './'
+        working-directory: './libs/contract'
         run: npm i && npm run prepublish
 
       - name: Publish package on NPM
-        working-directory: './'
+        working-directory: './libs/contract'
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,11 +1,11 @@
-FROM node:22 as build
+FROM node:20 as build
 WORKDIR /opt/app
 ADD . .
 RUN npm ci --legacy-peer-deps
 RUN npm run build --prod
 
 
-FROM node:22
+FROM node:20
 WORKDIR /opt/app
 COPY --from=build /opt/app/dist ./dist
 

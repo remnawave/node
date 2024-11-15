@@ -1,14 +1,16 @@
-import { Module } from '@nestjs/common';
+import { Module, OnApplicationShutdown } from '@nestjs/common';
 import { XrayService } from './xray.service';
-
-import { JwtModule } from '@nestjs/jwt';
-import { getJWTConfig } from '../../common/config/jwt/jwt.config';
-import { JwtStrategy } from '../../common/guards/jwt-guards/strategies/validate-token';
 import { XrayController } from './xray.controller';
 
 @Module({
-    imports: [JwtModule.registerAsync(getJWTConfig())],
-    providers: [XrayService, JwtStrategy],
+    imports: [],
+    providers: [XrayService],
     controllers: [XrayController],
 })
-export class XrayModule {}
+export class XrayModule implements OnApplicationShutdown {
+    constructor(private readonly xrayService: XrayService) {}
+
+    async onApplicationShutdown() {
+        await this.xrayService.stopXray();
+    }
+}

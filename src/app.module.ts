@@ -4,6 +4,9 @@ import { validateEnvConfig } from '@common/utils/validate-env-config';
 import { configSchema, Env } from '@common/config/app-config';
 import { XtlsSdkNestjsModule } from '@remnawave/xtls-sdk-nestjs';
 import { RemnawaveNodeModules } from './modules/remnawave-node.modules';
+import { JwtModule } from '@nestjs/jwt';
+import { getJWTConfig } from './common/config/jwt/jwt.config';
+import { JwtStrategy } from './common/guards/jwt-guards/strategies/validate-token';
 
 @Module({
     imports: [
@@ -21,6 +24,8 @@ import { RemnawaveNodeModules } from './modules/remnawave-node.modules';
             inject: [ConfigService],
         }),
         RemnawaveNodeModules,
+        JwtModule.registerAsync(getJWTConfig()),
     ],
+    providers: [JwtStrategy],
 })
 export class AppModule {}

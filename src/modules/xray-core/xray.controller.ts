@@ -1,5 +1,5 @@
 import { XRAY_CONTROLLER, XRAY_ROUTES } from '@libs/contracts/api/controllers/xray';
-import { Controller, Post, Body, Get, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, UseFilters } from '@nestjs/common';
 import { XrayService } from './xray.service';
 import { JwtDefaultGuard } from '../../common/guards/jwt-guards/def-jwt-guard';
 import {
@@ -9,9 +9,11 @@ import {
     GetXrayStatusAndVersionResponseDto,
 } from './dtos/';
 import { errorHandler } from '../../common/helpers/error-handler.helper';
+import { HttpExceptionFilter } from '../../common/exception/httpException.filter';
 
 @Controller(XRAY_CONTROLLER)
 @UseGuards(JwtDefaultGuard)
+@UseFilters(HttpExceptionFilter)
 export class XrayController {
     constructor(private readonly xrayService: XrayService) {
         this.xrayService = xrayService;

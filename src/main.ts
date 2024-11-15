@@ -1,11 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
-import { patchNestJsSwagger, ZodValidationPipe } from 'nestjs-zod';
+import { ZodValidationPipe } from 'nestjs-zod';
 import { NotFoundExceptionFilter } from './common/exception/not-found-exception.filter';
 import helmet from 'helmet';
-
-patchNestJsSwagger();
 
 async function bootstrap(): Promise<void> {
     const app = await NestFactory.create(AppModule);

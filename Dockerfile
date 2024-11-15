@@ -14,6 +14,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 RUN bash -c "$(curl -L https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-latest-xray.sh)"
 
+WORKDIR /opt/app
+
 ADD *.json ./
 ADD ./libs ./libs
 RUN npm ci --omit=dev --legacy-peer-deps

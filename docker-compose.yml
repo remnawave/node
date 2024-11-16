@@ -3,7 +3,6 @@ services:
     container_name: remnawave-node
     hostname: remnawave-node
     image: remnawave/node:latest
-    ports:
-      - '127.0.0.1:14500:3002'
     env_file:
       - .env
+    network_mode: host

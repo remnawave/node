@@ -6,8 +6,6 @@ export const configSchema = z.object({
         .string()
         .default('3000')
         .transform((port) => parseInt(port, 10)),
-    API_PREFIX: z.string().default('api/v1'),
-    NODE_ENV: z.string(),
     SSL_CERT: z.string(),
     XTLS_IP: z.string().default('127.0.0.1'),
     XTLS_PORT: z.string().default('61000'),

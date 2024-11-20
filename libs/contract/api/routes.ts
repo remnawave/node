@@ -1,6 +1,6 @@
 import * as CONTROLLERS from './controllers';
 
-export const ROOT = '/api/v1' as const;
+export const ROOT = '/node' as const;
 
 export const REST_API = {
     XRAY: {

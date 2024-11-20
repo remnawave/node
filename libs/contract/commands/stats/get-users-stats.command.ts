@@ -1,6 +1,8 @@
 import { z } from 'zod';
-
+import { REST_API } from '../../api';
 export namespace GetUsersStatsCommand {
+    export const url = REST_API.STATS.GET_USERS_STATS;
+
     export const RequestSchema = z.object({
         reset: z.boolean(),
     });

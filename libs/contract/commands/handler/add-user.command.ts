@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { REST_API } from '../../api';
 
 export enum CipherType {
     UNKNOWN = 0,
@@ -11,6 +12,8 @@ export enum CipherType {
 }
 
 export namespace AddUserCommand {
+    export const url = REST_API.HANDLER.ADD_USER;
+
     const BaseTrojanUser = z.object({
         type: z.literal('trojan'),
         tag: z.string(),

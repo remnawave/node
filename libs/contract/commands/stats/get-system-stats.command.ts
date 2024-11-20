@@ -1,6 +1,8 @@
 import { z } from 'zod';
-
+import { REST_API } from '../../api';
 export namespace GetSystemStatsCommand {
+    export const url = REST_API.STATS.GET_SYSTEM_STATS;
+
     export const ResponseSchema = z.object({
         response: z.object({
             numGoroutine: z.number(),

@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { NotFoundExceptionFilter } from './common/exception/not-found-exception.filter';
 import helmet from 'helmet';
+import { ROOT } from '../libs/contract';
 
 async function bootstrap(): Promise<void> {
     const app = await NestFactory.create(AppModule);
@@ -13,7 +14,7 @@ async function bootstrap(): Promise<void> {
     app.use;
     app.useGlobalFilters(new NotFoundExceptionFilter());
 
-    app.setGlobalPrefix(config.getOrThrow<string>('API_PREFIX'));
+    app.setGlobalPrefix(ROOT);
 
     app.useGlobalPipes(new ZodValidationPipe());
     app.enableShutdownHooks();

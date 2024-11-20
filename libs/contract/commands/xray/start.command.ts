@@ -1,6 +1,7 @@
 import { z } from 'zod';
-
+import { REST_API } from '../../api';
 export namespace StartXrayCommand {
+    export const url = REST_API.XRAY.START;
     export const RequestSchema = z.record(z.unknown());
 
     export type Request = z.infer<typeof RequestSchema>;

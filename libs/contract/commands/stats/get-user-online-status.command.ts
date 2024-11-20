@@ -1,6 +1,7 @@
 import { z } from 'zod';
-
+import { REST_API } from '../../api';
 export namespace GetUserOnlineStatusCommand {
+    export const url = REST_API.STATS.GET_USER_ONLINE_STATUS;
     export const RequestSchema = z.object({
         username: z.string(),
     });

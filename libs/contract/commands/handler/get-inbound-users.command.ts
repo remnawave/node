@@ -1,6 +1,8 @@
 import { z } from 'zod';
+import { REST_API } from '../../api';
 
 export namespace GetInboundUsersCommand {
+    export const url = REST_API.HANDLER.GET_INBOUND_USERS;
     export const RequestSchema = z.object({
         tag: z.string(),
     });

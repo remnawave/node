@@ -1,6 +1,9 @@
 import { z } from 'zod';
+import { REST_API } from '../../api';
 
 export namespace RemoveUserCommand {
+    export const url = REST_API.HANDLER.REMOVE_USER;
+
     export const RequestSchema = z.object({
         tag: z.string(),
         username: z.string(),

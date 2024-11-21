@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { spawn, ChildProcess } from 'child_process';
-
+import { spawn, ChildProcess, exec } from 'child_process';
+import { promisify } from 'util';
 import { generateApiConfig } from '@common/utils/generate-api-config';
 import { ICommandResponse } from '../../common/types/command-response.type';
 import {
@@ -14,6 +14,7 @@ import {
 export class XrayService {
     private readonly isDev: boolean;
     private readonly xrayPath: string;
+    private readonly execAsync = promisify(exec);
 
     constructor(private readonly configService: ConfigService) {
         this.isDev = this.configService.getOrThrow('NODE_ENV') === 'development';
@@ -28,18 +29,19 @@ export class XrayService {
         config: Record<string, unknown>,
     ): Promise<ICommandResponse<StartXrayResponseModel>> {
         try {
+            if (this.xrayProcess) {
+                this.logger.warn('Xray process is already running');
+                await this.stopXray();
+            }
+            const tm = new Date().getTime();
+            const fullConfig = generateApiConfig(config);
+
+            this.logger.debug(JSON.stringify(fullConfig, null, 2));
+            this.logger.log(`Xray config generated in ${new Date().getTime() - tm}ms`);
+
             const promise = new Promise<{ isStarted: boolean; version: string | null }>(
                 (resolve, reject) => {
                     try {
-                        const fullConfig = generateApiConfig(config);
-
-                        this.logger.debug(fullConfig);
-
-                        if (this.xrayProcess) {
-                            this.logger.warn('Xray process is already running');
-                            this.stopXray();
-                        }
-
                         this.xrayProcess = spawn(this.xrayPath, ['-config=stdin:'], {
                             detached: true,
                             stdio: ['pipe', 'pipe', 'pipe'],
@@ -82,12 +84,11 @@ export class XrayService {
                             }
                         });
 
-                        // Добавим таймаут на случай, если процесс не запустится
                         const timeout = setTimeout(() => {
                             if (!isStarted) {
                                 reject(new Error('Xray start timeout'));
                             }
-                        }, 5000); // 5 секунд на запуск
+                        }, 5000);
 
                         this.xrayProcess.on('close', (code) => {
                             this.logger.warn(`Xray Process exited with code ${code}`);
@@ -131,13 +132,15 @@ export class XrayService {
                 };
             }
 
-            this.xrayProcess.kill();
+            await this.killAllXrayProcesses();
+
             this.xrayProcess = null;
             return {
                 isOk: true,
                 response: new StopXrayResponseModel(true),
             };
         } catch (error) {
+            this.logger.error(`Failed to stop Xray Process: ${error}`);
             return {
                 isOk: true,
                 response: new StopXrayResponseModel(false),
@@ -174,5 +177,25 @@ export class XrayService {
     private getXrayVersionFromOutput(output: string) {
         const versionMatch = output.match(/Xray\s+([\d.]+)\s+started/);
         return versionMatch ? versionMatch[1] : null;
+    }
+
+    private async killAllXrayProcesses(): Promise<void> {
+        try {
+            await this.execAsync('pkill xray');
+
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            await this.execAsync('pkill -9 xray');
+
+            try {
+                await this.execAsync(
+                    "lsof -i :61000 | grep LISTEN | awk '{print $2}' | xargs kill -9",
+                );
+            } catch (e) {}
+
+            this.logger.log('Killed all Xray processes');
+        } catch (error) {
+            this.logger.debug('No existing Xray processes found');
+        }
     }
 }

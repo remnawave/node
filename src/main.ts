@@ -5,9 +5,18 @@ import { ZodValidationPipe } from 'nestjs-zod';
 import { NotFoundExceptionFilter } from './common/exception/not-found-exception.filter';
 import helmet from 'helmet';
 import { ROOT } from '../libs/contract';
+import { LogLevel } from '@nestjs/common';
 
 async function bootstrap(): Promise<void> {
-    const app = await NestFactory.create(AppModule);
+    const isDevelopment = process.env.NODE_ENV === 'development';
+
+    const logLevels: LogLevel[] = isDevelopment
+        ? ['log', 'error', 'warn', 'debug', 'verbose']
+        : ['log', 'error', 'warn'];
+
+    const app = await NestFactory.create(AppModule, {
+        logger: logLevels,
+    });
     const config = app.get(ConfigService);
 
     app.use(helmet());

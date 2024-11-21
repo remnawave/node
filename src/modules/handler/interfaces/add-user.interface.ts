@@ -1,7 +1,7 @@
 import { CipherType } from '@remnawave/xtls-sdk/build/src/xray-protos/proxy/shadowsocks/config';
 
 export interface TAddUserRequest {
-    data:
+    data: Array<
         | {
               type: 'trojan';
               tag: string;
@@ -48,5 +48,6 @@ export interface TAddUserRequest {
               http_username: string;
               http_password: string;
               level: number;
-          };
+          }
+    >;
 }

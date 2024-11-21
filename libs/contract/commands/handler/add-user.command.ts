@@ -68,14 +68,16 @@ export namespace AddUserCommand {
     });
 
     export const RequestSchema = z.object({
-        data: z.discriminatedUnion('type', [
-            BaseTrojanUser,
-            BaseVlessUser,
-            BaseShadowsocksUser,
-            BaseShadowsocks2022User,
-            BaseSocksUser,
-            BaseHttpUser,
-        ]),
+        data: z.array(
+            z.discriminatedUnion('type', [
+                BaseTrojanUser,
+                BaseVlessUser,
+                BaseShadowsocksUser,
+                BaseShadowsocks2022User,
+                BaseSocksUser,
+                BaseHttpUser,
+            ]),
+        ),
     });
 
     export type Request = z.infer<typeof RequestSchema>;

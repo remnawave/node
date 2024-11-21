@@ -4,11 +4,13 @@ import { ICommandResponse } from '../../common/types/command-response.type';
 import { ERRORS } from '@libs/contracts/constants/errors';
 import { TAddUserRequest } from './interfaces';
 import { AddUserResponseModel } from './models';
+import { AddUserResponseModel as AddUserResponseModelFromSdk } from '@remnawave/xtls-sdk/build/src/handler/models/add-user/add-user.response.model';
 import { GetInboundUsersResponseModel } from './models';
 import { XtlsApi } from '@remnawave/xtls-sdk';
 import { IRemoveUserRequest } from './interfaces';
 import { RemoveUserResponseModel } from './models';
 import { GetInboundUsersCountResponseModel } from './models';
+import { ISdkResponse } from '@remnawave/xtls-sdk/build/src/common/types';
 
 @Injectable()
 export class HandlerService {
@@ -19,69 +21,80 @@ export class HandlerService {
     public async addUser(data: TAddUserRequest): Promise<ICommandResponse<AddUserResponseModel>> {
         try {
             const { data: requestData } = data;
+            const response: Array<ISdkResponse<AddUserResponseModelFromSdk>> = [];
 
-            let res = null;
-
-            switch (requestData.type) {
-                case 'trojan':
-                    res = await this.xtlsApi.handler.addTrojanUser({
-                        tag: requestData.tag,
-                        username: requestData.username,
-                        password: requestData.password,
-                        level: requestData.level,
-                    });
-                    break;
-                case 'vless':
-                    res = await this.xtlsApi.handler.addVlessUser({
-                        tag: requestData.tag,
-                        username: requestData.username,
-                        uuid: requestData.uuid,
-                        flow: requestData.flow,
-                        level: requestData.level,
-                    });
-                    break;
-                case 'shadowsocks':
-                    res = await this.xtlsApi.handler.addShadowsocksUser({
-                        tag: requestData.tag,
-                        username: requestData.username,
-                        password: requestData.password,
-                        cipherType: requestData.cipherType,
-                        ivCheck: requestData.ivCheck,
-                        level: requestData.level,
-                    });
-                    break;
-                case 'shadowsocks2022':
-                    res = await this.xtlsApi.handler.addShadowsocks2022User({
-                        tag: requestData.tag,
-                        username: requestData.username,
-                        key: requestData.key,
-                        level: requestData.level,
-                    });
-                    break;
-                case 'socks':
-                    res = await this.xtlsApi.handler.addSocksUser({
-                        tag: requestData.tag,
-                        username: requestData.username,
-                        socks_username: requestData.socks_username,
-                        socks_password: requestData.socks_password,
-                        level: requestData.level,
-                    });
-                    break;
-                case 'http':
-                    res = await this.xtlsApi.handler.addHttpUser({
-                        tag: requestData.tag,
-                        username: requestData.username,
-                        http_username: requestData.http_username,
-                        http_password: requestData.http_password,
-                        level: requestData.level,
-                    });
-                    break;
+            for (const item of requestData) {
+                let tempRes = null;
+                switch (item.type) {
+                    case 'trojan':
+                        tempRes = await this.xtlsApi.handler.addTrojanUser({
+                            tag: item.tag,
+                            username: item.username,
+                            password: item.password,
+                            level: item.level,
+                        });
+                        response.push(tempRes);
+                        break;
+                    case 'vless':
+                        tempRes = await this.xtlsApi.handler.addVlessUser({
+                            tag: item.tag,
+                            username: item.username,
+                            uuid: item.uuid,
+                            flow: item.flow,
+                            level: item.level,
+                        });
+                        response.push(tempRes);
+                        break;
+                    case 'shadowsocks':
+                        tempRes = await this.xtlsApi.handler.addShadowsocksUser({
+                            tag: item.tag,
+                            username: item.username,
+                            password: item.password,
+                            cipherType: item.cipherType,
+                            ivCheck: item.ivCheck,
+                            level: item.level,
+                        });
+                        response.push(tempRes);
+                        break;
+                    case 'shadowsocks2022':
+                        tempRes = await this.xtlsApi.handler.addShadowsocks2022User({
+                            tag: item.tag,
+                            username: item.username,
+                            key: item.key,
+                            level: item.level,
+                        });
+                        response.push(tempRes);
+                        break;
+                    case 'socks':
+                        tempRes = await this.xtlsApi.handler.addSocksUser({
+                            tag: item.tag,
+                            username: item.username,
+                            socks_username: item.socks_username,
+                            socks_password: item.socks_password,
+                            level: item.level,
+                        });
+                        response.push(tempRes);
+                        break;
+                    case 'http':
+                        tempRes = await this.xtlsApi.handler.addHttpUser({
+                            tag: item.tag,
+                            username: item.username,
+                            http_username: item.http_username,
+                            http_password: item.http_password,
+                            level: item.level,
+                        });
+                        response.push(tempRes);
+                        break;
+                }
             }
 
-            if (!res.data?.isAdded || !res.isOk) {
+            if (!response.every((res) => !res.data?.isAdded || !res.isOk)) {
                 return {
                     isOk: true,
-                    response: new AddUserResponseModel(false, res.message ?? null),
+                    response: new AddUserResponseModel(
+                        false,
+                        response.find((res) => !res.data?.isAdded || !res.isOk)?.message ?? null,
+                    ),
                 };
             }
 

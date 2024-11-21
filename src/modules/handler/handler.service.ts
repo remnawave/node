@@ -88,12 +88,13 @@ export class HandlerService {
                 }
             }
 
-            if (!response.every((res) => !res.data?.isAdded || !res.isOk)) {
+            if (response.every((res) => !res.isOk)) {
+                this.logger.error(JSON.stringify(response, null, 2));
                 return {
                     isOk: true,
                     response: new AddUserResponseModel(
                         false,
-                        response.find((res) => !res.data?.isAdded || !res.isOk)?.message ?? null,
+                        response.find((res) => !res.isOk)?.message ?? null,
                     ),
                 };
             }

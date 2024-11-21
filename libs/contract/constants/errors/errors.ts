@@ -35,4 +35,14 @@ export const ERRORS = {
         message: 'Failed to get inbound users',
         httpCode: 500,
     },
+    FAILED_TO_GET_INBOUNDS_STATS: {
+        code: 'A015',
+        message: 'Failed to get inbounds stats',
+        httpCode: 500,
+    },
+    FAILED_TO_GET_OUTBOUNDS_STATS: {
+        code: 'A016',
+        message: 'Failed to get outbounds stats',
+        httpCode: 500,
+    },
 } as const;

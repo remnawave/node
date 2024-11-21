@@ -7,6 +7,8 @@ import {
     GetUsersStatsResponseModel,
     GetInboundStatsResponseModel,
     GetOutboundStatsResponseModel,
+    GetAllInboundsStatsResponseModel,
+    GetAllOutboundsStatsResponseModel,
 } from './models';
 import { IGetUserOnlineStatusRequest } from './interfaces';
 import { ICommandResponse } from '../../common/types/command-response.type';
@@ -152,6 +154,58 @@ export class StatsService {
             return {
                 isOk: false,
                 ...ERRORS.FAILED_TO_GET_OUTBOUND_STATS,
+            };
+        }
+    }
+
+    public async getAllInboundsStats(
+        reset: boolean,
+    ): Promise<ICommandResponse<GetAllInboundsStatsResponseModel>> {
+        try {
+            const response = await this.xtlsSdk.stats.getAllInboundsStats(reset);
+
+            if (!response.isOk || !response.data) {
+                return {
+                    isOk: false,
+                    ...ERRORS.FAILED_TO_GET_INBOUNDS_STATS,
+                };
+            }
+
+            return {
+                isOk: true,
+                response: new GetAllInboundsStatsResponseModel(response.data.inbounds),
+            };
+        } catch (error) {
+            this.logger.error(error);
+            return {
+                isOk: false,
+                ...ERRORS.FAILED_TO_GET_INBOUNDS_STATS,
+            };
+        }
+    }
+
+    public async getAllOutboundsStats(
+        reset: boolean,
+    ): Promise<ICommandResponse<GetAllOutboundsStatsResponseModel>> {
+        try {
+            const response = await this.xtlsSdk.stats.getAllOutboundsStats(reset);
+
+            if (!response.isOk || !response.data) {
+                return {
+                    isOk: false,
+                    ...ERRORS.FAILED_TO_GET_OUTBOUNDS_STATS,
+                };
+            }
+
+            return {
+                isOk: true,
+                response: new GetAllOutboundsStatsResponseModel(response.data.outbounds),
+            };
+        } catch (error) {
+            this.logger.error(error);
+            return {
+                isOk: false,
+                ...ERRORS.FAILED_TO_GET_INBOUNDS_STATS,
             };
         }
     }

@@ -7,4 +7,7 @@ export const STATS_ROUTES = {
 
     GET_INBOUND_STATS: 'get-inbound-stats',
     GET_OUTBOUND_STATS: 'get-outbound-stats',
+
+    GET_ALL_OUTBOUNDS_STATS: 'get-all-outbounds-stats',
+    GET_ALL_INBOUNDS_STATS: 'get-all-inbounds-stats',
 } as const;

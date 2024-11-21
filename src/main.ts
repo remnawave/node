@@ -6,7 +6,8 @@ import { NotFoundExceptionFilter } from './common/exception/not-found-exception.
 import helmet from 'helmet';
 import { ROOT } from '../libs/contract';
 import { LogLevel } from '@nestjs/common';
-
+import morgan from 'morgan';
+import compression from 'compression';
 async function bootstrap(): Promise<void> {
     const isDevelopment = process.env.NODE_ENV === 'development';
 
@@ -20,7 +21,9 @@ async function bootstrap(): Promise<void> {
     const config = app.get(ConfigService);
 
     app.use(helmet());
-    app.use;
+    app.use(compression());
+    app.use(morgan('short'));
+
     app.useGlobalFilters(new NotFoundExceptionFilter());
 
     app.setGlobalPrefix(ROOT);

@@ -3,6 +3,10 @@ import { StatsService } from './stats.service';
 import { STATS_CONTROLLER, STATS_ROUTES } from '../../../libs/contract/api/controllers/stats';
 import { errorHandler } from '../../common/helpers/error-handler.helper';
 import {
+    GetAllInboundsStatsRequestDto,
+    GetAllInboundsStatsResponseDto,
+    GetAllOutboundsStatsRequestDto,
+    GetAllOutboundsStatsResponseDto,
     GetInboundStatsRequestDto,
     GetInboundStatsResponseDto,
     GetOutboundStatsRequestDto,
@@ -78,6 +82,32 @@ export class StatsController {
     ): Promise<GetOutboundStatsResponseDto> {
         const { tag, reset } = body;
         const response = await this.statsService.getOutboundStats(tag, reset);
+        const data = errorHandler(response);
+
+        return {
+            response: data,
+        };
+    }
+
+    @Get(STATS_ROUTES.GET_ALL_INBOUNDS_STATS)
+    public async getAllInboundsStats(
+        @Body() body: GetAllInboundsStatsRequestDto,
+    ): Promise<GetAllInboundsStatsResponseDto> {
+        const { reset } = body;
+        const response = await this.statsService.getAllInboundsStats(reset);
+        const data = errorHandler(response);
+
+        return {
+            response: data,
+        };
+    }
+
+    @Get(STATS_ROUTES.GET_ALL_OUTBOUNDS_STATS)
+    public async getAllOutboundsStats(
+        @Body() body: GetAllOutboundsStatsRequestDto,
+    ): Promise<GetAllOutboundsStatsResponseDto> {
+        const { reset } = body;
+        const response = await this.statsService.getAllOutboundsStats(reset);
         const data = errorHandler(response);
 
         return {

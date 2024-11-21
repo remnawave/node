@@ -89,7 +89,7 @@ export class StatsController {
         };
     }
 
-    @Get(STATS_ROUTES.GET_ALL_INBOUNDS_STATS)
+    @Post(STATS_ROUTES.GET_ALL_INBOUNDS_STATS)
     public async getAllInboundsStats(
         @Body() body: GetAllInboundsStatsRequestDto,
     ): Promise<GetAllInboundsStatsResponseDto> {
@@ -102,7 +102,7 @@ export class StatsController {
         };
     }
 
-    @Get(STATS_ROUTES.GET_ALL_OUTBOUNDS_STATS)
+    @Post(STATS_ROUTES.GET_ALL_OUTBOUNDS_STATS)
     public async getAllOutboundsStats(
         @Body() body: GetAllOutboundsStatsRequestDto,
     ): Promise<GetAllOutboundsStatsResponseDto> {

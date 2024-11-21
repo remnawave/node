@@ -3,12 +3,12 @@ import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { ICommandResponse } from '../../common/types/command-response.type';
 import { ERRORS } from '@libs/contracts/constants/errors';
 import { TAddUserRequest } from './interfaces';
-import { AddUserResponseModel } from './models';
+import { AddUserResponseModel, RemoveUserResponseModel } from './models';
 import { AddUserResponseModel as AddUserResponseModelFromSdk } from '@remnawave/xtls-sdk/build/src/handler/models/add-user/add-user.response.model';
 import { GetInboundUsersResponseModel } from './models';
 import { XtlsApi } from '@remnawave/xtls-sdk';
 import { IRemoveUserRequest } from './interfaces';
-import { RemoveUserResponseModel } from './models';
+import { RemoveUserResponseModel as RemoveUserResponseModelFromSdk } from '@remnawave/xtls-sdk/build/src/handler/models/remove-user/remove-user.response.model';
 import { GetInboundUsersCountResponseModel } from './models';
 import { ISdkResponse } from '@remnawave/xtls-sdk/build/src/common/types';
 
@@ -150,13 +150,21 @@ export class HandlerService {
         data: IRemoveUserRequest,
     ): Promise<ICommandResponse<RemoveUserResponseModel>> {
         try {
-            const { username, tag } = data;
-            const response = await this.xtlsApi.handler.removeUser(tag, username);
+            const { username, tags } = data;
+            const response: Array<ISdkResponse<RemoveUserResponseModelFromSdk>> = [];
+            for (const tag of tags) {
+                const tempRes = await this.xtlsApi.handler.removeUser(tag, username);
+                response.push(tempRes);
+            }
 
-            if (!response.isOk || !response.data?.isDeleted) {
+            if (response.every((res) => !res.isOk)) {
+                this.logger.error(JSON.stringify(response, null, 2));
                 return {
                     isOk: true,
-                    response: new RemoveUserResponseModel(false, response.message ?? null),
+                    response: new RemoveUserResponseModel(
+                        false,
+                        response.find((res) => !res.isOk)?.message ?? null,
+                    ),
                 };
             }
 
@@ -164,7 +172,7 @@ export class HandlerService {
                 isOk: true,
                 response: new RemoveUserResponseModel(true, null),
             };
-        } catch (error) {
+        } catch (error: unknown) {
             this.logger.error(error);
             let message = '';
             if (error instanceof Error) {

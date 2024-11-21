@@ -5,7 +5,7 @@ export namespace RemoveUserCommand {
     export const url = REST_API.HANDLER.REMOVE_USER;
 
     export const RequestSchema = z.object({
-        tag: z.string(),
+        tags: z.array(z.string()),
         username: z.string(),
     });
 

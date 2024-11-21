@@ -1,4 +1,4 @@
 export interface IRemoveUserRequest {
-    tag: string;
+    tags: string[];
     username: string;
 }

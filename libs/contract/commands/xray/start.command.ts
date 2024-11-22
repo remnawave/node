@@ -11,6 +11,13 @@ export namespace StartXrayCommand {
             isStarted: z.boolean(),
             version: z.string().nullable(),
             error: z.string().nullable(),
+            systemInformation: z.nullable(
+                z.object({
+                    cpuCores: z.number(),
+                    cpuModel: z.string(),
+                    memoryTotal: z.string(),
+                }),
+            ),
         }),
     });
 

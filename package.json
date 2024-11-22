@@ -1,6 +1,6 @@
 {
   "name": "remnawave-node",
-  "version": "0.2.9",
+  "version": "0.3.0",
   "description": "",
   "author": "",
   "private": true,
@@ -49,6 +49,7 @@
     "passport-jwt": "4.0.1",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.1",
+    "systeminformation": "^5.23.5",
     "xml2js": "0.6.2",
     "zod": "^3.22.4"
   },
@@ -79,7 +80,8 @@
     "ts-loader": "9.5.1",
     "ts-node": "10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "5.4.5"
+    "typescript": "5.4.5",
+    "pretty-bytes": "^5.6.0"
   },
   "jest": {
     "moduleFileExtensions": [

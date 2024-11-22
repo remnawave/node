@@ -9,6 +9,8 @@ import {
     StartXrayResponseModel,
     StopXrayResponseModel,
 } from './models';
+import os from 'node:os';
+import { getSystemStats } from '../../common/utils/get-system-stats/get-system-stats';
 
 @Injectable()
 export class XrayService {
@@ -33,6 +35,8 @@ export class XrayService {
                 this.logger.warn('Xray process is already running');
                 await this.stopXray();
             }
+            const systemInformation = await getSystemStats();
+            this.logger.log(`CPU: ${JSON.stringify(systemInformation)}`);
             const tm = new Date().getTime();
             const fullConfig = generateApiConfig(config);
 
@@ -47,7 +51,9 @@ export class XrayService {
                             stdio: ['pipe', 'pipe', 'pipe'],
                         });
 
-                        this.xrayProcess.stdin!.write(JSON.stringify(fullConfig));
+                        const tempConfig = JSON.stringify(fullConfig);
+
+                        this.xrayProcess.stdin!.write(tempConfig);
                         this.xrayProcess.stdin!.end();
 
                         let isStarted = false;
@@ -108,7 +114,12 @@ export class XrayService {
 
             return {
                 isOk: true,
-                response: new StartXrayResponseModel(response.isStarted, response.version, null),
+                response: new StartXrayResponseModel(
+                    response.isStarted,
+                    response.version,
+                    null,
+                    systemInformation,
+                ),
             };
         } catch (error) {
             let errorMessage = null;
@@ -117,7 +128,7 @@ export class XrayService {
             }
             return {
                 isOk: true,
-                response: new StartXrayResponseModel(false, null, errorMessage),
+                response: new StartXrayResponseModel(false, null, errorMessage, null),
             };
         }
     }

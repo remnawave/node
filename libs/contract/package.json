@@ -1,6 +1,6 @@
 {
   "name": "@remnawave/node-contract",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "A node-contract library for Remnawave Panel",
   "main": "build/index.js",
   "types": "build/index.d.ts",

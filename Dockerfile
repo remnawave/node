@@ -1,4 +1,4 @@
-# FROM node:20 as build
+# FROM node:20 AS build
 # WORKDIR /opt/app
 # ADD . .
 # RUN npm ci --legacy-peer-deps
@@ -22,8 +22,7 @@
 # CMD [ "npm", "run", "start:prod" ]
 
 
-
-FROM node:20-alpine as build
+FROM node:20-alpine AS build
 WORKDIR /opt/app
 ADD . .
 RUN npm ci --legacy-peer-deps
@@ -35,16 +34,19 @@ WORKDIR /opt/app
 COPY --from=build /opt/app/dist ./dist
 
 
-RUN apk add --no-cache curl unzip \
+RUN apk add --no-cache \
+    curl \
+    unzip \
+    bash \
     && curl -L https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-latest-xray.sh -o install-xray.sh \
     && chmod +x install-xray.sh \
-    && ./install-xray.sh \
-    && rm install-xray.sh
-
+    && bash ./install-xray.sh \
+    && rm install-xray.sh \
+    && apk del bash
 
 COPY package*.json ./
 COPY ./libs ./libs
 RUN npm ci --omit=dev --legacy-peer-deps \
     && npm cache clean --force
 
-CMD [ "npm", "run", "start:prod" ]
+CMD ["npm", "run", "start:prod"]

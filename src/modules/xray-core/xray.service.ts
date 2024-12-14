@@ -9,7 +9,7 @@ import {
     StartXrayResponseModel,
     StopXrayResponseModel,
 } from './models';
-import os from 'node:os';
+
 import { getSystemStats } from '../../common/utils/get-system-stats/get-system-stats';
 
 @Injectable()
@@ -94,7 +94,7 @@ export class XrayService {
                             if (!isStarted) {
                                 reject(new Error('Xray start timeout'));
                             }
-                        }, 5000);
+                        }, 10000);
 
                         this.xrayProcess.on('close', (code) => {
                             this.logger.warn(`Xray Process exited with code ${code}`);

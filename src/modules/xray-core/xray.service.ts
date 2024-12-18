@@ -33,15 +33,20 @@ export class XrayService {
         try {
             if (this.xrayProcess) {
                 this.logger.warn('Xray process is already running');
+                // TODO: Maybe calc checksum?
+
                 await this.stopXray();
             }
             const systemInformation = await getSystemStats();
-            this.logger.log(`CPU: ${JSON.stringify(systemInformation)}`);
             const tm = new Date().getTime();
             const fullConfig = generateApiConfig(config);
 
             this.logger.debug(JSON.stringify(fullConfig, null, 2));
+
+            this.logger.log(`CPU: ${JSON.stringify(systemInformation)}`);
             this.logger.log(`Xray config generated in ${new Date().getTime() - tm}ms`);
+
+            // TODO: Remove error logging from file -> to console
 
             const promise = new Promise<{ isStarted: boolean; version: string | null }>(
                 (resolve, reject) => {
@@ -206,7 +211,7 @@ export class XrayService {
 
             this.logger.log('Killed all Xray processes');
         } catch (error) {
-            this.logger.debug('No existing Xray processes found');
+            this.logger.log('No existing Xray processes found. Error: ', error);
         }
     }
 }

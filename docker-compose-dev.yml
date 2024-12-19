@@ -1,0 +1,28 @@
+services:
+  remnawave-node-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: remnawave-node-dev
+    hostname: remnawave-node-dev
+    networks:
+      - remnawave-node-dev
+    ports:
+      - 24000:24000
+    restart: no
+    labels:
+      dev.containers.features: 'common'
+      dev.containers.id: 'base-ubuntu'
+      dev.containers.release: 'v0.4.10'
+      dev.containers.source: 'https://github.com/devcontainers/images'
+      dev.containers.timestamp: 'Thu, 12 Dec 2024 21:38:06 GMT'
+      dev.containers.variant: 'jammy'
+      org.opencontainers.image.ref.name: 'ubuntu'
+      org.opencontainers.image.version: '22.04'
+      version: '1.2.3'
+    volumes:
+      - .:/app
+
+networks:
+  remnawave-node-dev:
+    external: false

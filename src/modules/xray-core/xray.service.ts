@@ -1,5 +1,10 @@
-import { Injectable, Logger, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import {
+    Injectable,
+    Logger,
+    OnApplicationBootstrap,
+    OnApplicationShutdown,
+    OnModuleInit,
+} from '@nestjs/common';
 
 import { generateApiConfig } from '@common/utils/generate-api-config';
 import { ICommandResponse } from '../../common/types/command-response.type';
@@ -16,44 +21,48 @@ import { XtlsApi } from '@remnawave/xtls-sdk';
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { sort } from '@tamtamchik/json-deep-sort';
 
-import { ExecaError, execa } from '@kastov/execa-cjs';
+import { execa } from '@kastov/execa-cjs';
 import { writeFile } from 'node:fs';
-import { resolve } from 'node:path';
 
 @Injectable()
-export class XrayService implements OnModuleInit, OnApplicationShutdown {
-    private readonly isDev: boolean;
+export class XrayService implements OnModuleInit, OnApplicationShutdown, OnApplicationBootstrap {
+    private readonly logger = new Logger(XrayService.name);
+
     private readonly xrayPath: string;
     private readonly xrayConfigPath: string;
-    constructor(
-        private readonly configService: ConfigService,
-        @InjectXtls() private readonly xtlsSdk: XtlsApi,
-    ) {
-        this.isDev = this.configService.getOrThrow('NODE_ENV') === 'development';
-        this.xrayPath = this.isDev ? '/usr/local/bin/xray' : '/usr/local/bin/xray';
-        this.xrayConfigPath = this.isDev ? resolve(__dirname, '../../../../xray-config.json') : '/etc/xray/xray-config.json';
-        this.xrayVersion = null;
-    }
-    private xrayProcess: NodeJS.Process | null = null;
+
     private xrayVersion: string | null = null;
     private configChecksum: string | null = null;
-    private readonly logger = new Logger(XrayService.name);
+    private isXrayOnline: boolean = false;
+
+    constructor(@InjectXtls() private readonly xtlsSdk: XtlsApi) {
+        this.xrayPath = '/usr/local/bin/xray';
+        this.xrayConfigPath = '/var/lib/rnode/xray/xray-config.json';
+        this.xrayVersion = null;
+    }
 
     async onModuleInit() {
         this.xrayVersion = await this.getXrayVersionFromExec();
     }
 
     async onApplicationShutdown() {
-        await new Promise<void>((resolve, reject) => {
-            writeFile(this.xrayConfigPath, '{}', (err) => {
-                if (err) {
-                    this.logger.error(`Failed to clear config file: ${err}`);
-                    reject(err);
-                    return;
-                }
-                resolve();
-            });
-        });
+        try {
+            await execa('bash', ['-c', `echo '{}' > ${this.xrayConfigPath}`]);
+        } catch (error) {
+            this.logger.error(`Failed to clear config file: ${error}`);
+        }
+
+        this.isXrayOnline = false;
+    }
+
+    async onApplicationBootstrap() {
+        try {
+            await execa('bash', ['-c', `echo '{}' > ${this.xrayConfigPath}`]);
+        } catch (error) {
+            this.logger.error(`Failed to clear config file: ${error}`);
+        }
+
+        this.isXrayOnline = false;
     }
 
     public async startXray(
@@ -61,24 +70,38 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown {
         ip: string,
     ): Promise<ICommandResponse<StartXrayResponseModel>> {
         try {
-            this.logger.log(`Xray config path: ${this.xrayConfigPath}`);
-
-            this.logger.log(`Xray config path: ${resolve(__dirname, this.xrayConfigPath)}`);
             this.logger.log(`Connected to: ${ip}`);
 
-            if (this.xrayProcess) {
+            const tm = performance.now();
+            const fullConfig = generateApiConfig(config);
+            const newChecksum = this.getConfigChecksum(fullConfig);
+
+            if (this.isXrayOnline) {
                 this.logger.warn(
                     `Xray process is already running with checksum ${this.configChecksum}`,
                 );
 
-                // TODO: Maybe calc checksum?
+                const oldChecksum = this.configChecksum;
 
-                await this.stopXray();
+                const isXrayOnline = await this.getXrayInternalStatus();
+
+                this.logger.debug(`
+                    oldChecksum: ${oldChecksum}
+                    newChecksum: ${newChecksum}
+                    isXrayOnline: ${isXrayOnline}
+                `);
+
+                if (oldChecksum === newChecksum && isXrayOnline) {
+                    this.logger.error('Xray is already online with the same config');
+
+                    return {
+                        isOk: true,
+                        response: new StartXrayResponseModel(true, this.xrayVersion, null, null),
+                    };
+                }
             }
 
-            const systemInformation = await getSystemStats();
-            const tm = performance.now();
-            const fullConfig = generateApiConfig(config);
+            this.configChecksum = newChecksum;
 
             await new Promise<void>((resolve, reject) => {
                 writeFile(this.xrayConfigPath, JSON.stringify(fullConfig, null, 2), (err) => {
@@ -90,156 +113,46 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown {
                     resolve();
                 });
             });
-            // this.logger.debug(JSON.stringify(fullConfig, null, 2));
 
-            const currentChecksum = this.getConfigChecksum(fullConfig);
-            this.logger.error(currentChecksum);
+            const systemInformation = await getSystemStats();
 
             this.logger.log(`${JSON.stringify(systemInformation)}`);
             this.logger.log(`Xray config generated in ${Math.round(performance.now() - tm)}ms`);
 
-            // TODO: Remove error logging from file -> to console
-
-            const process = execa(this.xrayPath, ['-config=stdin:'], {
-                input: JSON.stringify(fullConfig),
-                all: false,
-                detached: true,
-                cleanup: false,
+            const xrayProcess = await execa('supervisorctl', ['restart', 'xray'], {
                 reject: false,
-                timeout: 10000,
+                all: true,
+                cleanup: true,
+                detached: true,
+                timeout: 8000,
+                lines: true,
             });
 
-            await process;
-
-            // try {
-            // } catch (error) {
-            //     if (error instanceof ExecaError) {
-            //         this.logger.error(`Failed to start Xray Process: ${error.message}`);
-            //     } else {
-            //         this.logger.error(`Failed to start Xray Process: ${error}`);
-            //     }
-            // }
-
-            const exitCode = process.exitCode;
-            const pid = process.pid;
-
-            this.logger.log(`Xray exit code: ${exitCode}`);
-            this.logger.log(`Xray pid: ${pid}`);
-
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            this.logger.debug(xrayProcess.all);
 
             const isStarted = await this.getXrayInternalStatus();
 
-            this.logger.log(`Xray internal status: ${isStarted}`);
+            this.logger.debug(`isStarted: ${isStarted}`);
 
-            // await new Promise((resolve, reject) => {
-            //     const timeout = setTimeout(() => {
-            //         if (process.exitCode === null) {
-            //             reject(new Error('Process was killed during startup'));
-            //         } else {
-            //             this.xrayProcess = process;
-            //             resolve(true);
-            //         }
-            //     }, 2000);
+            if (!isStarted) {
+                return {
+                    isOk: true,
+                    response: new StartXrayResponseModel(
+                        isStarted,
+                        this.xrayVersion,
+                        xrayProcess.all.join('\n'),
+                        systemInformation,
+                    ),
+                };
+            }
 
-            //     process.stderr.on('data', (data) => {
-            //         clearTimeout(timeout);
-            //         reject(new Error(`Process exited with code ${data}`));
-            //     });
-            // });
-
-            // Слушаем поток вывода
-            // process.all!.on('data', (data) => {
-            //     const output = data.toString();
-            //     this.logger.log(`Xray Output: ${output}`);
-
-            //     const version = this.getXrayVersionFromOutput(output);
-            //     if (version) {
-            //         this.xrayVersion = version;
-            //     }
-            // });
-
-            // this.xrayProcess = process;
-
-            // const promise = new Promise<{ isStarted: boolean; version: string | null }>(
-            //     (resolve, reject) => {
-            //         try {
-            //             this.xrayProcess = spawn(this.xrayPath, ['-config=stdin:'], {
-            //                 detached: true,
-            //                 stdio: ['pipe', 'pipe', 'pipe'],
-            //             });
-
-            //             const tempConfig = JSON.stringify(fullConfig);
-
-            //             this.xrayProcess.stdin!.write(tempConfig);
-            //             this.xrayProcess.stdin!.end();
-
-            //             let isStarted = false;
-
-            //             this.xrayProcess.stdout!.on('data', (data) => {
-            //                 const output = data.toString();
-            //                 this.logger.log(`Xray Output: ${output}`);
-
-            //                 const version = this.getXrayVersionFromOutput(output);
-            //                 if (version && !isStarted) {
-            //                     isStarted = true;
-            //                     this.xrayVersion = version;
-            //                     this.logger.log(`Xray core started (version ${this.xrayVersion})`);
-            //                     resolve({
-            //                         isStarted: true,
-            //                         version: this.xrayVersion,
-            //                     });
-            //                 }
-            //             });
-
-            //             this.xrayProcess.stderr!.on('data', (data) => {
-            //                 const error = data.toString();
-            //                 this.logger.error(`Xray Error: ${error}`);
-            //                 if (!isStarted) {
-            //                     reject(new Error(error));
-            //                 }
-            //             });
-
-            //             this.xrayProcess.on('error', (err) => {
-            //                 this.logger.error(`Failed to start Xray Process: ${err.message}`);
-            //                 this.xrayProcess = null;
-            //                 if (!isStarted) {
-            //                     reject(err);
-            //                 }
-            //             });
-
-            //             const timeout = setTimeout(() => {
-            //                 if (!isStarted) {
-            //                     reject(new Error('Xray start timeout'));
-            //                 }
-            //             }, 10000);
-
-            //             this.xrayProcess.on('close', (code) => {
-            //                 this.logger.warn(`Xray Process exited with code ${code}`);
-            //                 this.xrayProcess = null;
-            //                 clearTimeout(timeout);
-            //                 if (!isStarted) {
-            //                     reject(new Error(`Process exited with code ${code}`));
-            //                 }
-            //             });
-            //         } catch (error) {
-            //             reject(error);
-            //         }
-            //     },
-            // );
-
-            // const response = await promise;
-
-            const response = {
-                isStarted: true,
-                version: '1.0.0',
-            };
+            this.isXrayOnline = true;
 
             return {
                 isOk: true,
                 response: new StartXrayResponseModel(
-                    response.isStarted,
-                    response.version,
+                    isStarted,
+                    this.xrayVersion,
                     null,
                     systemInformation,
                 ),
@@ -260,7 +173,7 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown {
         try {
             await this.killAllXrayProcesses();
 
-            this.xrayProcess = null;
+            this.isXrayOnline = false;
 
             return {
                 isOk: true,
@@ -280,7 +193,7 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown {
     > {
         try {
             const version = this.getXrayVersion();
-            const status = this.getXrayStatus();
+            const status = await this.getXrayInternalStatus();
 
             return {
                 isOk: true,
@@ -293,9 +206,6 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown {
             };
         }
     }
-    private getXrayStatus(): boolean {
-        return this.xrayProcess ? true : false;
-    }
 
     private getXrayVersion(): string | null {
         return this.xrayVersion;
@@ -303,6 +213,8 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown {
 
     private async killAllXrayProcesses(): Promise<void> {
         try {
+            await execa('supervisorctl', ['stop', 'xray'], { reject: false });
+
             await execa('pkill', ['xray'], { reject: false });
 
             await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -321,10 +233,6 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown {
             this.logger.log('No existing Xray processes found. Error: ', error);
         }
     }
-
-    // private getConfigChecksum(config: Record<string, unknown>): string {
-    //     return createHash('sha256').update(JSON.stringify(config)).digest('hex');
-    // }
 
     private getConfigChecksum(config: Record<string, unknown>): string {
         const start = performance.now();

@@ -191,6 +191,7 @@ export class StatsService {
             const response = await this.xtlsSdk.stats.getAllOutboundsStats(reset);
 
             if (!response.isOk || !response.data) {
+                this.logger.error(response);
                 return {
                     isOk: false,
                     ...ERRORS.FAILED_TO_GET_OUTBOUNDS_STATS,

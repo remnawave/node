@@ -1,9 +1,5 @@
 #!/bin/sh
 
-/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf &
-
-
+/usr/bin/supervisord -c /var/lib/rnode/xray/supervisor.conf &
 sleep 1
-
-
-exec "$@" 
+exec "$@"

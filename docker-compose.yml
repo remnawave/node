@@ -1,8 +1,21 @@
+# services:
+#   remnawave-node:
+#     container_name: remnawave-node
+#     hostname: remnawave-node
+#     image: remnawave/node:latest
+#     env_file:
+#       - .env
+#     network_mode: host
+
 services:
   remnawave-node:
     container_name: remnawave-node
     hostname: remnawave-node
-    image: remnawave/node:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+
     env_file:
       - .env
-    network_mode: host
+    ports:
+      - 24000:24000

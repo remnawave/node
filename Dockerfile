@@ -20,10 +20,10 @@ RUN apk add --no-cache \
     unzip \
     bash \
     supervisor \
-    && curl -L https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-latest-xray.sh | bash \
+    && curl -L https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-latest-xray.sh | bash -s -- v24.12.18 \
     && apk del curl
 
-COPY supervisord.conf /var/lib/rnode/xray/supervisor.conf
+COPY supervisord.conf /etc/supervisord.conf
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 

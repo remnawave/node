@@ -1,5 +1,8 @@
 #!/bin/sh
 
-/usr/bin/supervisord -c /var/lib/rnode/xray/supervisor.conf &
+echo "Starting entrypoint script..."
+supervisord &
+echo "Supervisord started"
 sleep 1
+echo "Executing: $@"
 exec "$@"

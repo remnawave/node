@@ -148,6 +148,13 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown, OnAppli
 
             this.isXrayOnline = true;
 
+            this.logger.log(
+                `Xray started successfully:
+                • Version: ${this.xrayVersion}
+                • Checksum: ${this.configChecksum}
+                • Master IP: ${ip}`,
+            );
+
             return {
                 isOk: true,
                 response: new StartXrayResponseModel(

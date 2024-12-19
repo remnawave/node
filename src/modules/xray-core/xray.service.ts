@@ -123,8 +123,7 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown, OnAppli
                 reject: false,
                 all: true,
                 cleanup: true,
-                detached: true,
-                timeout: 8000,
+                timeout: 20_000,
                 lines: true,
             });
 
@@ -135,6 +134,14 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown, OnAppli
             this.logger.debug(`isStarted: ${isStarted}`);
 
             if (!isStarted) {
+                this.logger.error(
+                    `Xray failed to start:
+                    • Version: ${this.xrayVersion}
+                    • Checksum: ${this.configChecksum}
+                    • Master IP: ${ip}
+                    • Error: ${xrayProcess.all.join(' | ')}`,
+                );
+
                 return {
                     isOk: true,
                     response: new StartXrayResponseModel(

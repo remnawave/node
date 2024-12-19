@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { generateApiConfig } from '@common/utils/generate-api-config';
@@ -17,18 +17,21 @@ import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { sort } from '@tamtamchik/json-deep-sort';
 
 import { ExecaError, execa } from '@kastov/execa-cjs';
+import { writeFile } from 'node:fs';
+import { resolve } from 'node:path';
 
 @Injectable()
-export class XrayService implements OnModuleInit {
+export class XrayService implements OnModuleInit, OnApplicationShutdown {
     private readonly isDev: boolean;
     private readonly xrayPath: string;
-
+    private readonly xrayConfigPath: string;
     constructor(
         private readonly configService: ConfigService,
         @InjectXtls() private readonly xtlsSdk: XtlsApi,
     ) {
         this.isDev = this.configService.getOrThrow('NODE_ENV') === 'development';
-        this.xrayPath = this.isDev ? '/opt/homebrew/bin/xray' : '/usr/local/bin/xray';
+        this.xrayPath = this.isDev ? '/usr/local/bin/xray' : '/usr/local/bin/xray';
+        this.xrayConfigPath = this.isDev ? resolve(__dirname, '../../../../xray-config.json') : '/etc/xray/xray-config.json';
         this.xrayVersion = null;
     }
     private xrayProcess: NodeJS.Process | null = null;
@@ -40,11 +43,27 @@ export class XrayService implements OnModuleInit {
         this.xrayVersion = await this.getXrayVersionFromExec();
     }
 
+    async onApplicationShutdown() {
+        await new Promise<void>((resolve, reject) => {
+            writeFile(this.xrayConfigPath, '{}', (err) => {
+                if (err) {
+                    this.logger.error(`Failed to clear config file: ${err}`);
+                    reject(err);
+                    return;
+                }
+                resolve();
+            });
+        });
+    }
+
     public async startXray(
         config: Record<string, unknown>,
         ip: string,
     ): Promise<ICommandResponse<StartXrayResponseModel>> {
         try {
+            this.logger.log(`Xray config path: ${this.xrayConfigPath}`);
+
+            this.logger.log(`Xray config path: ${resolve(__dirname, this.xrayConfigPath)}`);
             this.logger.log(`Connected to: ${ip}`);
 
             if (this.xrayProcess) {
@@ -61,6 +80,16 @@ export class XrayService implements OnModuleInit {
             const tm = performance.now();
             const fullConfig = generateApiConfig(config);
 
+            await new Promise<void>((resolve, reject) => {
+                writeFile(this.xrayConfigPath, JSON.stringify(fullConfig, null, 2), (err) => {
+                    if (err) {
+                        this.logger.error(`Failed to write xray-config.json: ${err}`);
+                        reject(err);
+                        return;
+                    }
+                    resolve();
+                });
+            });
             // this.logger.debug(JSON.stringify(fullConfig, null, 2));
 
             const currentChecksum = this.getConfigChecksum(fullConfig);

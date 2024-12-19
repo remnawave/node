@@ -24,8 +24,8 @@ RUN apk add --no-cache \
     && apk del curl
 
 COPY supervisord.conf /var/lib/rnode/xray/supervisor.conf
-COPY entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/entrypoint.sh
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 
 COPY package*.json ./
@@ -34,6 +34,6 @@ COPY ./libs ./libs
 RUN npm ci --omit=dev --legacy-peer-deps \
     && npm cache clean --force
 
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 CMD ["npm", "run", "start:prod"]

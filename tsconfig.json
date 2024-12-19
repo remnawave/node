@@ -7,7 +7,7 @@
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
-    "target": "es2020",
+    "target": "ES2021",
     "sourceMap": true,
     "resolveJsonModule": true,
     "outDir": "./dist",
@@ -32,6 +32,6 @@
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
-    "useDefineForClassFields": true
+    "useDefineForClassFields": true,
   }
 }

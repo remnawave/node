@@ -1,5 +1,5 @@
 import { XRAY_CONTROLLER, XRAY_ROUTES } from '@libs/contracts/api/controllers/xray';
-import { Controller, Post, Body, Get, UseGuards, UseFilters } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, UseFilters, Ip } from '@nestjs/common';
 import { XrayService } from './xray.service';
 import { JwtDefaultGuard } from '../../common/guards/jwt-guards/def-jwt-guard';
 import {
@@ -20,8 +20,11 @@ export class XrayController {
     }
 
     @Post(XRAY_ROUTES.START)
-    public async startXray(@Body() body: StartXrayRequestDto): Promise<StartXrayResponseDto> {
-        const response = await this.xrayService.startXray(body);
+    public async startXray(
+        @Body() body: StartXrayRequestDto,
+        @Ip() ip: string,
+    ): Promise<StartXrayResponseDto> {
+        const response = await this.xrayService.startXray(body, ip);
         const data = errorHandler(response);
 
         return {

@@ -1,12 +1,12 @@
 FROM mcr.microsoft.com/devcontainers/base:jammy
 
-# Установка необходимых пакетов
+
 RUN apt-get update && apt-get install -y \
     curl \
     supervisor \
     && rm -rf /var/lib/apt/lists/*
 
-# Установка NVM
+
 ENV NVM_DIR=/root/.nvm
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash \
     && . $NVM_DIR/nvm.sh \
@@ -14,7 +14,7 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | b
     && nvm alias default v22.12.0 \
     && nvm use default
 
-# Добавляем NVM в PATH
+
 ENV PATH="/root/.nvm/versions/node/v22.12.0/bin:${PATH}"
 
 # Установка Xray

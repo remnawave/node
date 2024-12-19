@@ -134,11 +134,14 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown, OnAppli
             this.logger.debug(`isStarted: ${isStarted}`);
 
             if (!isStarted) {
+                this.isXrayOnline = false;
+
                 this.logger.error(
                     `Xray failed to start:
                     • Version: ${this.xrayVersion}
                     • Checksum: ${this.configChecksum}
                     • Master IP: ${ip}
+                    • Internal Status: ${isStarted}
                     • Error: ${xrayProcess.all.join(' | ')}`,
                 );
 
@@ -176,6 +179,9 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown, OnAppli
             if (error instanceof Error) {
                 errorMessage = error.message;
             }
+
+            this.logger.fatal(`Failed to start Xray: ${errorMessage}`);
+
             return {
                 isOk: true,
                 response: new StartXrayResponseModel(false, null, errorMessage, null),

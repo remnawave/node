@@ -2,7 +2,7 @@ FROM node:20-alpine AS build
 WORKDIR /opt/app
 ADD . .
 RUN npm ci --legacy-peer-deps
-RUN npm run build --prod
+RUN npm run build --omit=dev
 
 
 FROM node:20-alpine

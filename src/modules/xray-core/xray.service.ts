@@ -23,6 +23,7 @@ import { sort } from '@tamtamchik/json-deep-sort';
 
 import { execa } from '@kastov/execa-cjs';
 import { writeFile } from 'node:fs';
+import { ISystemStats } from '@common/utils/get-system-stats/get-system-stats.interface';
 
 @Injectable()
 export class XrayService implements OnModuleInit, OnApplicationShutdown, OnApplicationBootstrap {
@@ -34,11 +35,13 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown, OnAppli
     private xrayVersion: string | null = null;
     private configChecksum: string | null = null;
     private isXrayOnline: boolean = false;
+    private systemStats: ISystemStats | null = null;
 
     constructor(@InjectXtls() private readonly xtlsSdk: XtlsApi) {
         this.xrayPath = '/usr/local/bin/xray';
         this.xrayConfigPath = '/var/lib/rnode/xray/xray-config.json';
         this.xrayVersion = null;
+        this.systemStats = null;
     }
 
     async onModuleInit() {
@@ -58,6 +61,9 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown, OnAppli
     async onApplicationBootstrap() {
         try {
             await execa('bash', ['-c', `echo '{}' > ${this.xrayConfigPath}`]);
+
+            this.systemStats = await getSystemStats();
+            this.logger.log(`System stats: ${JSON.stringify(this.systemStats)}`);
         } catch (error) {
             this.logger.error(`Failed to clear config file: ${error}`);
         }
@@ -69,10 +75,9 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown, OnAppli
         config: Record<string, unknown>,
         ip: string,
     ): Promise<ICommandResponse<StartXrayResponseModel>> {
-        try {
-            this.logger.log(`Connected to: ${ip}`);
+        const tm = performance.now();
 
-            const tm = performance.now();
+        try {
             const fullConfig = generateApiConfig(config);
             const newChecksum = this.getConfigChecksum(fullConfig);
 
@@ -82,7 +87,6 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown, OnAppli
                 );
 
                 const oldChecksum = this.configChecksum;
-
                 const isXrayOnline = await this.getXrayInternalStatus();
 
                 this.logger.debug(`
@@ -114,9 +118,6 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown, OnAppli
                 });
             });
 
-            const systemInformation = await getSystemStats();
-
-            this.logger.log(`${JSON.stringify(systemInformation)}`);
             this.logger.log(`Xray config generated in ${Math.round(performance.now() - tm)}ms`);
 
             const xrayProcess = await execa('supervisorctl', ['restart', 'xray'], {
@@ -129,7 +130,12 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown, OnAppli
 
             this.logger.debug(xrayProcess.all);
 
-            const isStarted = await this.getXrayInternalStatus();
+            let isStarted = await this.getXrayInternalStatus();
+
+            if (!isStarted && xrayProcess.all[1] === 'xray: started') {
+                await new Promise((resolve) => setTimeout(resolve, 2000));
+                isStarted = await this.getXrayInternalStatus();
+            }
 
             this.logger.debug(`isStarted: ${isStarted}`);
 
@@ -151,7 +157,7 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown, OnAppli
                         isStarted,
                         this.xrayVersion,
                         xrayProcess.all.join('\n'),
-                        systemInformation,
+                        this.systemStats,
                     ),
                 };
             }
@@ -171,7 +177,7 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown, OnAppli
                     isStarted,
                     this.xrayVersion,
                     null,
-                    systemInformation,
+                    this.systemStats,
                 ),
             };
         } catch (error) {
@@ -186,6 +192,8 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown, OnAppli
                 isOk: true,
                 response: new StartXrayResponseModel(false, null, errorMessage, null),
             };
+        } finally {
+            this.logger.log('Start xray took: ' + (performance.now() - tm) + 'ms');
         }
     }
 
@@ -212,7 +220,7 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown, OnAppli
         ICommandResponse<GetXrayStatusAndVersionResponseModel>
     > {
         try {
-            const version = this.getXrayVersion();
+            const version = this.xrayVersion;
             const status = await this.getXrayInternalStatus();
 
             return {
@@ -225,10 +233,6 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown, OnAppli
                 response: new GetXrayStatusAndVersionResponseModel(false, null),
             };
         }
-    }
-
-    private getXrayVersion(): string | null {
-        return this.xrayVersion;
     }
 
     private async killAllXrayProcesses(): Promise<void> {
@@ -277,9 +281,37 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown, OnAppli
         return version;
     }
 
-    private async getXrayInternalStatus(): Promise<boolean> {
-        const { isOk } = await this.xtlsSdk.stats.getSysStats();
+    // private async getXrayInternalStatus(): Promise<boolean> {
+    //     const { isOk } = await this.xtlsSdk.stats.getSysStats();
 
-        return isOk;
+    //     return isOk;
+    // }
+
+    private async getXrayInternalStatus(): Promise<boolean> {
+        const maxRetries = 3;
+        const delay = 1000;
+
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                const { isOk } = await this.xtlsSdk.stats.getSysStats();
+
+                if (isOk) {
+                    return true;
+                }
+
+                if (attempt < maxRetries - 1) {
+                    this.logger.debug(
+                        `Xray status check attempt ${attempt + 1} failed, retrying in ${delay}ms...`,
+                    );
+                    await new Promise((resolve) => setTimeout(resolve, delay));
+                }
+            } catch (error) {
+                this.logger.error(`Unexpected error during Xray status check: ${error}`);
+                return false;
+            }
+        }
+
+        this.logger.error(`Failed to get positive Xray status after ${maxRetries} attempts`);
+        return false;
     }
 }

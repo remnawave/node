@@ -1,8 +1,9 @@
 name: Deploy lib
 on:
   push:
-    tags:
-      - '*'
+    paths:
+      - 'libs/**'
+      - '.github/workflows/deploy-lib.yml'
 
 jobs:
   send-start-deploy-telegram-message:

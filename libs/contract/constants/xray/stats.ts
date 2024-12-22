@@ -8,8 +8,8 @@ export const XRAY_DEFAULT_POLICY_MODEL = {
             },
         },
         system: {
-            statsInboundDownlink: true,
-            statsInboundUplink: true,
+            statsInboundDownlink: false,
+            statsInboundUplink: false,
             statsOutboundDownlink: true,
             statsOutboundUplink: true,
         },
@@ -39,7 +39,7 @@ export const XRAY_ROUTING_RULES_MODEL = {
 
 export const XRAY_API_INBOUND_MODEL = {
     listen: '127.0.0.1',
-    port: 11111,
+    port: 61001,
     protocol: 'dokodemo-door',
     settings: {
         address: 'localhost',

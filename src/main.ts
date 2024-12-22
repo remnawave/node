@@ -1,16 +1,17 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import { utilities as nestWinstonModuleUtilities, WinstonModule } from 'nest-winston';
 import { ConfigService } from '@nestjs/config';
 import { ZodValidationPipe } from 'nestjs-zod';
-import { NotFoundExceptionFilter } from './common/exception/not-found-exception.filter';
-import { ROOT } from '../libs/contract';
+import { NestFactory } from '@nestjs/core';
+import compression from 'compression';
+import * as winston from 'winston';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import compression from 'compression';
-import { isDevelopment } from './common/utils/is-development';
 
-import { utilities as nestWinstonModuleUtilities, WinstonModule } from 'nest-winston';
-import * as winston from 'winston';
+import { NotFoundExceptionFilter } from '@common/exception/not-found-exception.filter';
+import { isDevelopment } from '@common/utils/is-development';
+import { ROOT } from '@libs/contracts/api';
+
+import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
     const app = await NestFactory.create(AppModule, {

@@ -1,5 +1,5 @@
 export interface IOutboundStat {
-    outbound: string;
     downlink: number;
+    outbound: string;
     uplink: number;
 }

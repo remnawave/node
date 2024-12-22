@@ -3,51 +3,51 @@ import { CipherType } from '@remnawave/xtls-sdk/build/src/xray-protos/proxy/shad
 export interface TAddUserRequest {
     data: Array<
         | {
-              type: 'trojan';
-              tag: string;
-              username: string;
-              password: string;
-              level: number;
-          }
-        | {
-              type: 'vless';
-              tag: string;
-              username: string;
-              uuid: string;
-              flow: 'xtls-rprx-vision' | '';
-              level: number;
-          }
-        | {
-              type: 'shadowsocks';
-              tag: string;
-              username: string;
-              password: string;
               cipherType: CipherType;
               ivCheck: boolean;
               level: number;
+              password: string;
+              tag: string;
+              type: 'shadowsocks';
+              username: string;
           }
         | {
-              type: 'shadowsocks2022';
+              flow: '' | 'xtls-rprx-vision';
+              level: number;
               tag: string;
+              type: 'vless';
               username: string;
+              uuid: string;
+          }
+        | {
+              http_password: string;
+              http_username: string;
+              level: number;
+              tag: string;
+              type: 'http';
+              username: string;
+          }
+        | {
               key: string;
               level: number;
+              tag: string;
+              type: 'shadowsocks2022';
+              username: string;
           }
         | {
-              type: 'socks';
+              level: number;
+              password: string;
               tag: string;
+              type: 'trojan';
               username: string;
-              socks_username: string;
+          }
+        | {
+              level: number;
               socks_password: string;
-              level: number;
-          }
-        | {
-              type: 'http';
+              socks_username: string;
               tag: string;
+              type: 'socks';
               username: string;
-              http_username: string;
-              http_password: string;
-              level: number;
           }
     >;
 }

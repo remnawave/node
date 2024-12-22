@@ -1,7 +1,9 @@
 import { InternalServerErrorException } from '@nestjs/common';
-import { ICommandResponse } from '../types/command-response.type';
+
 import { ERRORS } from '@libs/contracts/constants/errors';
+
 import { HttpExceptionWithErrorCodeType } from '../exception/http-exeception-with-error-code.type';
+import { ICommandResponse } from '../types/command-response.type';
 
 export function errorHandler<T>(response: ICommandResponse<T>): T {
     if (response.isOk) {

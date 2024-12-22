@@ -1,6 +1,6 @@
 export interface IConverter<T, U> {
-    fromPrismaModelToEntity(prismaModel: U): T;
-    fromPrismaModelsToEntities(prismaModels: U[]): T[];
-    fromEntityToPrismaModel(entity: T): U;
     fromEntitiesToPrismaModels(entities: T[]): U[];
+    fromEntityToPrismaModel(entity: T): U;
+    fromPrismaModelsToEntities(prismaModels: U[]): T[];
+    fromPrismaModelToEntity(prismaModel: U): T;
 }

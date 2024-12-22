@@ -1,12 +1,14 @@
-import { Module } from '@nestjs/common';
+import { XtlsSdkNestjsModule } from '@remnawave/xtls-sdk-nestjs';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
+
+import { JwtStrategy } from '@common/guards/jwt-guards/strategies/validate-token';
 import { validateEnvConfig } from '@common/utils/validate-env-config';
 import { configSchema, Env } from '@common/config/app-config';
-import { XtlsSdkNestjsModule } from '@remnawave/xtls-sdk-nestjs';
+import { getJWTConfig } from '@common/config/jwt/jwt.config';
+
 import { RemnawaveNodeModules } from './modules/remnawave-node.modules';
-import { JwtModule } from '@nestjs/jwt';
-import { getJWTConfig } from './common/config/jwt/jwt.config';
-import { JwtStrategy } from './common/guards/jwt-guards/strategies/validate-token';
 
 @Module({
     imports: [

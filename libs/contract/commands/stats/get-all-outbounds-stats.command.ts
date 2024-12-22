@@ -1,4 +1,5 @@
 import { z } from 'zod';
+
 import { REST_API } from '../../api';
 export namespace GetAllOutboundsStatsCommand {
     export const url = REST_API.STATS.GET_ALL_OUTBOUNDS_STATS;

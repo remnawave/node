@@ -1,14 +1,15 @@
 import { z } from 'zod';
+
 import { REST_API } from '../../api';
 
 export enum CipherType {
-    UNKNOWN = 0,
     AES_128_GCM = 5,
     AES_256_GCM = 6,
     CHACHA20_POLY1305 = 7,
-    XCHACHA20_POLY1305 = 8,
     NONE = 9,
+    UNKNOWN = 0,
     UNRECOGNIZED = -1,
+    XCHACHA20_POLY1305 = 8,
 }
 
 export namespace AddUserCommand {

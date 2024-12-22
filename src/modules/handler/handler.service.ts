@@ -1,16 +1,18 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
-import { ICommandResponse } from '../../common/types/command-response.type';
-import { ERRORS } from '@libs/contracts/constants/errors';
-import { TAddUserRequest } from './interfaces';
-import { AddUserResponseModel, RemoveUserResponseModel } from './models';
-import { AddUserResponseModel as AddUserResponseModelFromSdk } from '@remnawave/xtls-sdk/build/src/handler/models/add-user/add-user.response.model';
-import { GetInboundUsersResponseModel } from './models';
-import { XtlsApi } from '@remnawave/xtls-sdk';
-import { IRemoveUserRequest } from './interfaces';
 import { RemoveUserResponseModel as RemoveUserResponseModelFromSdk } from '@remnawave/xtls-sdk/build/src/handler/models/remove-user/remove-user.response.model';
-import { GetInboundUsersCountResponseModel } from './models';
+import { AddUserResponseModel as AddUserResponseModelFromSdk } from '@remnawave/xtls-sdk/build/src/handler/models/add-user/add-user.response.model';
 import { ISdkResponse } from '@remnawave/xtls-sdk/build/src/common/types';
+import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
+import { Injectable, Logger } from '@nestjs/common';
+import { XtlsApi } from '@remnawave/xtls-sdk';
+
+import { ICommandResponse } from '@common/types/command-response.type';
+import { ERRORS } from '@libs/contracts/constants/errors';
+
+import { AddUserResponseModel, RemoveUserResponseModel } from './models';
+import { GetInboundUsersCountResponseModel } from './models';
+import { GetInboundUsersResponseModel } from './models';
+import { IRemoveUserRequest } from './interfaces';
+import { TAddUserRequest } from './interfaces';
 
 @Injectable()
 export class HandlerService {

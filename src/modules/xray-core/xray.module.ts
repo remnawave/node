@@ -1,6 +1,7 @@
 import { Module, OnApplicationShutdown } from '@nestjs/common';
-import { XrayService } from './xray.service';
+
 import { XrayController } from './xray.controller';
+import { XrayService } from './xray.service';
 
 @Module({
     imports: [],

@@ -5,35 +5,34 @@ import {
     OnApplicationShutdown,
     OnModuleInit,
 } from '@nestjs/common';
+import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
+import { sort } from '@tamtamchik/json-deep-sort';
+import { XtlsApi } from '@remnawave/xtls-sdk';
+import { execa } from '@kastov/execa-cjs';
+import { createHash } from 'crypto';
+import { writeFile } from 'node:fs';
+import semver from 'semver';
 
+import { ISystemStats } from '@common/utils/get-system-stats/get-system-stats.interface';
+import { ICommandResponse } from '@common/types/command-response.type';
 import { generateApiConfig } from '@common/utils/generate-api-config';
-import { ICommandResponse } from '../../common/types/command-response.type';
+import { getSystemStats } from '@common/utils/get-system-stats';
+
 import {
     GetXrayStatusAndVersionResponseModel,
     StartXrayResponseModel,
     StopXrayResponseModel,
 } from './models';
-import semver from 'semver';
-import { getSystemStats } from '@common/utils/get-system-stats';
-
-import { createHash } from 'crypto';
-import { XtlsApi } from '@remnawave/xtls-sdk';
-import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
-import { sort } from '@tamtamchik/json-deep-sort';
-
-import { execa } from '@kastov/execa-cjs';
-import { writeFile } from 'node:fs';
-import { ISystemStats } from '@common/utils/get-system-stats/get-system-stats.interface';
 
 @Injectable()
-export class XrayService implements OnModuleInit, OnApplicationShutdown, OnApplicationBootstrap {
+export class XrayService implements OnApplicationBootstrap, OnApplicationShutdown, OnModuleInit {
     private readonly logger = new Logger(XrayService.name);
 
     private readonly xrayPath: string;
     private readonly xrayConfigPath: string;
 
-    private xrayVersion: string | null = null;
-    private configChecksum: string | null = null;
+    private xrayVersion: null | string = null;
+    private configChecksum: null | string = null;
     private isXrayOnline: boolean = false;
     private systemStats: ISystemStats | null = null;
 
@@ -228,6 +227,8 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown, OnAppli
                 response: new GetXrayStatusAndVersionResponseModel(status, version),
             };
         } catch (error) {
+            this.logger.error(`Failed to get Xray status and version ${error}`);
+
             return {
                 isOk: true,
                 response: new GetXrayStatusAndVersionResponseModel(false, null),
@@ -250,7 +251,9 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown, OnAppli
                 if (stdout) {
                     await execa('kill', ['-9', stdout.trim()], { reject: false });
                 }
-            } catch (e) {}
+            } catch (e) {
+                this.logger.error(`Failed to kill Xray process: ${e}`);
+            }
 
             this.logger.log('Killed all Xray processes');
         } catch (error) {
@@ -270,7 +273,7 @@ export class XrayService implements OnModuleInit, OnApplicationShutdown, OnAppli
         return checksum;
     }
 
-    private async getXrayVersionFromExec(): Promise<string | null> {
+    private async getXrayVersionFromExec(): Promise<null | string> {
         const output = await execa(this.xrayPath, ['version']);
         const version = semver.valid(semver.coerce(output.stdout));
 

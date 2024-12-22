@@ -1,4 +1,5 @@
 import { createZodDto } from 'nestjs-zod';
+
 import { GetOutboundStatsCommand } from '@libs/contracts/commands';
 
 export class GetOutboundStatsRequestDto extends createZodDto(

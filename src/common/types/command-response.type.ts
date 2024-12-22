@@ -1,6 +1,6 @@
 export interface ICommandResponse<T> {
-    isOk: boolean;
-    response?: T;
     code?: string;
+    isOk: boolean;
     message?: string;
+    response?: T;
 }

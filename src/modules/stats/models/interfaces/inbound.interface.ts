@@ -1,5 +1,5 @@
 export interface IInboundStat {
-    inbound: string;
     downlink: number;
+    inbound: string;
     uplink: number;
 }

@@ -1,18 +1,20 @@
-import { Injectable, Logger } from '@nestjs/common';
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
+import { Injectable, Logger } from '@nestjs/common';
 import { XtlsApi } from '@remnawave/xtls-sdk';
+
+import { ICommandResponse } from '@common/types/command-response.type';
+import { ERRORS } from '@libs/contracts/constants';
+
 import {
+    GetAllInboundsStatsResponseModel,
+    GetAllOutboundsStatsResponseModel,
+    GetInboundStatsResponseModel,
+    GetOutboundStatsResponseModel,
     GetSystemStatsResponseModel,
     GetUserOnlineStatusResponseModel,
     GetUsersStatsResponseModel,
-    GetInboundStatsResponseModel,
-    GetOutboundStatsResponseModel,
-    GetAllInboundsStatsResponseModel,
-    GetAllOutboundsStatsResponseModel,
 } from './models';
 import { IGetUserOnlineStatusRequest } from './interfaces';
-import { ICommandResponse } from '../../common/types/command-response.type';
-import { ERRORS } from '../../../libs/contract';
 
 @Injectable()
 export class StatsService {

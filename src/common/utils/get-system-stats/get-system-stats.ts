@@ -1,6 +1,7 @@
-import { ISystemStats } from './get-system-stats.interface';
-import si from 'systeminformation';
 import prettyBytes from 'pretty-bytes';
+import si from 'systeminformation';
+
+import { ISystemStats } from './get-system-stats.interface';
 
 export async function getSystemStats(): Promise<ISystemStats> {
     try {
@@ -12,7 +13,7 @@ export async function getSystemStats(): Promise<ISystemStats> {
             cpuModel: `${cpuData.brand}/${cpuData.speed} GHz`,
             memoryTotal: prettyBytes(memoryData.total),
         };
-    } catch (error) {
+    } catch {
         return {
             cpuCores: 0,
             cpuModel: '',

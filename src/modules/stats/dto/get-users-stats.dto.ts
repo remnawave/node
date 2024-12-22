@@ -1,4 +1,5 @@
 import { createZodDto } from 'nestjs-zod';
+
 import { GetUsersStatsCommand } from '@libs/contracts/commands';
 
 export class GetUsersStatsRequestDto extends createZodDto(GetUsersStatsCommand.RequestSchema) {}

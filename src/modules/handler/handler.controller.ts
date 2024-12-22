@@ -1,23 +1,25 @@
-import { Controller, UseGuards, Post, Body, UseFilters } from '@nestjs/common';
+import { Body, Controller, Post, UseFilters, UseGuards } from '@nestjs/common';
+
 import { HANDLER_CONTROLLER, HANDLER_ROUTES } from '@libs/contracts/api/controllers/handler';
-import { HandlerService } from './handler.service';
-import { JwtDefaultGuard } from '../../common/guards/jwt-guards/def-jwt-guard';
-import { AddUserRequestDto, AddUserResponseDto } from './dtos/add-user.dto';
-import { errorHandler } from '../../common/helpers/error-handler.helper';
-import {
-    GetInboundUsersRequestDto,
-    GetInboundUsersResponseDto,
-} from './dtos/get-inbound-users.dto';
-import { RemoveUserRequestDto, RemoveUserResponseDto } from './dtos';
-import { HttpExceptionFilter } from '../../common/exception/httpException.filter';
+import { HttpExceptionFilter } from '@common/exception/httpException.filter';
+import { JwtDefaultGuard } from '@common/guards/jwt-guards/def-jwt-guard';
+import { errorHandler } from '@common/helpers/error-handler.helper';
+
 import {
     GetInboundUsersCountRequestDto,
     GetInboundUsersCountResponseDto,
 } from './dtos/get-inbound-users-count.dto';
+import {
+    GetInboundUsersRequestDto,
+    GetInboundUsersResponseDto,
+} from './dtos/get-inbound-users.dto';
+import { AddUserRequestDto, AddUserResponseDto } from './dtos/add-user.dto';
+import { RemoveUserRequestDto, RemoveUserResponseDto } from './dtos';
+import { HandlerService } from './handler.service';
 
 @Controller(HANDLER_CONTROLLER)
-@UseGuards(JwtDefaultGuard)
 @UseFilters(HttpExceptionFilter)
+@UseGuards(JwtDefaultGuard)
 export class HandlerController {
     constructor(private readonly handlerService: HandlerService) {}
 

@@ -1,8 +1,8 @@
 export class GetXrayStatusAndVersionResponseModel {
     public isRunning: boolean;
-    public version: string | null;
+    public version: null | string;
 
-    constructor(isRunning: boolean, version: string | null) {
+    constructor(isRunning: boolean, version: null | string) {
         this.isRunning = isRunning;
         this.version = version;
     }

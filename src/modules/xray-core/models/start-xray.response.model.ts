@@ -1,15 +1,15 @@
-import { ISystemStats } from '../../../common/utils/get-system-stats/get-system-stats.interface';
+import { ISystemStats } from '@common/utils/get-system-stats/get-system-stats.interface';
 
 export class StartXrayResponseModel {
     public isStarted: boolean;
-    public version: string | null;
-    public error: string | null;
+    public version: null | string;
+    public error: null | string;
     public systemInformation: ISystemStats | null;
 
     constructor(
         isStarted: boolean,
-        version: string | null,
-        error: string | null,
+        version: null | string,
+        error: null | string,
         systemInformation: ISystemStats | null,
     ) {
         this.isStarted = isStarted;

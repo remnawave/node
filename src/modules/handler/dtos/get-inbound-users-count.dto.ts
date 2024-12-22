@@ -1,4 +1,5 @@
 import { createZodDto } from 'nestjs-zod';
+
 import { GetInboundUsersCountCommand } from '@libs/contracts/commands/handler';
 
 export class GetInboundUsersCountRequestDto extends createZodDto(

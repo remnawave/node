@@ -26,20 +26,23 @@ export const XRAY_DEFAULT_API_MODEL = {
         listen: '127.0.0.1:61000',
         tag: 'API',
     },
+    metrics: {
+        tag: 'metrics_out',
+    },
 } as const;
 
-// export const XRAY_ROUTING_RULES_MODEL = {
-//     inboundTag: ['API_INBOUND'],
-//     outboundTag: 'API',
-//     type: 'field',
-// } as const;
+export const XRAY_ROUTING_RULES_MODEL = {
+    type: 'field',
+    inboundTag: ['metrics_in'],
+    outboundTag: 'metrics_out',
+} as const;
 
-// export const XRAY_API_INBOUND_MODEL = {
-//     listen: '127.0.0.1',
-//     port: 61000,
-//     protocol: 'dokodemo-door',
-//     settings: {
-//         address: '0.0.0.0',
-//     },
-//     tag: 'API_INBOUND',
-// } as const;
+export const XRAY_API_INBOUND_MODEL = {
+    listen: '127.0.0.1',
+    port: 11111,
+    protocol: 'dokodemo-door',
+    settings: {
+        address: 'localhost',
+    },
+    tag: 'metrics_in',
+} as const;

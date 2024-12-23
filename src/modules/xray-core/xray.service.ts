@@ -2,7 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap, OnModuleInit } from '@nestj
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { sort } from '@tamtamchik/json-deep-sort';
 import { XtlsApi } from '@remnawave/xtls-sdk';
-import { execa } from '@kastov/execa-cjs';
+import { execa } from '@cjs-exporter/execa';
 import { createHash } from 'crypto';
 import { table } from 'table';
 import ems from 'enhanced-ms';
@@ -208,7 +208,10 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
             await this.killAllXrayProcesses();
 
             this.isXrayOnline = false;
+            this.configChecksum = null;
+            this.internalService.setXrayConfig({});
 
+            this.logger.log('Xray stopped due to request.');
             return {
                 isOk: true,
                 response: new StopXrayResponseModel(true),

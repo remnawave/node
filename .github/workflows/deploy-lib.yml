@@ -80,4 +80,4 @@ jobs:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
           message: |
-            ❌ ${{ github.REPOSITORY }} One of the jobs has fail
+            ❌ ${{ github.REPOSITORY }} deploy NPM package failed.

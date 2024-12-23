@@ -2,7 +2,6 @@ import { utilities as nestWinstonModuleUtilities, WinstonModule } from 'nest-win
 import { ConfigService } from '@nestjs/config';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { NestFactory } from '@nestjs/core';
-import compression from 'compression';
 import * as winston from 'winston';
 import express from 'express';
 import helmet from 'helmet';

@@ -2,8 +2,8 @@ import { utilities as nestWinstonModuleUtilities, WinstonModule } from 'nest-win
 import { ConfigService } from '@nestjs/config';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { NestFactory } from '@nestjs/core';
+import express, { json } from 'express';
 import * as winston from 'winston';
-import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
 
@@ -31,6 +31,8 @@ async function bootstrap(): Promise<void> {
         }),
     });
 
+    app.use(json({ limit: '1000mb' }));
+
     const config = app.get(ConfigService);
 
     app.use(helmet());
@@ -54,7 +56,7 @@ async function bootstrap(): Promise<void> {
     const httpServer = httpAdapter.getInstance();
 
     const internalApp = express();
-    internalApp.use(express.json());
+    internalApp.use(json({ limit: '1000mb' }));
 
     internalApp.use(XRAY_INTERNAL_FULL_PATH, (req, res, next) => {
         req.url = req.originalUrl;

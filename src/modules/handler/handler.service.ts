@@ -27,6 +27,9 @@ export class HandlerService {
 
             for (const item of requestData) {
                 let tempRes = null;
+
+                this.logger.log(`Adding user: ${item.username} with type: ${item.type}`);
+
                 switch (item.type) {
                     case 'trojan':
                         tempRes = await this.xtlsApi.handler.addTrojanUser({
@@ -91,7 +94,7 @@ export class HandlerService {
             }
 
             if (response.every((res) => !res.isOk)) {
-                this.logger.error(JSON.stringify(response, null, 2));
+                this.logger.error('Error adding users: ' + JSON.stringify(response, null, 2));
                 return {
                     isOk: true,
                     response: new AddUserResponseModel(

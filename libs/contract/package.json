@@ -1,6 +1,6 @@
 {
   "name": "@remnawave/node-contract",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "A node-contract library for Remnawave Panel",
   "main": "build/index.js",
   "types": "build/index.d.ts",
@@ -13,6 +13,14 @@
   },
   "keywords": [],
   "author": "REMNAWAVE",
+  "homepage": "https://github.com/remnawave",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/remnawave/node"
+  },
+  "bugs": {
+    "url": "https://github.com/remnawave/node/issues"
+  },
   "license": "MIT",
   "dependencies": {
     "zod": "^3.22.4"

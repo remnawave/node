@@ -1,9 +1,8 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common';
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
-import { sort } from '@tamtamchik/json-deep-sort';
 import { XtlsApi } from '@remnawave/xtls-sdk';
 import { execa } from '@cjs-exporter/execa';
-import { createHash } from 'crypto';
+import objectHash from 'object-hash';
 import { table } from 'table';
 import ems from 'enhanced-ms';
 import semver from 'semver';
@@ -109,7 +108,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
             this.internalService.setXrayConfig(fullConfig);
             this.configChecksum = newChecksum;
 
-            this.logger.log(`XTLS config generated in ${performance.now() - tm}`);
+            this.logger.log(`XTLS config generated in ${performance.now() - tm}ms`);
 
             const xrayProcess = await execa('supervisorctl', ['restart', 'xray'], {
                 reject: false,
@@ -275,22 +274,14 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
         try {
             await execa('supervisorctl', ['stop', 'xray'], { reject: false, timeout: 10_000 });
 
-            this.logger.log('Supervisorctl stop xray');
+            this.logger.log('Supervisorctl: XTLS stopped.');
         } catch (error) {
-            this.logger.log('Supervisorctl stop xray failed. Error: ', error);
+            this.logger.log('Supervisorctl: XTLS stop failed. Error: ', error);
         }
     }
 
     private getConfigChecksum(config: Record<string, unknown>): string {
-        const start = performance.now();
-
-        const sortedConfig = sort(config);
-        const checksum = createHash('sha256').update(JSON.stringify(sortedConfig)).digest('hex');
-
-        const end = performance.now();
-        this.logger.debug(`Checksum calculation took ${end - start}ms`);
-
-        return checksum;
+        return objectHash(config, { unorderedArrays: true, algorithm: 'sha256' });
     }
 
     private async getXrayVersionFromExec(): Promise<null | string> {

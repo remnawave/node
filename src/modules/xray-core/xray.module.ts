@@ -1,17 +1,19 @@
-import { Module, OnApplicationShutdown } from '@nestjs/common';
+import { Module, OnModuleDestroy } from '@nestjs/common';
 
+import { InternalModule } from '../internal/internal.module';
 import { XrayController } from './xray.controller';
 import { XrayService } from './xray.service';
 
 @Module({
-    imports: [],
+    imports: [InternalModule],
     providers: [XrayService],
     controllers: [XrayController],
+    exports: [],
 })
-export class XrayModule implements OnApplicationShutdown {
+export class XrayModule implements OnModuleDestroy {
     constructor(private readonly xrayService: XrayService) {}
 
-    async onApplicationShutdown() {
-        await this.xrayService.stopXray();
+    async onModuleDestroy() {
+        await this.xrayService.supervisorctlStop();
     }
 }

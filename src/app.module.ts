@@ -9,6 +9,7 @@ import { configSchema, Env } from '@common/config/app-config';
 import { getJWTConfig } from '@common/config/jwt/jwt.config';
 
 import { RemnawaveNodeModules } from './modules/remnawave-node.modules';
+import { InternalModule } from './modules/internal/internal.module';
 
 @Module({
     imports: [
@@ -26,8 +27,10 @@ import { RemnawaveNodeModules } from './modules/remnawave-node.modules';
             inject: [ConfigService],
         }),
         RemnawaveNodeModules,
+        InternalModule,
         JwtModule.registerAsync(getJWTConfig()),
     ],
     providers: [JwtStrategy],
+    exports: [],
 })
 export class AppModule {}

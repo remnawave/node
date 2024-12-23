@@ -1,16 +1,11 @@
-import {
-    Injectable,
-    Logger,
-    OnApplicationBootstrap,
-    OnApplicationShutdown,
-    OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common';
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { sort } from '@tamtamchik/json-deep-sort';
 import { XtlsApi } from '@remnawave/xtls-sdk';
 import { execa } from '@kastov/execa-cjs';
 import { createHash } from 'crypto';
-import { writeFile } from 'node:fs';
+import { table } from 'table';
+import ems from 'enhanced-ms';
 import semver from 'semver';
 
 import { ISystemStats } from '@common/utils/get-system-stats/get-system-stats.interface';
@@ -23,48 +18,40 @@ import {
     StartXrayResponseModel,
     StopXrayResponseModel,
 } from './models';
+import { InternalService } from '../internal/internal.service';
 
 @Injectable()
-export class XrayService implements OnApplicationBootstrap, OnApplicationShutdown, OnModuleInit {
+export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     private readonly logger = new Logger(XrayService.name);
 
     private readonly xrayPath: string;
-    private readonly xrayConfigPath: string;
 
     private xrayVersion: null | string = null;
     private configChecksum: null | string = null;
     private isXrayOnline: boolean = false;
     private systemStats: ISystemStats | null = null;
+    private isXrayStartedProccesing: boolean = false;
 
-    constructor(@InjectXtls() private readonly xtlsSdk: XtlsApi) {
+    constructor(
+        @InjectXtls() private readonly xtlsSdk: XtlsApi,
+        private readonly internalService: InternalService,
+    ) {
         this.xrayPath = '/usr/local/bin/xray';
-        this.xrayConfigPath = '/var/lib/rnode/xray/xray-config.json';
         this.xrayVersion = null;
         this.systemStats = null;
+        this.isXrayStartedProccesing = false;
     }
 
     async onModuleInit() {
         this.xrayVersion = await this.getXrayVersionFromExec();
     }
 
-    async onApplicationShutdown() {
-        try {
-            await execa('bash', ['-c', `echo '{}' > ${this.xrayConfigPath}`]);
-        } catch (error) {
-            this.logger.error(`Failed to clear config file: ${error}`);
-        }
-
-        this.isXrayOnline = false;
-    }
-
     async onApplicationBootstrap() {
         try {
-            await execa('bash', ['-c', `echo '{}' > ${this.xrayConfigPath}`]);
-
             this.systemStats = await getSystemStats();
-            this.logger.log(`System stats: ${JSON.stringify(this.systemStats)}`);
+            this.logger.log(`${JSON.stringify(this.systemStats)}`);
         } catch (error) {
-            this.logger.error(`Failed to clear config file: ${error}`);
+            this.logger.error(`Failed to get system stats: ${error}`);
         }
 
         this.isXrayOnline = false;
@@ -77,6 +64,21 @@ export class XrayService implements OnApplicationBootstrap, OnApplicationShutdow
         const tm = performance.now();
 
         try {
+            if (this.isXrayStartedProccesing) {
+                this.logger.error('Request already in progress');
+                return {
+                    isOk: true,
+                    response: new StartXrayResponseModel(
+                        false,
+                        this.xrayVersion,
+                        'Request already in progress',
+                        null,
+                    ),
+                };
+            }
+
+            this.isXrayStartedProccesing = true;
+
             const fullConfig = generateApiConfig(config);
             const newChecksum = this.getConfigChecksum(fullConfig);
 
@@ -95,7 +97,7 @@ export class XrayService implements OnApplicationBootstrap, OnApplicationShutdow
                 `);
 
                 if (oldChecksum === newChecksum && isXrayOnline) {
-                    this.logger.error('Xray is already online with the same config');
+                    this.logger.error('Xray is already online with the same config. Skipping...');
 
                     return {
                         isOk: true,
@@ -104,20 +106,10 @@ export class XrayService implements OnApplicationBootstrap, OnApplicationShutdow
                 }
             }
 
+            this.internalService.setXrayConfig(fullConfig);
             this.configChecksum = newChecksum;
 
-            await new Promise<void>((resolve, reject) => {
-                writeFile(this.xrayConfigPath, JSON.stringify(fullConfig, null, 2), (err) => {
-                    if (err) {
-                        this.logger.error(`Failed to write xray-config.json: ${err}`);
-                        reject(err);
-                        return;
-                    }
-                    resolve();
-                });
-            });
-
-            this.logger.log(`Xray config generated in ${Math.round(performance.now() - tm)}ms`);
+            this.logger.log(`XTLS config generated in ${performance.now() - tm}`);
 
             const xrayProcess = await execa('supervisorctl', ['restart', 'xray'], {
                 reject: false,
@@ -164,10 +156,20 @@ export class XrayService implements OnApplicationBootstrap, OnApplicationShutdow
             this.isXrayOnline = true;
 
             this.logger.log(
-                `Xray started successfully:
-                • Version: ${this.xrayVersion}
-                • Checksum: ${this.configChecksum}
-                • Master IP: ${ip}`,
+                '\n' +
+                    table(
+                        [
+                            ['Version', this.xrayVersion],
+                            ['Checksum', this.configChecksum],
+                            ['Master IP', ip],
+                        ],
+                        {
+                            header: {
+                                content: 'Xray started',
+                                alignment: 'center',
+                            },
+                        },
+                    ),
             );
 
             return {
@@ -185,14 +187,19 @@ export class XrayService implements OnApplicationBootstrap, OnApplicationShutdow
                 errorMessage = error.message;
             }
 
-            this.logger.fatal(`Failed to start Xray: ${errorMessage}`);
+            this.logger.error(`Failed to start Xray: ${errorMessage}`);
 
             return {
                 isOk: true,
                 response: new StartXrayResponseModel(false, null, errorMessage, null),
             };
         } finally {
-            this.logger.log('Start xray took: ' + (performance.now() - tm) + 'ms');
+            this.logger.log(
+                'Start XTLS took: ' +
+                    ems(performance.now() - tm, { shortFormat: true, includeMs: true }),
+            );
+
+            this.isXrayStartedProccesing = false;
         }
     }
 
@@ -236,7 +243,7 @@ export class XrayService implements OnApplicationBootstrap, OnApplicationShutdow
         }
     }
 
-    private async killAllXrayProcesses(): Promise<void> {
+    public async killAllXrayProcesses(): Promise<void> {
         try {
             await execa('supervisorctl', ['stop', 'xray'], { reject: false });
 
@@ -258,6 +265,16 @@ export class XrayService implements OnApplicationBootstrap, OnApplicationShutdow
             this.logger.log('Killed all Xray processes');
         } catch (error) {
             this.logger.log('No existing Xray processes found. Error: ', error);
+        }
+    }
+
+    public async supervisorctlStop(): Promise<void> {
+        try {
+            await execa('supervisorctl', ['stop', 'xray'], { reject: false, timeout: 10_000 });
+
+            this.logger.log('Supervisorctl stop xray');
+        } catch (error) {
+            this.logger.log('Supervisorctl stop xray failed. Error: ', error);
         }
     }
 
@@ -283,12 +300,6 @@ export class XrayService implements OnApplicationBootstrap, OnApplicationShutdow
 
         return version;
     }
-
-    // private async getXrayInternalStatus(): Promise<boolean> {
-    //     const { isOk } = await this.xtlsSdk.stats.getSysStats();
-
-    //     return isOk;
-    // }
 
     private async getXrayInternalStatus(): Promise<boolean> {
         const maxRetries = 3;

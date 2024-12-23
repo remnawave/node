@@ -35,7 +35,6 @@ async function bootstrap(): Promise<void> {
     const config = app.get(ConfigService);
 
     app.use(helmet());
-    app.use(compression());
 
     if (isDevelopment()) {
         app.use(morgan('short'));
@@ -57,7 +56,6 @@ async function bootstrap(): Promise<void> {
 
     const internalApp = express();
     internalApp.use(express.json());
-    internalApp.use(compression());
 
     internalApp.use(XRAY_INTERNAL_FULL_PATH, (req, res, next) => {
         req.url = req.originalUrl;

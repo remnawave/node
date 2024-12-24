@@ -79,6 +79,9 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
             this.isXrayStartedProccesing = true;
 
             const fullConfig = generateApiConfig(config);
+
+            this.logger.debug(JSON.stringify(fullConfig, null, 2));
+
             const newChecksum = this.getConfigChecksum(fullConfig);
 
             if (this.isXrayOnline) {

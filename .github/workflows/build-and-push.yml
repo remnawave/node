@@ -66,6 +66,18 @@ jobs:
             ghcr.io/remnawave/node:latest
             ghcr.io/remnawave/node:${{github.ref_name}}
 
+      - name: Build and push legacy
+        uses: docker/build-push-action@v3
+        with:
+          context: ./DockerfileLegacy
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            remnawave/node:legacy-latest
+            remnawave/node:legacy-${{github.ref_name}}
+            ghcr.io/remnawave/node:legacy-latest
+            ghcr.io/remnawave/node:legacy-${{github.ref_name}}
+
   create-release:
     needs: [build-docker-image]
     runs-on: ubuntu-latest
@@ -87,6 +99,12 @@ jobs:
             Docker images:
             - `remnawave/node:${{github.ref_name}}`
             - `ghcr.io/remnawave/node:${{github.ref_name}}`
+
+            Legacy Docker images, based on XTLS Core v1.8.6:
+            - `remnawave/node:legacy-latest`
+            - `ghcr.io/remnawave/node:legacy-latest`
+            - `remnawave/node:legacy-${{github.ref_name}}`
+            - `ghcr.io/remnawave/node:legacy-${{github.ref_name}}`
           draft: false
           prerelease: false
 

@@ -18,10 +18,7 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | b
 ENV PATH="/root/.nvm/versions/node/v22.12.0/bin:${PATH}"
 
 # Установка Xray
-RUN curl -L https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-latest-xray.sh -o install-xray.sh \
-    && chmod +x install-xray.sh \
-    && bash ./install-xray.sh \
-    && rm install-xray.sh
+RUN curl -L https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-latest-xray.sh | bash -s -- v24.12.18
 
 
 RUN mkdir -p /var/log/supervisor /var/lib/rnode/xray /app \

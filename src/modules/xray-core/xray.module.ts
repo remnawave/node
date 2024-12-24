@@ -14,6 +14,6 @@ export class XrayModule implements OnModuleDestroy {
     constructor(private readonly xrayService: XrayService) {}
 
     async onModuleDestroy() {
-        await this.xrayService.supervisorctlStop();
+        await this.xrayService.killAllXrayProcesses();
     }
 }

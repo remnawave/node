@@ -26,3 +26,15 @@ services:
 networks:
   remnawave-node-dev:
     external: false
+# services:
+#   remnawave-node:
+#     container_name: remnawave-node
+#     hostname: remnawave-node
+#     build:
+#       context: .
+#       dockerfile: Dockerfile
+
+#     env_file:
+#       - .env
+#     ports:
+#       - 24000:24000

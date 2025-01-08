@@ -1,5 +1,5 @@
-import { RemoveUserResponseModel as RemoveUserResponseModelFromSdk } from '@remnawave/xtls-sdk/build/src/handler/models/remove-user/remove-user.response.model';
-import { AddUserResponseModel as AddUserResponseModelFromSdk } from '@remnawave/xtls-sdk/build/src/handler/models/add-user/add-user.response.model';
+import { RemoveUserResponseModel as RemoveUserResponseModelFromSdk } from '@remnawave/xtls-sdk/build/src/handler/models/remove-user';
+import { AddUserResponseModel as AddUserResponseModelFromSdk } from '@remnawave/xtls-sdk/build/src/handler/models/add-user';
 import { ISdkResponse } from '@remnawave/xtls-sdk/build/src/common/types';
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { Injectable, Logger } from '@nestjs/common';
@@ -28,7 +28,7 @@ export class HandlerService {
             for (const item of requestData) {
                 let tempRes = null;
 
-                this.logger.log(`Adding user: ${item.username} with type: ${item.type}`);
+                this.logger.debug(`Adding user: ${item.username} with type: ${item.type}`);
 
                 switch (item.type) {
                     case 'trojan':

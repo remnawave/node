@@ -21,7 +21,7 @@
   "bugs": {
     "url": "https://github.com/remnawave/node/issues"
   },
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "dependencies": {
     "zod": "^3.22.4"
   }

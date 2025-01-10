@@ -1,0 +1,7 @@
+contact_links:
+  - name: 🐞 Bug report
+    url: https://github.com/remnawave/panel/issues/new/choose
+    about: Please report any frontend/backend bugs on @remnawave/panel repository.
+  - name: 💡 Feature request
+    url: https://github.com/remnawave/panel/issues/new/choose
+    about: Feel free to request any new features.

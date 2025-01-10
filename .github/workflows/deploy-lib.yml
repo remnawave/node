@@ -2,7 +2,7 @@ name: Deploy lib
 on:
   push:
     paths:
-      - 'libs/**'
+      - 'libs/**/package.json'
       - '.github/workflows/deploy-lib.yml'
 
 jobs:

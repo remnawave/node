@@ -23,7 +23,7 @@ async function bootstrap(): Promise<void> {
                 nestWinstonModuleUtilities.format.nestLike('', {
                     colors: true,
                     prettyPrint: true,
-                    processId: true,
+                    processId: false,
                     appName: false,
                 }),
             ),

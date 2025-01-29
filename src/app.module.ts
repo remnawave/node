@@ -20,11 +20,12 @@ import { InternalModule } from './modules/internal/internal.module';
             validate: (config) => validateEnvConfig<Env>(configSchema, config),
         }),
         XtlsSdkNestjsModule.forRootAsync({
+            imports: [ConfigModule],
+            inject: [ConfigService],
             useFactory: (configService: ConfigService) => ({
                 ip: configService.getOrThrow<string>('XTLS_IP'),
                 port: configService.getOrThrow<string>('XTLS_PORT'),
             }),
-            inject: [ConfigService],
         }),
         RemnawaveNodeModules,
         InternalModule,

@@ -136,12 +136,22 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                 this.isXrayOnline = false;
 
                 this.logger.error(
-                    `Xray failed to start:
-                    • Version: ${this.xrayVersion}
-                    • Checksum: ${this.configChecksum}
-                    • Master IP: ${ip}
-                    • Internal Status: ${isStarted}
-                    • Error: ${xrayProcess.all.join(' | ')}`,
+                    '\n' +
+                        table(
+                            [
+                                ['Version', this.xrayVersion],
+                                ['Checksum', this.configChecksum],
+                                ['Master IP', ip],
+                                ['Internal Status', isStarted],
+                                ['Error', xrayProcess.all.join(' | ')],
+                            ],
+                            {
+                                header: {
+                                    content: 'Xray failed to start',
+                                    alignment: 'center',
+                                },
+                            },
+                        ),
                 );
 
                 return {

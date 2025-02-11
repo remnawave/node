@@ -1,7 +1,7 @@
 services:
-  remnawave-node:
-    container_name: remnawave-node
-    hostname: remnawave-node
+  remnanode:
+    container_name: remnanode
+    hostname: remnanode
     image: remnawave/node:latest
     env_file:
       - .env

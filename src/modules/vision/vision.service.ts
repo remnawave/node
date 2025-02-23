@@ -21,12 +21,14 @@ export class VisionService {
 
             const ipHash = this.getIpHash(ip);
 
-            await this.xtlsApi.router.addSrcIpRule({
+            const res = await this.xtlsApi.router.addSrcIpRule({
                 ruleTag: ipHash,
                 outbound: 'BLOCK',
                 append: true,
                 ip: ip,
             });
+
+            this.logger.log(res);
 
             return {
                 isOk: true,
@@ -54,9 +56,11 @@ export class VisionService {
 
             const ipHash = this.getIpHash(ip);
 
-            await this.xtlsApi.router.removeRuleByRuleTag({
+            const res = await this.xtlsApi.router.removeRuleByRuleTag({
                 ruleTag: ipHash,
             });
+
+            this.logger.log(res);
 
             return {
                 isOk: true,

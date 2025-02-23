@@ -13,6 +13,7 @@ import { isDevelopment } from '@common/utils/is-development';
 import { REST_API, ROOT } from '@libs/contracts/api';
 
 import { AppModule } from './app.module';
+
 async function bootstrap(): Promise<void> {
     const app = await NestFactory.create(AppModule, {
         logger: WinstonModule.createLogger({
@@ -44,7 +45,11 @@ async function bootstrap(): Promise<void> {
     app.useGlobalFilters(new NotFoundExceptionFilter());
 
     app.setGlobalPrefix(ROOT, {
-        exclude: [XRAY_INTERNAL_FULL_PATH, REST_API.VISION.BLOCK_IP, REST_API.VISION.UNBLOCK_IP],
+        exclude: [
+            XRAY_INTERNAL_FULL_PATH,
+            '/' + REST_API.VISION.BLOCK_IP,
+            '/' + REST_API.VISION.UNBLOCK_IP,
+        ],
     });
 
     app.useGlobalPipes(new ZodValidationPipe());
@@ -59,7 +64,7 @@ async function bootstrap(): Promise<void> {
     internalApp.use(json({ limit: '1000mb' }));
 
     internalApp.use(
-        [XRAY_INTERNAL_FULL_PATH, REST_API.VISION.BLOCK_IP, REST_API.VISION.UNBLOCK_IP],
+        [XRAY_INTERNAL_FULL_PATH, '/' + REST_API.VISION.BLOCK_IP, '/' + REST_API.VISION.UNBLOCK_IP],
         (req, res, next) => {
             req.url = req.originalUrl;
 

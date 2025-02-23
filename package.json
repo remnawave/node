@@ -1,6 +1,6 @@
 {
   "name": "@remnawave/node",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "",
   "private": true,
   "license": "AGPL-3.0-only",
@@ -33,7 +33,7 @@
     "@nestjs/jwt": "11.0.0",
     "@nestjs/passport": "11.0.5",
     "@nestjs/platform-express": "11.0.10",
-    "@remnawave/xtls-sdk": "0.1.4",
+    "@remnawave/xtls-sdk": "0.1.5",
     "@remnawave/xtls-sdk-nestjs": "0.2.2",
     "enhanced-ms": "^3.0.0",
     "helmet": "^7.1.0",

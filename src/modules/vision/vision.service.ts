@@ -28,6 +28,8 @@ export class VisionService {
                 ip: ip,
             });
 
+            this.logger.log(res);
+
             if (!res.isOk) {
                 throw new Error(res.message);
             }
@@ -61,6 +63,8 @@ export class VisionService {
             const res = await this.xtlsApi.router.removeRuleByRuleTag({
                 ruleTag: ipHash,
             });
+
+            this.logger.log(res);
 
             if (!res.isOk) {
                 throw new Error(res.message);

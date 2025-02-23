@@ -28,7 +28,9 @@ export class VisionService {
                 ip: ip,
             });
 
-            this.logger.log(res);
+            if (!res.isOk) {
+                throw new Error(res.message);
+            }
 
             return {
                 isOk: true,
@@ -60,7 +62,9 @@ export class VisionService {
                 ruleTag: ipHash,
             });
 
-            this.logger.log(res);
+            if (!res.isOk) {
+                throw new Error(res.message);
+            }
 
             return {
                 isOk: true,

@@ -20,7 +20,7 @@ RUN apk add --no-cache \
     unzip \
     bash \
     supervisor \
-    && curl -L https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-latest-xray.sh | bash -s -- v24.12.18 \
+    && curl -L https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-latest-xray.sh | bash -s -- v25.2.21 \
     && apk del curl
 
 COPY supervisord.conf /etc/supervisord.conf

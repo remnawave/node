@@ -50,7 +50,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
             this.systemStats = await getSystemStats();
             this.logger.log(`${JSON.stringify(this.systemStats)}`);
         } catch (error) {
-            this.logger.error(`Failed to get system stats: ${error}`);
+            this.logger.error(`Failed to get node hardware info: ${error}`);
         }
 
         this.isXrayOnline = false;

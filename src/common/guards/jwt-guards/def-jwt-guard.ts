@@ -10,7 +10,9 @@ export class JwtDefaultGuard extends AuthGuard('registeredUserJWT') {
         if (info instanceof Error || err || !user) {
             const response = context.switchToHttp().getResponse();
 
-            this.logger.error(`Incorrent SSL_CERT or JWT: ${err}`);
+            this.logger.error(
+                `Incorrect SSL_CERT or JWT! Request dropped. URL: ${context.switchToHttp().getRequest().url}, IP: ${context.switchToHttp().getRequest().ip}}`,
+            );
 
             response.socket?.destroy();
             throw new UnauthorizedException('Unauthorized');

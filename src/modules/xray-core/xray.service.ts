@@ -310,7 +310,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
     private async getXrayInternalStatus(): Promise<boolean> {
         const maxRetries = 3;
-        const delay = 1000;
+        const delay = 2000;
 
         for (let attempt = 0; attempt < maxRetries; attempt++) {
             try {

@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common';
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
+import { ConfigService } from '@nestjs/config';
 import { XtlsApi } from '@remnawave/xtls-sdk';
 import { execa } from '@cjs-exporter/execa';
 import objectHash from 'object-hash';
@@ -22,6 +23,7 @@ import { InternalService } from '../internal/internal.service';
 @Injectable()
 export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     private readonly logger = new Logger(XrayService.name);
+    private readonly configEqualChecking: boolean;
 
     private readonly xrayPath: string;
 
@@ -34,11 +36,13 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     constructor(
         @InjectXtls() private readonly xtlsSdk: XtlsApi,
         private readonly internalService: InternalService,
+        private readonly configService: ConfigService,
     ) {
         this.xrayPath = '/usr/local/bin/xray';
         this.xrayVersion = null;
         this.systemStats = null;
         this.isXrayStartedProccesing = false;
+        this.configEqualChecking = this.configService.getOrThrow<boolean>('CONFIG_EQUAL_CHECKING');
     }
 
     async onModuleInit() {
@@ -82,34 +86,45 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
             this.logger.debug(JSON.stringify(fullConfig, null, 2));
 
-            const newChecksum = this.getConfigChecksum(fullConfig);
+            if (this.configEqualChecking) {
+                this.logger.log('Getting config checksum...');
+                const newChecksum = this.getConfigChecksum(fullConfig);
 
-            if (this.isXrayOnline) {
-                this.logger.warn(
-                    `Xray process is already running with checksum ${this.configChecksum}`,
-                );
+                if (this.isXrayOnline) {
+                    this.logger.warn(
+                        `Xray process is already running with checksum ${this.configChecksum}`,
+                    );
 
-                const oldChecksum = this.configChecksum;
-                const isXrayOnline = await this.getXrayInternalStatus();
+                    const oldChecksum = this.configChecksum;
+                    const isXrayOnline = await this.getXrayInternalStatus();
 
-                this.logger.debug(`
+                    this.logger.debug(`
                     oldChecksum: ${oldChecksum}
                     newChecksum: ${newChecksum}
                     isXrayOnline: ${isXrayOnline}
                 `);
 
-                if (oldChecksum === newChecksum && isXrayOnline) {
-                    this.logger.error('Xray is already online with the same config. Skipping...');
+                    if (oldChecksum === newChecksum && isXrayOnline) {
+                        this.logger.error(
+                            'Xray is already online with the same config. Skipping...',
+                        );
 
-                    return {
-                        isOk: true,
-                        response: new StartXrayResponseModel(true, this.xrayVersion, null, null),
-                    };
+                        return {
+                            isOk: true,
+                            response: new StartXrayResponseModel(
+                                true,
+                                this.xrayVersion,
+                                null,
+                                null,
+                            ),
+                        };
+                    }
                 }
+
+                this.configChecksum = newChecksum;
             }
 
             this.internalService.setXrayConfig(fullConfig);
-            this.configChecksum = newChecksum;
 
             this.logger.log(`XTLS config generated in ${performance.now() - tm}ms`);
 

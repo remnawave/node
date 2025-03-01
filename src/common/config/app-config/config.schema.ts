@@ -9,6 +9,10 @@ export const configSchema = z.object({
     SSL_CERT: z.string(),
     XTLS_IP: z.string().default('127.0.0.1'),
     XTLS_PORT: z.string().default('61000'),
+    CONFIG_EQUAL_CHECKING: z
+        .string()
+        .default('true')
+        .transform((val) => val === 'true'),
 });
 
 export type ConfigSchema = z.infer<typeof configSchema>;

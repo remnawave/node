@@ -3,7 +3,7 @@ import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { ConfigService } from '@nestjs/config';
 import { XtlsApi } from '@remnawave/xtls-sdk';
 import { execa } from '@cjs-exporter/execa';
-import objectHash from 'object-hash';
+import { hasher } from 'node-object-hash';
 import { table } from 'table';
 import ems from 'enhanced-ms';
 import semver from 'semver';
@@ -309,7 +309,11 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     }
 
     private getConfigChecksum(config: Record<string, unknown>): string {
-        return objectHash(config, { unorderedArrays: true, algorithm: 'sha256' });
+        const hash = hasher({
+            trim: true,
+        }).hash;
+
+        return hash(config);
     }
 
     private async getXrayVersionFromExec(): Promise<null | string> {

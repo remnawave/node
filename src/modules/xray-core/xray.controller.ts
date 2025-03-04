@@ -6,6 +6,7 @@ import { JwtDefaultGuard } from '@common/guards/jwt-guards/def-jwt-guard';
 import { errorHandler } from '@common/helpers/error-handler.helper';
 
 import {
+    GetNodeHealthCheckResponseDto,
     GetXrayStatusAndVersionResponseDto,
     StartXrayRequestDto,
     StartXrayResponseDto,
@@ -47,6 +48,16 @@ export class XrayController {
     @Get(XRAY_ROUTES.STATUS)
     public async getXrayStatusAndVersion(): Promise<GetXrayStatusAndVersionResponseDto> {
         const response = await this.xrayService.getXrayStatusAndVersion();
+        const data = errorHandler(response);
+
+        return {
+            response: data,
+        };
+    }
+
+    @Get(XRAY_ROUTES.NODE_HEALTH_CHECK)
+    public async getNodeHealthCheck(): Promise<GetNodeHealthCheckResponseDto> {
+        const response = await this.xrayService.getNodeHealthCheck();
         const data = errorHandler(response);
 
         return {

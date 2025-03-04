@@ -14,6 +14,7 @@ import { generateApiConfig } from '@common/utils/generate-api-config';
 import { getSystemStats } from '@common/utils/get-system-stats';
 
 import {
+    GetNodeHealthCheckResponseModel,
     GetXrayStatusAndVersionResponseModel,
     StartXrayResponseModel,
     StopXrayResponseModel,
@@ -265,6 +266,26 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
             return {
                 isOk: true,
                 response: new GetXrayStatusAndVersionResponseModel(false, null),
+            };
+        }
+    }
+
+    public async getNodeHealthCheck(): Promise<ICommandResponse<GetNodeHealthCheckResponseModel>> {
+        try {
+            return {
+                isOk: true,
+                response: new GetNodeHealthCheckResponseModel(
+                    true,
+                    this.isXrayOnline,
+                    this.xrayVersion,
+                ),
+            };
+        } catch (error) {
+            this.logger.error(`Failed to get Xray status and version ${error}`);
+
+            return {
+                isOk: true,
+                response: new GetNodeHealthCheckResponseModel(false, false, null),
             };
         }
     }

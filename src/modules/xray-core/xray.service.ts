@@ -84,8 +84,6 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
             const fullConfig = generateApiConfig(config);
 
-            this.logger.debug(JSON.stringify(fullConfig, null, 2));
-
             if (this.configEqualChecking) {
                 this.logger.log('Getting config checksum...');
                 const newChecksum = this.getConfigChecksum(fullConfig);
@@ -132,7 +130,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                 reject: false,
                 all: true,
                 cleanup: true,
-                timeout: 20_000,
+                timeout: 60_000,
                 lines: true,
             });
 
@@ -144,8 +142,6 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                 await new Promise((resolve) => setTimeout(resolve, 2000));
                 isStarted = await this.getXrayInternalStatus();
             }
-
-            this.logger.debug(`isStarted: ${isStarted}`);
 
             if (!isStarted) {
                 this.isXrayOnline = false;
@@ -328,7 +324,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     }
 
     private async getXrayInternalStatus(): Promise<boolean> {
-        const maxRetries = 3;
+        const maxRetries = 8;
         const delay = 2000;
 
         for (let attempt = 0; attempt < maxRetries; attempt++) {

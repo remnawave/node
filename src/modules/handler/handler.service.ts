@@ -61,35 +61,6 @@ export class HandlerService {
                         });
                         response.push(tempRes);
                         break;
-                    case 'shadowsocks2022':
-                        tempRes = await this.xtlsApi.handler.addShadowsocks2022User({
-                            tag: item.tag,
-                            username: item.username,
-                            key: item.key,
-                            level: item.level,
-                        });
-                        response.push(tempRes);
-                        break;
-                    case 'socks':
-                        tempRes = await this.xtlsApi.handler.addSocksUser({
-                            tag: item.tag,
-                            username: item.username,
-                            socks_username: item.socks_username,
-                            socks_password: item.socks_password,
-                            level: item.level,
-                        });
-                        response.push(tempRes);
-                        break;
-                    case 'http':
-                        tempRes = await this.xtlsApi.handler.addHttpUser({
-                            tag: item.tag,
-                            username: item.username,
-                            http_username: item.http_username,
-                            http_password: item.http_password,
-                            level: item.level,
-                        });
-                        response.push(tempRes);
-                        break;
                 }
             }
 

@@ -21,7 +21,7 @@ export const XRAY_DEFAULT_STATS_MODEL = {
 
 export const XRAY_DEFAULT_API_MODEL = {
     api: {
-        services: ['HandlerService', 'StatsService', 'LoggerService'],
+        services: ['HandlerService', 'StatsService', 'RoutingService'],
         tag: 'api',
     },
 } as const;

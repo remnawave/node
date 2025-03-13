@@ -18,7 +18,7 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | b
 ENV PATH="/root/.nvm/versions/node/v22.12.0/bin:${PATH}"
 
 # Установка Xray
-RUN curl -L https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-latest-xray.sh | bash -s -- v24.12.18
+RUN curl -L https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-latest-xray.sh | bash -s -- v25.2.21
 
 
 RUN mkdir -p /var/log/supervisor /var/lib/rnode/xray /app \
@@ -32,8 +32,8 @@ EXPOSE 24000
 COPY supervisord.conf /var/lib/rnode/xray/supervisor.conf
 
 RUN echo '#!/bin/bash\n\
-supervisord -c /var/lib/rnode/xray/supervisor.conf &\n\
-exec "$@"' > /usr/local/bin/entrypoint.sh \
+    supervisord -c /var/lib/rnode/xray/supervisor.conf &\n\
+    exec "$@"' > /usr/local/bin/entrypoint.sh \
     && chmod +x /usr/local/bin/entrypoint.sh
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

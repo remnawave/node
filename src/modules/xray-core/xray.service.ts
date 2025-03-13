@@ -1,8 +1,9 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common';
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
+import { ConfigService } from '@nestjs/config';
 import { XtlsApi } from '@remnawave/xtls-sdk';
 import { execa } from '@cjs-exporter/execa';
-import objectHash from 'object-hash';
+import { hasher } from 'node-object-hash';
 import { table } from 'table';
 import ems from 'enhanced-ms';
 import semver from 'semver';
@@ -13,6 +14,7 @@ import { generateApiConfig } from '@common/utils/generate-api-config';
 import { getSystemStats } from '@common/utils/get-system-stats';
 
 import {
+    GetNodeHealthCheckResponseModel,
     GetXrayStatusAndVersionResponseModel,
     StartXrayResponseModel,
     StopXrayResponseModel,
@@ -22,6 +24,7 @@ import { InternalService } from '../internal/internal.service';
 @Injectable()
 export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     private readonly logger = new Logger(XrayService.name);
+    private readonly configEqualChecking: boolean;
 
     private readonly xrayPath: string;
 
@@ -34,11 +37,13 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     constructor(
         @InjectXtls() private readonly xtlsSdk: XtlsApi,
         private readonly internalService: InternalService,
+        private readonly configService: ConfigService,
     ) {
         this.xrayPath = '/usr/local/bin/xray';
         this.xrayVersion = null;
         this.systemStats = null;
         this.isXrayStartedProccesing = false;
+        this.configEqualChecking = this.configService.getOrThrow<boolean>('CONFIG_EQUAL_CHECKING');
     }
 
     async onModuleInit() {
@@ -50,7 +55,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
             this.systemStats = await getSystemStats();
             this.logger.log(`${JSON.stringify(this.systemStats)}`);
         } catch (error) {
-            this.logger.error(`Failed to get system stats: ${error}`);
+            this.logger.error(`Failed to get node hardware info: ${error}`);
         }
 
         this.isXrayOnline = false;
@@ -80,36 +85,45 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
             const fullConfig = generateApiConfig(config);
 
-            this.logger.debug(JSON.stringify(fullConfig, null, 2));
+            if (this.configEqualChecking) {
+                this.logger.log('Getting config checksum...');
+                const newChecksum = this.getConfigChecksum(fullConfig);
 
-            const newChecksum = this.getConfigChecksum(fullConfig);
+                if (this.isXrayOnline) {
+                    this.logger.warn(
+                        `Xray process is already running with checksum ${this.configChecksum}`,
+                    );
 
-            if (this.isXrayOnline) {
-                this.logger.warn(
-                    `Xray process is already running with checksum ${this.configChecksum}`,
-                );
+                    const oldChecksum = this.configChecksum;
+                    const isXrayOnline = await this.getXrayInternalStatus();
 
-                const oldChecksum = this.configChecksum;
-                const isXrayOnline = await this.getXrayInternalStatus();
-
-                this.logger.debug(`
+                    this.logger.debug(`
                     oldChecksum: ${oldChecksum}
                     newChecksum: ${newChecksum}
                     isXrayOnline: ${isXrayOnline}
                 `);
 
-                if (oldChecksum === newChecksum && isXrayOnline) {
-                    this.logger.error('Xray is already online with the same config. Skipping...');
+                    if (oldChecksum === newChecksum && isXrayOnline) {
+                        this.logger.error(
+                            'Xray is already online with the same config. Skipping...',
+                        );
 
-                    return {
-                        isOk: true,
-                        response: new StartXrayResponseModel(true, this.xrayVersion, null, null),
-                    };
+                        return {
+                            isOk: true,
+                            response: new StartXrayResponseModel(
+                                true,
+                                this.xrayVersion,
+                                null,
+                                null,
+                            ),
+                        };
+                    }
                 }
+
+                this.configChecksum = newChecksum;
             }
 
             this.internalService.setXrayConfig(fullConfig);
-            this.configChecksum = newChecksum;
 
             this.logger.log(`XTLS config generated in ${performance.now() - tm}ms`);
 
@@ -117,7 +131,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                 reject: false,
                 all: true,
                 cleanup: true,
-                timeout: 20_000,
+                timeout: 60_000,
                 lines: true,
             });
 
@@ -129,8 +143,6 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                 await new Promise((resolve) => setTimeout(resolve, 2000));
                 isStarted = await this.getXrayInternalStatus();
             }
-
-            this.logger.debug(`isStarted: ${isStarted}`);
 
             if (!isStarted) {
                 this.isXrayOnline = false;
@@ -258,6 +270,26 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
         }
     }
 
+    public async getNodeHealthCheck(): Promise<ICommandResponse<GetNodeHealthCheckResponseModel>> {
+        try {
+            return {
+                isOk: true,
+                response: new GetNodeHealthCheckResponseModel(
+                    true,
+                    this.isXrayOnline,
+                    this.xrayVersion,
+                ),
+            };
+        } catch (error) {
+            this.logger.error(`Failed to get node health check: ${error}`);
+
+            return {
+                isOk: true,
+                response: new GetNodeHealthCheckResponseModel(false, false, null),
+            };
+        }
+    }
+
     public async killAllXrayProcesses(): Promise<void> {
         try {
             await execa('supervisorctl', ['stop', 'xray'], { reject: false });
@@ -294,7 +326,11 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     }
 
     private getConfigChecksum(config: Record<string, unknown>): string {
-        return objectHash(config, { unorderedArrays: true, algorithm: 'sha256' });
+        const hash = hasher({
+            trim: true,
+        }).hash;
+
+        return hash(config);
     }
 
     private async getXrayVersionFromExec(): Promise<null | string> {
@@ -309,8 +345,8 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     }
 
     private async getXrayInternalStatus(): Promise<boolean> {
-        const maxRetries = 3;
-        const delay = 1000;
+        const maxRetries = 8;
+        const delay = 2000;
 
         for (let attempt = 0; attempt < maxRetries; attempt++) {
             try {

@@ -281,7 +281,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                 ),
             };
         } catch (error) {
-            this.logger.error(`Failed to get Xray status and version ${error}`);
+            this.logger.error(`Failed to get node health check: ${error}`);
 
             return {
                 isOk: true,

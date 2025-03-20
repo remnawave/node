@@ -8,6 +8,9 @@ export class JwtDefaultGuard extends AuthGuard('registeredUserJWT') {
         if (info instanceof Error || err || !user) {
             const response = context.switchToHttp().getResponse();
 
+            // TODO: remove later
+            this.logger.log(`${context.switchToHttp().getRequest().headers}`);
+
             this.logger.error(
                 `Incorrect SSL_CERT or JWT! Request dropped. URL: ${context.switchToHttp().getRequest().url}, IP: ${context.switchToHttp().getRequest().ip}`,
             );

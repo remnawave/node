@@ -1,12 +1,14 @@
-import { Injectable, Logger, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common';
-import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
-import { ConfigService } from '@nestjs/config';
-import { XtlsApi } from '@remnawave/xtls-sdk';
 import { execa } from '@cjs-exporter/execa';
 import { hasher } from 'node-object-hash';
 import { table } from 'table';
 import ems from 'enhanced-ms';
 import semver from 'semver';
+
+import { Injectable, Logger, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+
+import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
+import { XtlsApi } from '@remnawave/xtls-sdk';
 
 import { ISystemStats } from '@common/utils/get-system-stats/get-system-stats.interface';
 import { ICommandResponse } from '@common/types/command-response.type';
@@ -218,10 +220,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                 response: new StartXrayResponseModel(false, null, errorMessage, null),
             };
         } finally {
-            this.logger.log(
-                'Start XTLS took: ' +
-                    ems(performance.now() - tm, { shortFormat: true, includeMs: true }),
-            );
+            this.logger.log('Start XTLS took: ' + ems(performance.now() - tm, 'short'));
 
             this.isXrayStartedProccesing = false;
         }

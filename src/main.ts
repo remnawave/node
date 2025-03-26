@@ -1,34 +1,51 @@
 import { utilities as nestWinstonModuleUtilities, WinstonModule } from 'nest-winston';
-import { ConfigService } from '@nestjs/config';
 import { ZodValidationPipe } from 'nestjs-zod';
-import { NestFactory } from '@nestjs/core';
 import express, { json } from 'express';
+import { createLogger } from 'winston';
 import * as winston from 'winston';
 import helmet from 'helmet';
 import morgan from 'morgan';
 
-import { XRAY_INTERNAL_API_PORT, XRAY_INTERNAL_FULL_PATH } from '@libs/contracts/constants';
+import { ConfigService } from '@nestjs/config';
+import { NestFactory } from '@nestjs/core';
+
 import { NotFoundExceptionFilter } from '@common/exception/not-found-exception.filter';
+import { parseNodePayload } from '@common/utils/decode-node-payload';
+import { getStartMessage } from '@common/utils/get-start-message';
 import { isDevelopment } from '@common/utils/is-development';
+import { XRAY_INTERNAL_API_PORT, XRAY_INTERNAL_FULL_PATH } from '@libs/contracts/constants';
 import { REST_API, ROOT } from '@libs/contracts/api';
 
 import { AppModule } from './app.module';
 
+const logger = createLogger({
+    transports: [new winston.transports.Console()],
+    format: winston.format.combine(
+        winston.format.timestamp(),
+        // winston.format.ms(),
+        nestWinstonModuleUtilities.format.nestLike('', {
+            colors: true,
+            prettyPrint: true,
+            processId: false,
+            appName: false,
+        }),
+    ),
+    level: isDevelopment() ? 'debug' : 'info',
+});
+
 async function bootstrap(): Promise<void> {
+    const nodePayload = parseNodePayload();
+
     const app = await NestFactory.create(AppModule, {
+        httpsOptions: {
+            key: nodePayload.nodeKeyPem,
+            cert: nodePayload.nodeCertPem,
+            ca: [nodePayload.caCertPem],
+            requestCert: true,
+            rejectUnauthorized: true,
+        },
         logger: WinstonModule.createLogger({
-            transports: [new winston.transports.Console()],
-            format: winston.format.combine(
-                winston.format.timestamp(),
-                // winston.format.ms(),
-                nestWinstonModuleUtilities.format.nestLike('', {
-                    colors: true,
-                    prettyPrint: true,
-                    processId: false,
-                    appName: false,
-                }),
-            ),
-            level: isDevelopment() ? 'debug' : 'info',
+            instance: logger,
         }),
     });
 
@@ -73,6 +90,15 @@ async function bootstrap(): Promise<void> {
     );
 
     internalApp.listen(XRAY_INTERNAL_API_PORT, '127.0.0.1');
+
+    logger.info(
+        '\n' +
+            (await getStartMessage(
+                Number(config.getOrThrow<string>('APP_PORT')),
+                XRAY_INTERNAL_API_PORT,
+            )) +
+            '\n',
+    );
 }
 
 void bootstrap();

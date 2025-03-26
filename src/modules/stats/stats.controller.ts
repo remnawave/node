@@ -1,9 +1,9 @@
 import { Body, Controller, Get, Post, UseFilters, UseGuards } from '@nestjs/common';
 
-import { STATS_CONTROLLER, STATS_ROUTES } from '@libs/contracts/api/controllers/stats';
 import { HttpExceptionFilter } from '@common/exception/httpException.filter';
 import { JwtDefaultGuard } from '@common/guards/jwt-guards/def-jwt-guard';
 import { errorHandler } from '@common/helpers/error-handler.helper';
+import { STATS_CONTROLLER, STATS_ROUTES } from '@libs/contracts/api/controllers/stats';
 
 import {
     GetAllInboundsStatsRequestDto,
@@ -22,9 +22,9 @@ import {
 } from './dto';
 import { StatsService } from './stats.service';
 
-@Controller(STATS_CONTROLLER)
 @UseFilters(HttpExceptionFilter)
 @UseGuards(JwtDefaultGuard)
+@Controller(STATS_CONTROLLER)
 export class StatsController {
     constructor(private readonly statsService: StatsService) {
         this.statsService = statsService;

@@ -96,6 +96,7 @@ async function bootstrap(): Promise<void> {
             (await getStartMessage(
                 Number(config.getOrThrow<string>('APP_PORT')),
                 XRAY_INTERNAL_API_PORT,
+                app,
             )) +
             '\n',
     );

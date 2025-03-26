@@ -1,14 +1,4 @@
-import {
-    Body,
-    Controller,
-    Get,
-    Ip,
-    Logger,
-    Post,
-    Req,
-    UseFilters,
-    UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Ip, Logger, Post, UseFilters, UseGuards } from '@nestjs/common';
 
 import { HttpExceptionFilter } from '@common/exception/httpException.filter';
 import { JwtDefaultGuard } from '@common/guards/jwt-guards/def-jwt-guard';
@@ -24,8 +14,8 @@ import {
 } from './dtos/';
 import { XrayService } from './xray.service';
 
-@UseGuards(JwtDefaultGuard)
 @UseFilters(HttpExceptionFilter)
+@UseGuards(JwtDefaultGuard)
 @Controller(XRAY_CONTROLLER)
 export class XrayController {
     private readonly logger = new Logger(XrayController.name);
@@ -38,10 +28,7 @@ export class XrayController {
     public async startXray(
         @Body() body: StartXrayRequestDto,
         @Ip() ip: string,
-        @Req() request: Request,
     ): Promise<StartXrayResponseDto> {
-        this.logger.log(`Controller: ${JSON.stringify(request.headers)}`);
-
         const response = await this.xrayService.startXray(body, ip);
         const data = errorHandler(response);
 

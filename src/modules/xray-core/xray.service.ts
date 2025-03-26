@@ -55,7 +55,6 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     async onApplicationBootstrap() {
         try {
             this.systemStats = await getSystemStats();
-            this.logger.log(`${JSON.stringify(this.systemStats)}`);
         } catch (error) {
             this.logger.error(`Failed to get node hardware info: ${error}`);
         }
@@ -341,6 +340,25 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
         }
 
         return version;
+    }
+
+    public async getXrayInfo(): Promise<{
+        version: string | null;
+        path: string;
+        systemInfo: ISystemStats | null;
+    }> {
+        const output = await execa(this.xrayPath, ['version']);
+        const version = semver.valid(semver.coerce(output.stdout));
+
+        if (version) {
+            this.xrayVersion = version;
+        }
+
+        return {
+            version: version,
+            path: this.xrayPath,
+            systemInfo: this.systemStats,
+        };
     }
 
     private async getXrayInternalStatus(): Promise<boolean> {

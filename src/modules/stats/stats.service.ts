@@ -1,5 +1,6 @@
-import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { Injectable, Logger } from '@nestjs/common';
+
+import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { XtlsApi } from '@remnawave/xtls-sdk';
 
 import { ICommandResponse } from '@common/types/command-response.type';
@@ -87,7 +88,9 @@ export class StatsService {
 
             return {
                 isOk: true,
-                response: new GetUsersStatsResponseModel(response.data.users),
+                response: new GetUsersStatsResponseModel(
+                    response.data.users.filter((user) => user.uplink !== 0 || user.downlink !== 0),
+                ),
             };
         } catch (error) {
             this.logger.error(error);

@@ -1,7 +1,8 @@
-import { XtlsSdkNestjsModule } from '@remnawave/xtls-sdk-nestjs';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+
+import { XtlsSdkNestjsModule } from '@remnawave/xtls-sdk-nestjs';
 
 import { JwtStrategy } from '@common/guards/jwt-guards/strategies/validate-token';
 import { validateEnvConfig } from '@common/utils/validate-env-config';

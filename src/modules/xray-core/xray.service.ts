@@ -397,21 +397,18 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     }
 
     private async restartXrayProcess(): Promise<ProcessInfo> {
-        console.log('restartXrayProcess');
         const processState = await this.supervisordApi.getProcessInfo(XRAY_PROCESS_NAME);
-
-        console.log('processState', processState);
 
         // Reference: https://supervisord.org/subprocess.html#process-states
         if (processState.state === 20) {
             await this.supervisordApi.stopProcess(XRAY_PROCESS_NAME, true);
         }
 
-        console.log('stopProcess');
-
         await this.supervisordApi.startProcess(XRAY_PROCESS_NAME, true);
 
-        console.log('startProcess');
+        const log = await this.supervisordApi.readProcessStdoutLog(XRAY_PROCESS_NAME, 0, 5_000);
+
+        console.log('log', log);
 
         return await this.supervisordApi.getProcessInfo(XRAY_PROCESS_NAME);
     }

@@ -1,3 +1,5 @@
+import { ProcessInfo } from 'node-supervisord/dist/interfaces';
+import { SupervisordClient } from 'node-supervisord';
 import { execa } from '@cjs-exporter/execa';
 import { hasher } from 'node-object-hash';
 import { table } from 'table';
@@ -7,6 +9,7 @@ import semver from 'semver';
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { InjectSupervisord } from '@remnawave/supervisord-nestjs';
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { XtlsApi } from '@remnawave/xtls-sdk';
 
@@ -23,6 +26,8 @@ import {
 } from './models';
 import { InternalService } from '../internal/internal.service';
 
+const XRAY_PROCESS_NAME = 'xray' as const;
+
 @Injectable()
 export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     private readonly logger = new Logger(XrayService.name);
@@ -38,6 +43,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
     constructor(
         @InjectXtls() private readonly xtlsSdk: XtlsApi,
+        @InjectSupervisord() private readonly supervisordApi: SupervisordClient,
         private readonly internalService: InternalService,
         private readonly configService: ConfigService,
     ) {
@@ -55,6 +61,10 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     async onApplicationBootstrap() {
         try {
             this.systemStats = await getSystemStats();
+
+            const methods = await this.supervisordApi.listMethods();
+
+            console.log(methods);
         } catch (error) {
             this.logger.error(`Failed to get node hardware info: ${error}`);
         }
@@ -128,19 +138,11 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
             this.logger.log(`XTLS config generated in ${performance.now() - tm}ms`);
 
-            const xrayProcess = await execa('supervisorctl', ['restart', 'xray'], {
-                reject: false,
-                all: true,
-                cleanup: true,
-                timeout: 60_000,
-                lines: true,
-            });
-
-            this.logger.debug(xrayProcess.all);
+            const xrayProcess = await this.restartXrayProcess();
 
             let isStarted = await this.getXrayInternalStatus();
 
-            if (!isStarted && xrayProcess.all[1] === 'xray: started') {
+            if (!isStarted && xrayProcess.state === 20) {
                 await new Promise((resolve) => setTimeout(resolve, 2000));
                 isStarted = await this.getXrayInternalStatus();
             }
@@ -156,7 +158,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                                 ['Checksum', this.configChecksum],
                                 ['Master IP', ip],
                                 ['Internal Status', isStarted],
-                                ['Error', xrayProcess.all.join(' | ')],
+                                ['Error', 'TODO: implement later'],
                             ],
                             {
                                 header: {
@@ -172,7 +174,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                     response: new StartXrayResponseModel(
                         isStarted,
                         this.xrayVersion,
-                        xrayProcess.all.join('\n'),
+                        'TODO: implement later',
                         this.systemStats,
                     ),
                 };
@@ -290,22 +292,24 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
     public async killAllXrayProcesses(): Promise<void> {
         try {
-            await execa('supervisorctl', ['stop', 'xray'], { reject: false });
+            await this.supervisordApi.stopProcess(XRAY_PROCESS_NAME, true);
 
-            await execa('pkill', ['xray'], { reject: false });
+            // await execa('supervisorctl', ['stop', 'xray'], { reject: false });
 
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            // await execa('pkill', ['xray'], { reject: false });
 
-            await execa('pkill', ['-9', 'xray'], { reject: false });
+            // await new Promise((resolve) => setTimeout(resolve, 1000));
 
-            try {
-                const { stdout } = await execa('lsof', ['-i', ':61000', '-t']);
-                if (stdout) {
-                    await execa('kill', ['-9', stdout.trim()], { reject: false });
-                }
-            } catch (e) {
-                this.logger.error(`Failed to kill Xray process: ${e}`);
-            }
+            // await execa('pkill', ['-9', 'xray'], { reject: false });
+
+            // try {
+            //     const { stdout } = await execa('lsof', ['-i', ':61000', '-t']);
+            //     if (stdout) {
+            //         await execa('kill', ['-9', stdout.trim()], { reject: false });
+            //     }
+            // } catch (e) {
+            //     this.logger.error(`Failed to kill Xray process: ${e}`);
+            // }
 
             this.logger.log('Killed all Xray processes');
         } catch (error) {
@@ -315,7 +319,9 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
     public async supervisorctlStop(): Promise<void> {
         try {
-            await execa('supervisorctl', ['stop', 'xray'], { reject: false, timeout: 10_000 });
+            await this.supervisordApi.stopProcess(XRAY_PROCESS_NAME, true);
+
+            // await execa('supervisorctl', ['stop', 'xray'], { reject: false, timeout: 10_000 });
 
             this.logger.log('Supervisorctl: XTLS stopped.');
         } catch (error) {
@@ -333,6 +339,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
     private async getXrayVersionFromExec(): Promise<null | string> {
         const output = await execa(this.xrayPath, ['version']);
+
         const version = semver.valid(semver.coerce(output.stdout));
 
         if (version) {
@@ -387,5 +394,25 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
         this.logger.error(`Failed to get positive Xray status after ${maxRetries} attempts`);
         return false;
+    }
+
+    private async restartXrayProcess(): Promise<ProcessInfo> {
+        console.log('restartXrayProcess');
+        const processState = await this.supervisordApi.getProcessInfo(XRAY_PROCESS_NAME);
+
+        console.log('processState', processState);
+
+        // Reference: https://supervisord.org/subprocess.html#process-states
+        if (processState.state === 20) {
+            await this.supervisordApi.stopProcess(XRAY_PROCESS_NAME, true);
+        }
+
+        console.log('stopProcess');
+
+        await this.supervisordApi.startProcess(XRAY_PROCESS_NAME, true);
+
+        console.log('startProcess');
+
+        return await this.supervisordApi.getProcessInfo(XRAY_PROCESS_NAME);
     }
 }

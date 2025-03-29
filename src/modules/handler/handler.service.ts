@@ -1,8 +1,9 @@
+import { Injectable, Logger } from '@nestjs/common';
+
 import { RemoveUserResponseModel as RemoveUserResponseModelFromSdk } from '@remnawave/xtls-sdk/build/src/handler/models/remove-user';
 import { AddUserResponseModel as AddUserResponseModelFromSdk } from '@remnawave/xtls-sdk/build/src/handler/models/add-user';
 import { ISdkResponse } from '@remnawave/xtls-sdk/build/src/common/types';
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
-import { Injectable, Logger } from '@nestjs/common';
 import { XtlsApi } from '@remnawave/xtls-sdk';
 
 import { ICommandResponse } from '@common/types/command-response.type';

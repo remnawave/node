@@ -309,7 +309,11 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
     public async killAllXrayProcesses(): Promise<void> {
         try {
-            await this.supervisordApi.stopProcess(XRAY_PROCESS_NAME, true);
+            try {
+                await this.supervisordApi.stopProcess(XRAY_PROCESS_NAME, true);
+            } catch (error) {
+                this.logger.error(`Response from supervisorctl stop: ${error}`);
+            }
 
             await execa('pkill', ['xray'], { reject: false });
 

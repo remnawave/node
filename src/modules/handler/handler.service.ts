@@ -1,8 +1,9 @@
+import { Injectable, Logger } from '@nestjs/common';
+
 import { RemoveUserResponseModel as RemoveUserResponseModelFromSdk } from '@remnawave/xtls-sdk/build/src/handler/models/remove-user';
 import { AddUserResponseModel as AddUserResponseModelFromSdk } from '@remnawave/xtls-sdk/build/src/handler/models/add-user';
 import { ISdkResponse } from '@remnawave/xtls-sdk/build/src/common/types';
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
-import { Injectable, Logger } from '@nestjs/common';
 import { XtlsApi } from '@remnawave/xtls-sdk';
 
 import { ICommandResponse } from '@common/types/command-response.type';
@@ -11,6 +12,7 @@ import { ERRORS } from '@libs/contracts/constants/errors';
 import { AddUserResponseModel, RemoveUserResponseModel } from './models';
 import { GetInboundUsersCountResponseModel } from './models';
 import { GetInboundUsersResponseModel } from './models';
+import { XrayService } from '../xray-core/xray.service';
 import { IRemoveUserRequest } from './interfaces';
 import { TAddUserRequest } from './interfaces';
 
@@ -18,12 +20,22 @@ import { TAddUserRequest } from './interfaces';
 export class HandlerService {
     private readonly logger = new Logger(HandlerService.name);
 
-    constructor(@InjectXtls() private readonly xtlsApi: XtlsApi) {}
+    constructor(
+        @InjectXtls() private readonly xtlsApi: XtlsApi,
+        private readonly xrayService: XrayService,
+    ) {}
 
     public async addUser(data: TAddUserRequest): Promise<ICommandResponse<AddUserResponseModel>> {
         try {
             const { data: requestData } = data;
             const response: Array<ISdkResponse<AddUserResponseModelFromSdk>> = [];
+
+            const inboundsTags = this.xrayService.getSavedInboundsTags();
+
+            for (const tag of inboundsTags) {
+                this.logger.debug(`Removing user: ${requestData[0].username} from tag: ${tag}`);
+                await this.xtlsApi.handler.removeUser(tag, requestData[0].username);
+            }
 
             for (const item of requestData) {
                 let tempRes = null;
@@ -126,9 +138,12 @@ export class HandlerService {
         data: IRemoveUserRequest,
     ): Promise<ICommandResponse<RemoveUserResponseModel>> {
         try {
-            const { username, tags } = data;
+            const { username } = data;
             const response: Array<ISdkResponse<RemoveUserResponseModelFromSdk>> = [];
-            for (const tag of tags) {
+
+            const inboundsTags = this.xrayService.getSavedInboundsTags();
+
+            for (const tag of inboundsTags) {
                 const tempRes = await this.xtlsApi.handler.removeUser(tag, username);
                 response.push(tempRes);
             }

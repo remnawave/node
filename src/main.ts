@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 
 import { NotFoundExceptionFilter } from '@common/exception/not-found-exception.filter';
+import { customLogFilter } from '@common/utils/filter-logs/filter-logs';
 import { parseNodePayload } from '@common/utils/decode-node-payload';
 import { getStartMessage } from '@common/utils/get-start-message';
 import { isDevelopment } from '@common/utils/is-development';
@@ -21,7 +22,11 @@ import { AppModule } from './app.module';
 const logger = createLogger({
     transports: [new winston.transports.Console()],
     format: winston.format.combine(
-        winston.format.timestamp(),
+        customLogFilter(),
+        winston.format.timestamp({
+            format: 'YYYY-MM-DD HH:mm:ss.SSS',
+        }),
+        winston.format.align(),
         // winston.format.ms(),
         nestWinstonModuleUtilities.format.nestLike('', {
             colors: true,

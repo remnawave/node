@@ -22,7 +22,8 @@ export const XRAY_DEFAULT_STATS_MODEL = {
 export const XRAY_DEFAULT_API_MODEL = {
     api: {
         services: ['HandlerService', 'StatsService', 'RoutingService'],
-        tag: 'api',
+        listen: '127.0.0.1:61000',
+        tag: 'REMNAWAVE_API',
     },
 } as const;
 

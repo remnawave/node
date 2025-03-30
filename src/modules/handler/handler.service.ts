@@ -138,9 +138,12 @@ export class HandlerService {
         data: IRemoveUserRequest,
     ): Promise<ICommandResponse<RemoveUserResponseModel>> {
         try {
-            const { username, tags } = data;
+            const { username } = data;
             const response: Array<ISdkResponse<RemoveUserResponseModelFromSdk>> = [];
-            for (const tag of tags) {
+
+            const inboundsTags = this.xrayService.getSavedInboundsTags();
+
+            for (const tag of inboundsTags) {
                 const tempRes = await this.xtlsApi.handler.removeUser(tag, username);
                 response.push(tempRes);
             }

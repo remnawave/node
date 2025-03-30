@@ -41,6 +41,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     private isXrayOnline: boolean = false;
     private systemStats: ISystemStats | null = null;
     private isXrayStartedProccesing: boolean = false;
+    private xtlsConfigInbounds: Array<string> = [];
 
     constructor(
         @InjectXtls() private readonly xtlsSdk: XtlsApi,
@@ -52,6 +53,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
         this.xrayVersion = null;
         this.systemStats = null;
         this.isXrayStartedProccesing = false;
+        this.xtlsConfigInbounds = [];
         this.configEqualChecking = this.configService.getOrThrow<boolean>('CONFIG_EQUAL_CHECKING');
     }
 
@@ -94,6 +96,8 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
             this.isXrayStartedProccesing = true;
 
             const fullConfig = generateApiConfig(config);
+
+            this.xtlsConfigInbounds = await this.extractInboundTags(fullConfig);
 
             if (this.configEqualChecking) {
                 this.logger.log('Getting config checksum...');
@@ -438,5 +442,13 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                 error: error instanceof Error ? error.message : 'Unknown error',
             };
         }
+    }
+
+    private async extractInboundTags(config: Record<string, unknown>): Promise<string[]> {
+        if (!config.inbounds || !Array.isArray(config.inbounds)) {
+            return [];
+        }
+
+        return config.inbounds.map((inbound: { tag: string }) => inbound.tag);
     }
 }

@@ -389,10 +389,10 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
         try {
             return await pRetry(
                 async () => {
-                    const { isOk } = await this.xtlsSdk.stats.getSysStats();
+                    const { isOk, message } = await this.xtlsSdk.stats.getSysStats();
 
                     if (!isOk) {
-                        throw new Error('Xray not ready');
+                        throw new Error(message);
                     }
 
                     return true;

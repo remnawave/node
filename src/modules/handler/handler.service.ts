@@ -12,6 +12,7 @@ import { ERRORS } from '@libs/contracts/constants/errors';
 import { AddUserResponseModel, RemoveUserResponseModel } from './models';
 import { GetInboundUsersCountResponseModel } from './models';
 import { GetInboundUsersResponseModel } from './models';
+import { XrayService } from '../xray-core/xray.service';
 import { IRemoveUserRequest } from './interfaces';
 import { TAddUserRequest } from './interfaces';
 
@@ -19,12 +20,22 @@ import { TAddUserRequest } from './interfaces';
 export class HandlerService {
     private readonly logger = new Logger(HandlerService.name);
 
-    constructor(@InjectXtls() private readonly xtlsApi: XtlsApi) {}
+    constructor(
+        @InjectXtls() private readonly xtlsApi: XtlsApi,
+        private readonly xrayService: XrayService,
+    ) {}
 
     public async addUser(data: TAddUserRequest): Promise<ICommandResponse<AddUserResponseModel>> {
         try {
             const { data: requestData } = data;
             const response: Array<ISdkResponse<AddUserResponseModelFromSdk>> = [];
+
+            const inboundsTags = this.xrayService.getSavedInboundsTags();
+
+            for (const tag of inboundsTags) {
+                this.logger.debug(`Removing user: ${requestData[0].username} from tag: ${tag}`);
+                await this.xtlsApi.handler.removeUser(tag, requestData[0].username);
+            }
 
             for (const item of requestData) {
                 let tempRes = null;

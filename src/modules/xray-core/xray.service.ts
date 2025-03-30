@@ -451,4 +451,8 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
         return config.inbounds.map((inbound: { tag: string }) => inbound.tag);
     }
+
+    public getSavedInboundsTags(): string[] {
+        return this.xtlsConfigInbounds;
+    }
 }

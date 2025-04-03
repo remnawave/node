@@ -33,7 +33,7 @@ import { InternalModule } from './modules/internal/internal.module';
             imports: [],
             inject: [],
             useFactory: () => ({
-                host: 'http://localhost:61002',
+                host: 'http://127.0.0.1:61002',
                 options: {
                     username: 'remnawave',
                     password: 'glcmYQLRwPXDXIBq',

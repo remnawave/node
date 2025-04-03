@@ -65,9 +65,9 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
         try {
             this.systemStats = await getSystemStats();
 
-            // await this.supervisordApi.clearAllProcessLogs();
+            await this.supervisordApi.getState();
         } catch (error) {
-            this.logger.error(`Failed to get node hardware info: ${error}`);
+            this.logger.error(`Error in Application Bootstrap: ${error}`);
         }
 
         this.isXrayOnline = false;

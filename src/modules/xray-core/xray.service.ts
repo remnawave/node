@@ -65,7 +65,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
         try {
             this.systemStats = await getSystemStats();
 
-            await this.supervisordApi.clearAllProcessLogs();
+            // await this.supervisordApi.clearAllProcessLogs();
         } catch (error) {
             this.logger.error(`Failed to get node hardware info: ${error}`);
         }

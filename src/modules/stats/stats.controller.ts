@@ -26,9 +26,7 @@ import { StatsService } from './stats.service';
 @UseGuards(JwtDefaultGuard)
 @Controller(STATS_CONTROLLER)
 export class StatsController {
-    constructor(private readonly statsService: StatsService) {
-        this.statsService = statsService;
-    }
+    constructor(private readonly statsService: StatsService) {}
 
     @Post(STATS_ROUTES.GET_USER_ONLINE_STATUS)
     public async getUserOnlineStatus(

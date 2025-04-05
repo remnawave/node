@@ -20,9 +20,7 @@ import { XrayService } from './xray.service';
 export class XrayController {
     private readonly logger = new Logger(XrayController.name);
 
-    constructor(private readonly xrayService: XrayService) {
-        this.xrayService = xrayService;
-    }
+    constructor(private readonly xrayService: XrayService) {}
 
     @Post(XRAY_ROUTES.START)
     public async startXray(

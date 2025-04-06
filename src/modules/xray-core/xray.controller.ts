@@ -1,9 +1,9 @@
-import { Body, Controller, Get, Ip, Post, UseFilters, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Ip, Logger, Post, UseFilters, UseGuards } from '@nestjs/common';
 
-import { XRAY_CONTROLLER, XRAY_ROUTES } from '@libs/contracts/api/controllers/xray';
 import { HttpExceptionFilter } from '@common/exception/httpException.filter';
 import { JwtDefaultGuard } from '@common/guards/jwt-guards/def-jwt-guard';
 import { errorHandler } from '@common/helpers/error-handler.helper';
+import { XRAY_CONTROLLER, XRAY_ROUTES } from '@libs/contracts/api/controllers/xray';
 
 import {
     GetNodeHealthCheckResponseDto,
@@ -14,13 +14,13 @@ import {
 } from './dtos/';
 import { XrayService } from './xray.service';
 
-@Controller(XRAY_CONTROLLER)
 @UseFilters(HttpExceptionFilter)
 @UseGuards(JwtDefaultGuard)
+@Controller(XRAY_CONTROLLER)
 export class XrayController {
-    constructor(private readonly xrayService: XrayService) {
-        this.xrayService = xrayService;
-    }
+    private readonly logger = new Logger(XrayController.name);
+
+    constructor(private readonly xrayService: XrayService) {}
 
     @Post(XRAY_ROUTES.START)
     public async startXray(

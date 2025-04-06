@@ -8,7 +8,7 @@ import { XrayService } from './xray.service';
     imports: [InternalModule],
     providers: [XrayService],
     controllers: [XrayController],
-    exports: [],
+    exports: [XrayService],
 })
 export class XrayModule implements OnModuleDestroy {
     constructor(private readonly xrayService: XrayService) {}

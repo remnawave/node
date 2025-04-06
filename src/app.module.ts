@@ -1,7 +1,9 @@
-import { XtlsSdkNestjsModule } from '@remnawave/xtls-sdk-nestjs';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+
+import { SupervisordNestjsModule } from '@remnawave/supervisord-nestjs';
+import { XtlsSdkNestjsModule } from '@remnawave/xtls-sdk-nestjs';
 
 import { JwtStrategy } from '@common/guards/jwt-guards/strategies/validate-token';
 import { validateEnvConfig } from '@common/utils/validate-env-config';
@@ -25,6 +27,17 @@ import { InternalModule } from './modules/internal/internal.module';
             useFactory: (configService: ConfigService) => ({
                 ip: configService.getOrThrow<string>('XTLS_IP'),
                 port: configService.getOrThrow<string>('XTLS_PORT'),
+            }),
+        }),
+        SupervisordNestjsModule.forRootAsync({
+            imports: [],
+            inject: [],
+            useFactory: () => ({
+                host: 'http://127.0.0.1:61002',
+                options: {
+                    username: 'remnawave',
+                    password: 'glcmYQLRwPXDXIBq',
+                },
             }),
         }),
         RemnawaveNodeModules,

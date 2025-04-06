@@ -1,12 +1,18 @@
-import { Injectable, Logger, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common';
-import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
-import { ConfigService } from '@nestjs/config';
-import { XtlsApi } from '@remnawave/xtls-sdk';
+import { ProcessInfo } from 'node-supervisord/dist/interfaces';
+import { SupervisordClient } from 'node-supervisord';
 import { execa } from '@cjs-exporter/execa';
 import { hasher } from 'node-object-hash';
 import { table } from 'table';
 import ems from 'enhanced-ms';
+import pRetry from 'p-retry';
 import semver from 'semver';
+
+import { Injectable, Logger, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+
+import { InjectSupervisord } from '@remnawave/supervisord-nestjs';
+import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
+import { XtlsApi } from '@remnawave/xtls-sdk';
 
 import { ISystemStats } from '@common/utils/get-system-stats/get-system-stats.interface';
 import { ICommandResponse } from '@common/types/command-response.type';
@@ -21,6 +27,8 @@ import {
 } from './models';
 import { InternalService } from '../internal/internal.service';
 
+const XRAY_PROCESS_NAME = 'xray' as const;
+
 @Injectable()
 export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     private readonly logger = new Logger(XrayService.name);
@@ -33,9 +41,11 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     private isXrayOnline: boolean = false;
     private systemStats: ISystemStats | null = null;
     private isXrayStartedProccesing: boolean = false;
+    private xtlsConfigInbounds: Array<string> = [];
 
     constructor(
         @InjectXtls() private readonly xtlsSdk: XtlsApi,
+        @InjectSupervisord() private readonly supervisordApi: SupervisordClient,
         private readonly internalService: InternalService,
         private readonly configService: ConfigService,
     ) {
@@ -43,6 +53,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
         this.xrayVersion = null;
         this.systemStats = null;
         this.isXrayStartedProccesing = false;
+        this.xtlsConfigInbounds = [];
         this.configEqualChecking = this.configService.getOrThrow<boolean>('CONFIG_EQUAL_CHECKING');
     }
 
@@ -53,9 +64,10 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     async onApplicationBootstrap() {
         try {
             this.systemStats = await getSystemStats();
-            this.logger.log(`${JSON.stringify(this.systemStats)}`);
+
+            await this.supervisordApi.getState();
         } catch (error) {
-            this.logger.error(`Failed to get node hardware info: ${error}`);
+            this.logger.error(`Error in Application Bootstrap: ${error}`);
         }
 
         this.isXrayOnline = false;
@@ -85,6 +97,8 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
             const fullConfig = generateApiConfig(config);
 
+            this.xtlsConfigInbounds = await this.extractInboundTags(fullConfig);
+
             if (this.configEqualChecking) {
                 this.logger.log('Getting config checksum...');
                 const newChecksum = this.getConfigChecksum(fullConfig);
@@ -104,7 +118,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                 `);
 
                     if (oldChecksum === newChecksum && isXrayOnline) {
-                        this.logger.error(
+                        this.logger.warn(
                             'Xray is already online with the same config. Skipping...',
                         );
 
@@ -125,22 +139,27 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
             this.internalService.setXrayConfig(fullConfig);
 
-            this.logger.log(`XTLS config generated in ${performance.now() - tm}ms`);
+            this.logger.log(
+                'XTLS config generated in: ' +
+                    ems(performance.now() - tm, {
+                        extends: 'short',
+                        includeMs: true,
+                    }),
+            );
 
-            const xrayProcess = await execa('supervisorctl', ['restart', 'xray'], {
-                reject: false,
-                all: true,
-                cleanup: true,
-                timeout: 60_000,
-                lines: true,
-            });
+            const xrayProcess = await this.restartXrayProcess();
 
-            this.logger.debug(xrayProcess.all);
+            if (xrayProcess.error) {
+                this.logger.error(xrayProcess.error);
+                return {
+                    isOk: false,
+                    response: new StartXrayResponseModel(false, null, xrayProcess.error, null),
+                };
+            }
 
             let isStarted = await this.getXrayInternalStatus();
 
-            if (!isStarted && xrayProcess.all[1] === 'xray: started') {
-                await new Promise((resolve) => setTimeout(resolve, 2000));
+            if (!isStarted && xrayProcess.processInfo!.state === 20) {
                 isStarted = await this.getXrayInternalStatus();
             }
 
@@ -155,7 +174,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                                 ['Checksum', this.configChecksum],
                                 ['Master IP', ip],
                                 ['Internal Status', isStarted],
-                                ['Error', xrayProcess.all.join(' | ')],
+                                ['Error', xrayProcess.error],
                             ],
                             {
                                 header: {
@@ -171,7 +190,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                     response: new StartXrayResponseModel(
                         isStarted,
                         this.xrayVersion,
-                        xrayProcess.all.join('\n'),
+                        xrayProcess.error,
                         this.systemStats,
                     ),
                 };
@@ -220,7 +239,10 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
         } finally {
             this.logger.log(
                 'Start XTLS took: ' +
-                    ems(performance.now() - tm, { shortFormat: true, includeMs: true }),
+                    ems(performance.now() - tm, {
+                        extends: 'short',
+                        includeMs: true,
+                    }),
             );
 
             this.isXrayStartedProccesing = false;
@@ -235,7 +257,6 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
             this.configChecksum = null;
             this.internalService.setXrayConfig({});
 
-            this.logger.log('Xray stopped due to request.');
             return {
                 isOk: true,
                 response: new StopXrayResponseModel(true),
@@ -292,7 +313,11 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
     public async killAllXrayProcesses(): Promise<void> {
         try {
-            await execa('supervisorctl', ['stop', 'xray'], { reject: false });
+            try {
+                await this.supervisordApi.stopProcess(XRAY_PROCESS_NAME, true);
+            } catch (error) {
+                this.logger.error(`Response from supervisorctl stop: ${error}`);
+            }
 
             await execa('pkill', ['xray'], { reject: false });
 
@@ -311,13 +336,13 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
             this.logger.log('Killed all Xray processes');
         } catch (error) {
-            this.logger.log('No existing Xray processes found. Error: ', error);
+            this.logger.log(`No existing Xray processes found. Error: ${error}`);
         }
     }
 
     public async supervisorctlStop(): Promise<void> {
         try {
-            await execa('supervisorctl', ['stop', 'xray'], { reject: false, timeout: 10_000 });
+            await this.supervisordApi.stopProcess(XRAY_PROCESS_NAME, true);
 
             this.logger.log('Supervisorctl: XTLS stopped.');
         } catch (error) {
@@ -335,6 +360,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
     private async getXrayVersionFromExec(): Promise<null | string> {
         const output = await execa(this.xrayPath, ['version']);
+
         const version = semver.valid(semver.coerce(output.stdout));
 
         if (version) {
@@ -344,31 +370,89 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
         return version;
     }
 
-    private async getXrayInternalStatus(): Promise<boolean> {
-        const maxRetries = 8;
-        const delay = 2000;
+    public async getXrayInfo(): Promise<{
+        version: string | null;
+        path: string;
+        systemInfo: ISystemStats | null;
+    }> {
+        const output = await execa(this.xrayPath, ['version']);
+        const version = semver.valid(semver.coerce(output.stdout));
 
-        for (let attempt = 0; attempt < maxRetries; attempt++) {
-            try {
-                const { isOk } = await this.xtlsSdk.stats.getSysStats();
-
-                if (isOk) {
-                    return true;
-                }
-
-                if (attempt < maxRetries - 1) {
-                    this.logger.debug(
-                        `Xray status check attempt ${attempt + 1} failed, retrying in ${delay}ms...`,
-                    );
-                    await new Promise((resolve) => setTimeout(resolve, delay));
-                }
-            } catch (error) {
-                this.logger.error(`Unexpected error during Xray status check: ${error}`);
-                return false;
-            }
+        if (version) {
+            this.xrayVersion = version;
         }
 
-        this.logger.error(`Failed to get positive Xray status after ${maxRetries} attempts`);
-        return false;
+        return {
+            version: version,
+            path: this.xrayPath,
+            systemInfo: this.systemStats,
+        };
+    }
+
+    private async getXrayInternalStatus(): Promise<boolean> {
+        try {
+            return await pRetry(
+                async () => {
+                    const { isOk, message } = await this.xtlsSdk.stats.getSysStats();
+
+                    if (!isOk) {
+                        throw new Error(message);
+                    }
+
+                    return true;
+                },
+                {
+                    retries: 10,
+                    minTimeout: 2000,
+                    maxTimeout: 2000,
+                    onFailedAttempt: (error) => {
+                        this.logger.debug(
+                            `Get Xray internal status attempt ${error.attemptNumber} failed. ${error.retriesLeft} retries left.`,
+                        );
+                    },
+                },
+            );
+        } catch (error) {
+            this.logger.error(`Failed to get Xray internal status: ${error}`);
+            return false;
+        }
+    }
+
+    private async restartXrayProcess(): Promise<{
+        processInfo: ProcessInfo | null;
+        error: string | null;
+    }> {
+        try {
+            const processState = await this.supervisordApi.getProcessInfo(XRAY_PROCESS_NAME);
+
+            // Reference: https://supervisord.org/subprocess.html#process-states
+            if (processState.state === 20) {
+                await this.supervisordApi.stopProcess(XRAY_PROCESS_NAME, true);
+            }
+
+            await this.supervisordApi.startProcess(XRAY_PROCESS_NAME, true);
+
+            return {
+                processInfo: await this.supervisordApi.getProcessInfo(XRAY_PROCESS_NAME),
+                error: null,
+            };
+        } catch (error) {
+            return {
+                processInfo: null,
+                error: error instanceof Error ? error.message : 'Unknown error',
+            };
+        }
+    }
+
+    private async extractInboundTags(config: Record<string, unknown>): Promise<string[]> {
+        if (!config.inbounds || !Array.isArray(config.inbounds)) {
+            return [];
+        }
+
+        return config.inbounds.map((inbound: { tag: string }) => inbound.tag);
+    }
+
+    public getSavedInboundsTags(): string[] {
+        return this.xtlsConfigInbounds;
     }
 }

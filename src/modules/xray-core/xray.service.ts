@@ -18,6 +18,7 @@ import { ISystemStats } from '@common/utils/get-system-stats/get-system-stats.in
 import { ICommandResponse } from '@common/types/command-response.type';
 import { generateApiConfig } from '@common/utils/generate-api-config';
 import { getSystemStats } from '@common/utils/get-system-stats';
+import { KNOWN_ERRORS, REMNAWAVE_NODE_KNOWN_ERROR } from '@libs/contracts/constants';
 
 import {
     GetNodeHealthCheckResponseModel,
@@ -81,7 +82,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
         try {
             if (this.isXrayStartedProccesing) {
-                this.logger.error('Request already in progress');
+                this.logger.warn('Request already in progress');
                 return {
                     isOk: true,
                     response: new StartXrayResponseModel(
@@ -150,7 +151,16 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
             const xrayProcess = await this.restartXrayProcess();
 
             if (xrayProcess.error) {
-                this.logger.error(xrayProcess.error);
+                if (xrayProcess.error.includes('XML-RPC fault: SPAWN_ERROR: xray')) {
+                    this.logger.error(REMNAWAVE_NODE_KNOWN_ERROR, {
+                        timestamp: new Date().toISOString(),
+                        rawError: xrayProcess.error,
+                        ...KNOWN_ERRORS.XRAY_FAILED_TO_START,
+                    });
+                } else {
+                    this.logger.error(xrayProcess.error);
+                }
+
                 return {
                     isOk: false,
                     response: new StartXrayResponseModel(false, null, xrayProcess.error, null),

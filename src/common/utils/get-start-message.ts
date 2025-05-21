@@ -19,7 +19,7 @@ export async function getStartMessage(
     return table(
         [
             ['Docs → https://remna.st\nCommunity → https://t.me/remnawave'],
-            [`API Port: ${appPort}\nInternal Port: ${internalPort}`],
+            [`API Port: ${appPort}\nInternal Ports: 61000, ${internalPort}, 61002`],
             [`XRay Core: v${xrayInfo.version || 'N/A'}\nXRay Path: ${xrayInfo.path}`],
             [
                 `SI: ${xrayInfo.systemInfo?.cpuCores}C, ${xrayInfo.systemInfo?.cpuModel}, ${xrayInfo.systemInfo?.memoryTotal}`,

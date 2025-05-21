@@ -2,6 +2,7 @@ import { utilities as nestWinstonModuleUtilities, WinstonModule } from 'nest-win
 import { ZodValidationPipe } from 'nestjs-zod';
 import express, { json } from 'express';
 import { createLogger } from 'winston';
+import compression from 'compression';
 import * as winston from 'winston';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -55,6 +56,8 @@ async function bootstrap(): Promise<void> {
     });
 
     app.use(json({ limit: '1000mb' }));
+
+    app.use(compression());
 
     const config = app.get(ConfigService);
 

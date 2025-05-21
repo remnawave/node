@@ -92,6 +92,17 @@ export class StatsService {
                     response.data.users.filter((user) => user.uplink !== 0 || user.downlink !== 0),
                 ),
             };
+
+            // const demoRes = Array.from({ length: 160_000 }, (_, i) => ({
+            //     username: String(i + 1),
+            //     uplink: Math.floor(Math.random() * (107374182400 - 10485760) + 10485760), // Random between 10MB and 100GB
+            //     downlink: Math.floor(Math.random() * (107374182400 - 10485760) + 10485760), // Random between 10MB and 100GB
+            // }));
+
+            // return {
+            //     isOk: true,
+            //     response: new GetUsersStatsResponseModel(demoRes),
+            // };
         } catch (error) {
             this.logger.error(error);
             return {

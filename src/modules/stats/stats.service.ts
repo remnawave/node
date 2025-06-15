@@ -80,6 +80,8 @@ export class StatsService {
             const response = await this.xtlsSdk.stats.getAllUsersStats(reset);
 
             if (!response.isOk || !response.data) {
+                this.logger.warn(response);
+
                 return {
                     isOk: false,
                     ...ERRORS.FAILED_TO_GET_USERS_STATS,

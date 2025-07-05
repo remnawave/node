@@ -27,6 +27,9 @@ import { InternalModule } from './modules/internal/internal.module';
             useFactory: (configService: ConfigService) => ({
                 ip: configService.getOrThrow<string>('XTLS_IP'),
                 port: configService.getOrThrow<string>('XTLS_PORT'),
+                options: {
+                    'grpc.max_receive_message_length': 100_000_000, // 100MB
+                },
             }),
         }),
         SupervisordNestjsModule.forRootAsync({

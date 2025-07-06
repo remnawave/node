@@ -1,6 +1,7 @@
 import { ProcessInfo } from 'node-supervisord/dist/interfaces';
 import { SupervisordClient } from 'node-supervisord';
 import { execa } from '@cjs-exporter/execa';
+import { readPackageJSON } from 'pkg-types';
 import { hasher } from 'node-object-hash';
 import { table } from 'table';
 import ems from 'enhanced-ms';
@@ -43,7 +44,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     private systemStats: ISystemStats | null = null;
     private isXrayStartedProccesing: boolean = false;
     private xtlsConfigInbounds: Array<string> = [];
-
+    private nodeVersion: string | null = null;
     constructor(
         @InjectXtls() private readonly xtlsSdk: XtlsApi,
         @InjectSupervisord() private readonly supervisordApi: SupervisordClient,
@@ -54,6 +55,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
         this.xrayVersion = null;
         this.systemStats = null;
         this.isXrayStartedProccesing = false;
+        this.nodeVersion = null;
         this.xtlsConfigInbounds = [];
         this.configEqualChecking = this.configService.getOrThrow<boolean>('CONFIG_EQUAL_CHECKING');
     }
@@ -64,7 +66,10 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
     async onApplicationBootstrap() {
         try {
+            const pkg = await readPackageJSON();
+
             this.systemStats = await getSystemStats();
+            this.nodeVersion = pkg.version || null;
 
             await this.supervisordApi.getState();
         } catch (error) {
@@ -90,6 +95,9 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                         this.xrayVersion,
                         'Request already in progress',
                         null,
+                        {
+                            version: this.nodeVersion,
+                        },
                     ),
                 };
             }
@@ -130,6 +138,9 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                                 this.xrayVersion,
                                 null,
                                 null,
+                                {
+                                    version: this.nodeVersion,
+                                },
                             ),
                         };
                     }
@@ -163,7 +174,9 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
                 return {
                     isOk: false,
-                    response: new StartXrayResponseModel(false, null, xrayProcess.error, null),
+                    response: new StartXrayResponseModel(false, null, xrayProcess.error, null, {
+                        version: this.nodeVersion,
+                    }),
                 };
             }
 
@@ -202,6 +215,9 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                         this.xrayVersion,
                         xrayProcess.error,
                         this.systemStats,
+                        {
+                            version: this.nodeVersion,
+                        },
                     ),
                 };
             }
@@ -232,6 +248,9 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                     this.xrayVersion,
                     null,
                     this.systemStats,
+                    {
+                        version: this.nodeVersion,
+                    },
                 ),
             };
         } catch (error) {
@@ -244,7 +263,9 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
             return {
                 isOk: true,
-                response: new StartXrayResponseModel(false, null, errorMessage, null),
+                response: new StartXrayResponseModel(false, null, errorMessage, null, {
+                    version: this.nodeVersion,
+                }),
             };
         } finally {
             this.logger.log(

@@ -19,6 +19,9 @@ export namespace StartXrayCommand {
                     memoryTotal: z.string(),
                 }),
             ),
+            nodeInformation: z.object({
+                version: z.string().nullable(),
+            }),
         }),
     });
 

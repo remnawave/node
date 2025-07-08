@@ -7,8 +7,8 @@ export const XRAY_DEFAULT_POLICY_MODEL = {
             },
         },
         system: {
-            statsInboundDownlink: false,
-            statsInboundUplink: false,
+            statsInboundDownlink: true,
+            statsInboundUplink: true,
             statsOutboundDownlink: true,
             statsOutboundUplink: true,
         },

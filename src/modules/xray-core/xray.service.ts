@@ -2,14 +2,12 @@ import { ProcessInfo } from 'node-supervisord/dist/interfaces';
 import { SupervisordClient } from 'node-supervisord';
 import { execa } from '@cjs-exporter/execa';
 import { readPackageJSON } from 'pkg-types';
-import { hasher } from 'node-object-hash';
 import { table } from 'table';
 import ems from 'enhanced-ms';
 import pRetry from 'p-retry';
 import semver from 'semver';
 
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 
 import { InjectSupervisord } from '@remnawave/supervisord-nestjs';
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
@@ -34,12 +32,10 @@ const XRAY_PROCESS_NAME = 'xray' as const;
 @Injectable()
 export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     private readonly logger = new Logger(XrayService.name);
-    private readonly configEqualChecking: boolean;
 
     private readonly xrayPath: string;
 
     private xrayVersion: null | string = null;
-    private configChecksum: null | string = null;
     private isXrayOnline: boolean = false;
     private systemStats: ISystemStats | null = null;
     private isXrayStartedProccesing: boolean = false;
@@ -49,7 +45,6 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
         @InjectXtls() private readonly xtlsSdk: XtlsApi,
         @InjectSupervisord() private readonly supervisordApi: SupervisordClient,
         private readonly internalService: InternalService,
-        private readonly configService: ConfigService,
     ) {
         this.xrayPath = '/usr/local/bin/xray';
         this.xrayVersion = null;
@@ -57,7 +52,6 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
         this.isXrayStartedProccesing = false;
         this.nodeVersion = null;
         this.xtlsConfigInbounds = [];
-        this.configEqualChecking = this.configService.getOrThrow<boolean>('CONFIG_EQUAL_CHECKING');
     }
 
     async onModuleInit() {
@@ -108,56 +102,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
             this.xtlsConfigInbounds = await this.extractInboundTags(fullConfig);
 
-            if (this.configEqualChecking) {
-                this.logger.log('Getting config checksum...');
-                const newChecksum = this.getConfigChecksum(fullConfig);
-
-                if (this.isXrayOnline) {
-                    this.logger.warn(
-                        `Xray process is already running with checksum ${this.configChecksum}`,
-                    );
-
-                    const oldChecksum = this.configChecksum;
-                    const isXrayOnline = await this.getXrayInternalStatus();
-
-                    this.logger.debug(`
-                    oldChecksum: ${oldChecksum}
-                    newChecksum: ${newChecksum}
-                    isXrayOnline: ${isXrayOnline}
-                `);
-
-                    if (oldChecksum === newChecksum && isXrayOnline) {
-                        this.logger.warn(
-                            'Xray is already online with the same config. Skipping...',
-                        );
-
-                        return {
-                            isOk: true,
-                            response: new StartXrayResponseModel(
-                                true,
-                                this.xrayVersion,
-                                null,
-                                null,
-                                {
-                                    version: this.nodeVersion,
-                                },
-                            ),
-                        };
-                    }
-                }
-
-                this.configChecksum = newChecksum;
-            }
-
             this.internalService.setXrayConfig(fullConfig);
-
-            this.logger.log(
-                'XTLS config generated in: ' +
-                    ems(performance.now() - tm, {
-                        extends: 'short',
-                        includeMs: true,
-                    }),
-            );
 
             const xrayProcess = await this.restartXrayProcess();
 
@@ -194,7 +139,6 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                         table(
                             [
                                 ['Version', this.xrayVersion],
-                                ['Checksum', this.configChecksum],
                                 ['Master IP', ip],
                                 ['Internal Status', isStarted],
                                 ['Error', xrayProcess.error],
@@ -229,7 +173,6 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                     table(
                         [
                             ['Version', this.xrayVersion],
-                            ['Checksum', this.configChecksum],
                             ['Master IP', ip],
                         ],
                         {
@@ -269,7 +212,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
             };
         } finally {
             this.logger.log(
-                'Start XTLS took: ' +
+                'Attempt to start XTLS took: ' +
                     ems(performance.now() - tm, {
                         extends: 'short',
                         includeMs: true,
@@ -285,7 +228,6 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
             await this.killAllXrayProcesses();
 
             this.isXrayOnline = false;
-            this.configChecksum = null;
             this.internalService.setXrayConfig({});
 
             return {
@@ -379,14 +321,6 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
         } catch (error) {
             this.logger.log('Supervisorctl: XTLS stop failed. Error: ', error);
         }
-    }
-
-    private getConfigChecksum(config: Record<string, unknown>): string {
-        const hash = hasher({
-            trim: true,
-        }).hash;
-
-        return hash(config);
     }
 
     private async getXrayVersionFromExec(): Promise<null | string> {

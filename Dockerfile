@@ -19,11 +19,12 @@ RUN apk add --no-cache \
     curl \
     unzip \
     bash \
+    git \
     python3 \
     py3-pip \
     && pip3 install --break-system-packages git+https://github.com/Supervisor/supervisor.git@4bf1e57cbf292ce988dc128e0d2c8917f18da9be \
     && curl -L https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-latest-xray.sh | bash -s -- v25.6.8 \
-    && apk del curl
+    && apk del curl git
 
 COPY supervisord.conf /etc/supervisord.conf
 COPY docker-entrypoint.sh /usr/local/bin/

@@ -59,8 +59,8 @@ export class InternalService {
                     Array.isArray(inbound.settings.clients)
                 ) {
                     for (const client of inbound.settings.clients) {
-                        if (client.email) {
-                            usersSet.add(client.email);
+                        if (client.id) {
+                            usersSet.add(client.id);
                         }
                     }
                 }

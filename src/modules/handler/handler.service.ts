@@ -27,7 +27,7 @@ export class HandlerService {
 
     public async addUser(data: TAddUserRequest): Promise<ICommandResponse<AddUserResponseModel>> {
         try {
-            const { data: requestData } = data;
+            const { data: requestData, hashData } = data;
             const response: Array<ISdkResponse<AddUserResponseModelFromSdk>> = [];
 
             const inboundsTags = this.internalService.getXtlsConfigInbounds();
@@ -35,7 +35,11 @@ export class HandlerService {
             for (const tag of inboundsTags) {
                 this.logger.debug(`Removing user: ${requestData[0].username} from tag: ${tag}`);
                 await this.xtlsApi.handler.removeUser(tag, requestData[0].username);
-                this.internalService.removeUserFromInbound(tag, requestData[0].username);
+                if (hashData.prevVlessUuid) {
+                    this.internalService.removeUserFromInbound(tag, hashData.prevVlessUuid);
+                } else {
+                    this.internalService.removeUserFromInbound(tag, hashData.vlessUuid);
+                }
             }
 
             for (const item of requestData) {
@@ -52,7 +56,7 @@ export class HandlerService {
                             level: item.level,
                         });
                         if (tempRes.isOk) {
-                            this.internalService.addUserToInbound(item.tag, item.username);
+                            this.internalService.addUserToInbound(item.tag, hashData.vlessUuid);
                         }
                         response.push(tempRes);
                         break;
@@ -65,7 +69,7 @@ export class HandlerService {
                             level: item.level,
                         });
                         if (tempRes.isOk) {
-                            this.internalService.addUserToInbound(item.tag, item.username);
+                            this.internalService.addUserToInbound(item.tag, hashData.vlessUuid);
                         }
                         response.push(tempRes);
                         break;
@@ -79,7 +83,7 @@ export class HandlerService {
                             level: item.level,
                         });
                         if (tempRes.isOk) {
-                            this.internalService.addUserToInbound(item.tag, item.username);
+                            this.internalService.addUserToInbound(item.tag, hashData.vlessUuid);
                         }
                         response.push(tempRes);
                         break;
@@ -148,14 +152,14 @@ export class HandlerService {
         data: IRemoveUserRequest,
     ): Promise<ICommandResponse<RemoveUserResponseModel>> {
         try {
-            const { username } = data;
+            const { username, hashData } = data;
             const response: Array<ISdkResponse<RemoveUserResponseModelFromSdk>> = [];
 
             const inboundsTags = this.internalService.getXtlsConfigInbounds();
 
             for (const tag of inboundsTags) {
                 const tempRes = await this.xtlsApi.handler.removeUser(tag, username);
-                this.internalService.removeUserFromInbound(tag, username);
+                this.internalService.removeUserFromInbound(tag, hashData.vlessUuid);
                 response.push(tempRes);
             }
 

@@ -34,7 +34,7 @@
     "@nestjs/jwt": "11.0.0",
     "@nestjs/passport": "11.0.5",
     "@nestjs/platform-express": "11.1.5",
-    "@remnawave/hashed-set": "^0.0.1",
+    "@remnawave/hashed-set": "^0.0.3",
     "@remnawave/supervisord-nestjs": "0.1.1",
     "@remnawave/xtls-sdk": "0.4.1",
     "@remnawave/xtls-sdk-nestjs": "0.4.0",

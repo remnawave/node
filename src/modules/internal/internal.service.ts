@@ -11,7 +11,7 @@ export class InternalService {
     private readonly logger = new Logger(InternalService.name);
     private xrayConfig: null | Record<string, unknown> = null;
     private emptyConfigHash: null | string = null;
-    private inboundsHashMap: Map<string, HashedSet<string>> = new Map();
+    private inboundsHashMap: Map<string, HashedSet> = new Map();
     private xtlsConfigInbounds: string[] = [];
 
     constructor() {}
@@ -111,9 +111,9 @@ export class InternalService {
                     return true;
                 }
 
-                if (usersSet.hash !== incomingInbound.hash) {
+                if (usersSet.hash64String !== incomingInbound.hash) {
                     this.logger.log(
-                        `User configuration changed for inbound "${inboundTag}" (hash: ${usersSet.hash} → ${incomingInbound.hash})`,
+                        `User configuration changed for inbound "${inboundTag}" (hash: ${usersSet.hash64String} → ${incomingInbound.hash})`,
                     );
                     return true;
                 }
@@ -154,10 +154,6 @@ export class InternalService {
         }
 
         usersSet.delete(user);
-    }
-
-    public getInboundHash(inboundTag: string): number {
-        return this.inboundsHashMap.get(inboundTag)?.hash || 0;
     }
 
     public getXtlsConfigInbounds(): string[] {

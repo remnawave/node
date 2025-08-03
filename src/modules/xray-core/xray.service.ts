@@ -17,7 +17,7 @@ import { ISystemStats } from '@common/utils/get-system-stats/get-system-stats.in
 import { ICommandResponse } from '@common/types/command-response.type';
 import { generateApiConfig } from '@common/utils/generate-api-config';
 import { getSystemStats } from '@common/utils/get-system-stats';
-import { KNOWN_ERRORS, REMNAWAVE_NODE_KNOWN_ERROR } from '@libs/contracts/constants';
+import { IHashPayload, KNOWN_ERRORS, REMNAWAVE_NODE_KNOWN_ERROR } from '@libs/contracts/constants';
 
 import {
     GetNodeHealthCheckResponseModel,
@@ -39,7 +39,6 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     private isXrayOnline: boolean = false;
     private systemStats: ISystemStats | null = null;
     private isXrayStartedProccesing: boolean = false;
-    private xtlsConfigInbounds: Array<string> = [];
     private nodeVersion: string | null = null;
     constructor(
         @InjectXtls() private readonly xtlsSdk: XtlsApi,
@@ -51,7 +50,6 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
         this.systemStats = null;
         this.isXrayStartedProccesing = false;
         this.nodeVersion = null;
-        this.xtlsConfigInbounds = [];
     }
 
     async onModuleInit() {
@@ -76,10 +74,29 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     public async startXray(
         config: Record<string, unknown>,
         ip: string,
+        hashPayload: IHashPayload | null,
     ): Promise<ICommandResponse<StartXrayResponseModel>> {
         const tm = performance.now();
 
         try {
+            if (!hashPayload) {
+                this.logger.error(
+                    'Hash payload is null. Update Remnawave to version 2.1.0 or downgrade @remnawave/node to 2.0.0.',
+                );
+                return {
+                    isOk: false,
+                    response: new StartXrayResponseModel(
+                        false,
+                        null,
+                        'Hash payload is null',
+                        null,
+                        {
+                            version: this.nodeVersion,
+                        },
+                    ),
+                };
+            }
+
             if (this.isXrayStartedProccesing) {
                 this.logger.warn('Request already in progress');
                 return {
@@ -100,9 +117,25 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
             const fullConfig = generateApiConfig(config);
 
-            this.xtlsConfigInbounds = await this.extractInboundTags(fullConfig);
+            if (this.isXrayOnline) {
+                const isNeedRestart = this.internalService.isNeedRestartCore(hashPayload);
+                if (!isNeedRestart) {
+                    return {
+                        isOk: true,
+                        response: new StartXrayResponseModel(
+                            true,
+                            this.xrayVersion,
+                            null,
+                            this.systemStats,
+                            {
+                                version: this.nodeVersion,
+                            },
+                        ),
+                    };
+                }
+            }
 
-            this.internalService.setXrayConfig(fullConfig);
+            this.internalService.extractUsersFromConfig(hashPayload, fullConfig);
 
             const xrayProcess = await this.restartXrayProcess();
 
@@ -228,7 +261,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
             await this.killAllXrayProcesses();
 
             this.isXrayOnline = false;
-            this.internalService.setXrayConfig({});
+            this.internalService.cleanup();
 
             return {
                 isOk: true,
@@ -407,17 +440,5 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                 error: error instanceof Error ? error.message : 'Unknown error',
             };
         }
-    }
-
-    private async extractInboundTags(config: Record<string, unknown>): Promise<string[]> {
-        if (!config.inbounds || !Array.isArray(config.inbounds)) {
-            return [];
-        }
-
-        return config.inbounds.map((inbound: { tag: string }) => inbound.tag);
-    }
-
-    public getSavedInboundsTags(): string[] {
-        return this.xtlsConfigInbounds;
     }
 }

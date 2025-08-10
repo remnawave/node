@@ -28,13 +28,13 @@
   },
   "dependencies": {
     "@cjs-exporter/execa": "9.5.2",
-    "@nestjs/common": "11.1.5",
+    "@nestjs/common": "11.1.6",
     "@nestjs/config": "4.0.2",
-    "@nestjs/core": "11.1.5",
+    "@nestjs/core": "11.1.6",
     "@nestjs/jwt": "11.0.0",
     "@nestjs/passport": "11.0.5",
-    "@nestjs/platform-express": "11.1.5",
-    "@remnawave/hashed-set": "^0.0.3",
+    "@nestjs/platform-express": "11.1.6",
+    "@remnawave/hashed-set": "^0.0.4",
     "@remnawave/supervisord-nestjs": "0.1.1",
     "@remnawave/xtls-sdk": "0.4.1",
     "@remnawave/xtls-sdk-nestjs": "0.4.0",
@@ -64,8 +64,8 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@nestjs/cli": "11.0.9",
-    "@nestjs/schematics": "11.0.6",
+    "@nestjs/cli": "11.0.10",
+    "@nestjs/schematics": "11.0.7",
     "@types/compression": "^1.8.1",
     "@types/express": "^5.0.3",
     "@types/js-yaml": "^4.0.9",

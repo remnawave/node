@@ -30,9 +30,6 @@ export class XrayController {
         @Ip() ip: string,
         @HashPayload() hashPayload: IHashPayload | null,
     ): Promise<StartXrayResponseDto> {
-        // TODO: remove this after testing
-        this.logger.log(`Hash payload: ${JSON.stringify(hashPayload)}`);
-
         const response = await this.xrayService.startXray(body, ip, hashPayload);
         const data = errorHandler(response);
 

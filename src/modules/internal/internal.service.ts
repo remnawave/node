@@ -39,7 +39,7 @@ export class InternalService {
         this.xrayConfig = newConfig;
 
         this.logger.log(
-            `Starting user extraction from inbounds with hash payload: ${JSON.stringify(hashPayload)}`,
+            `Starting user extraction from inbounds... Hash payload: ${JSON.stringify(hashPayload)}`,
         );
 
         const start = performance.now();
@@ -70,16 +70,16 @@ export class InternalService {
 
             for (const [inboundTag, usersSet] of this.inboundsHashMap) {
                 this.xtlsConfigInbounds.push(inboundTag);
-                this.logger.log(`Inbound "${inboundTag}" contains ${usersSet.size} user(s)`);
+                this.logger.log(`Inbound ${inboundTag} contains ${usersSet.size} user(s)`);
             }
         }
 
-        this.logger.log(
-            `User extraction completed in ${ems(performance.now() - start, {
-                extends: 'short',
-                includeMs: true,
-            })}`,
-        );
+        const result = ems(performance.now() - start, {
+            extends: 'short',
+            includeMs: true,
+        });
+
+        this.logger.log(`User extraction completed in ${result ? result : '0ms'}`);
     }
 
     public isNeedRestartCore(incomingHashPayload: IHashPayload): boolean {
@@ -106,14 +106,14 @@ export class InternalService {
 
                 if (!incomingInbound) {
                     this.logger.log(
-                        `Inbound "${inboundTag}" no longer exists in Xray Core configuration`,
+                        `Inbound ${inboundTag} no longer exists in Xray Core configuration`,
                     );
                     return true;
                 }
 
                 if (usersSet.hash64String !== incomingInbound.hash) {
                     this.logger.log(
-                        `User configuration changed for inbound "${inboundTag}" (hash: ${usersSet.hash64String} → ${incomingInbound.hash})`,
+                        `User configuration changed for inbound ${inboundTag} (${usersSet.hash64String} → ${incomingInbound.hash})`,
                     );
                     return true;
                 }
@@ -126,13 +126,11 @@ export class InternalService {
             this.logger.error(`Failed to check if Xray Core restart is needed: ${error}`);
             return true;
         } finally {
-            this.logger.log(
-                'Configuration hash check completed in ' +
-                    ems(performance.now() - start, {
-                        extends: 'short',
-                        includeMs: true,
-                    }),
-            );
+            const result = ems(performance.now() - start, {
+                extends: 'short',
+                includeMs: true,
+            });
+            this.logger.log(`Configuration hash check completed in ${result ? result : '0ms'}`);
         }
     }
 

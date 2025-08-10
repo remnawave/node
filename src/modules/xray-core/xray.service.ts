@@ -80,20 +80,15 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
         try {
             if (!hashPayload) {
-                this.logger.error(
-                    'Hash payload is null. Update Remnawave to version 2.1.0 or downgrade @remnawave/node to 2.0.0.',
-                );
+                const errMessage =
+                    'Hash payload is null. Update Remnawave to version 2.1.0 or downgrade @remnawave/node to 2.0.0.';
+                this.logger.error(errMessage);
+
                 return {
                     isOk: false,
-                    response: new StartXrayResponseModel(
-                        false,
-                        null,
-                        'Hash payload is null',
-                        null,
-                        {
-                            version: this.nodeVersion,
-                        },
-                    ),
+                    response: new StartXrayResponseModel(false, null, errMessage, null, {
+                        version: this.nodeVersion,
+                    }),
                 };
             }
 

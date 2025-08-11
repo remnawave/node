@@ -8,6 +8,7 @@ import pRetry from 'p-retry';
 import semver from 'semver';
 
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 import { InjectSupervisord } from '@remnawave/supervisord-nestjs';
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
@@ -32,6 +33,7 @@ const XRAY_PROCESS_NAME = 'xray' as const;
 @Injectable()
 export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     private readonly logger = new Logger(XrayService.name);
+    private readonly disableHashedSetCheck: boolean;
 
     private readonly xrayPath: string;
 
@@ -44,12 +46,16 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
         @InjectXtls() private readonly xtlsSdk: XtlsApi,
         @InjectSupervisord() private readonly supervisordApi: SupervisordClient,
         private readonly internalService: InternalService,
+        private readonly configService: ConfigService,
     ) {
         this.xrayPath = '/usr/local/bin/xray';
         this.xrayVersion = null;
         this.systemStats = null;
         this.isXrayStartedProccesing = false;
         this.nodeVersion = null;
+        this.disableHashedSetCheck = this.configService.getOrThrow<boolean>(
+            'DISABLE_HASHED_SET_CHECK',
+        );
     }
 
     async onModuleInit() {
@@ -112,7 +118,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
             const fullConfig = generateApiConfig(config);
 
-            if (this.isXrayOnline) {
+            if (this.isXrayOnline && !this.disableHashedSetCheck) {
                 const isNeedRestart = this.internalService.isNeedRestartCore(hashPayload);
                 if (!isNeedRestart) {
                     return {

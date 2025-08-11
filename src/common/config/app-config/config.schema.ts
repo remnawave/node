@@ -13,6 +13,10 @@ export const configSchema = z
         JWT_PUBLIC_KEY: z.string().optional(),
         XTLS_IP: z.string().default('127.0.0.1'),
         XTLS_PORT: z.string().default('61000'),
+        DISABLE_HASHED_SET_CHECK: z
+            .string()
+            .default('false')
+            .transform((val) => val === 'true'),
     })
     .superRefine((data, ctx) => {
         if (data.SSL_CERT) {

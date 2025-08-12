@@ -30,12 +30,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
             this.logger.error(exception.getResponse());
             response.status(status).json(exception.getResponse());
         } else {
-            this.logger.error({
-                timestamp: new Date().toISOString(),
-                code: errorCode,
-                path: request.url,
-                message: errorMessage,
-            });
+            // this.logger.error({
+            //     timestamp: new Date().toISOString(),
+            //     code: errorCode,
+            //     path: request.url,
+            //     message: errorMessage,
+            // });
             response.status(status).json({
                 timestamp: new Date().toISOString(),
                 path: request.url,

@@ -7,6 +7,9 @@ export namespace RemoveUserCommand {
 
     export const RequestSchema = z.object({
         username: z.string(),
+        hashData: z.object({
+            vlessUuid: z.string().uuid(),
+        }),
     });
 
     export type Request = z.infer<typeof RequestSchema>;

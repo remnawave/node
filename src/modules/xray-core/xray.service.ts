@@ -8,6 +8,7 @@ import pRetry from 'p-retry';
 import semver from 'semver';
 
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 import { InjectSupervisord } from '@remnawave/supervisord-nestjs';
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
@@ -17,7 +18,7 @@ import { ISystemStats } from '@common/utils/get-system-stats/get-system-stats.in
 import { ICommandResponse } from '@common/types/command-response.type';
 import { generateApiConfig } from '@common/utils/generate-api-config';
 import { getSystemStats } from '@common/utils/get-system-stats';
-import { KNOWN_ERRORS, REMNAWAVE_NODE_KNOWN_ERROR } from '@libs/contracts/constants';
+import { IHashPayload, KNOWN_ERRORS, REMNAWAVE_NODE_KNOWN_ERROR } from '@libs/contracts/constants';
 
 import {
     GetNodeHealthCheckResponseModel,
@@ -32,6 +33,7 @@ const XRAY_PROCESS_NAME = 'xray' as const;
 @Injectable()
 export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     private readonly logger = new Logger(XrayService.name);
+    private readonly disableHashedSetCheck: boolean;
 
     private readonly xrayPath: string;
 
@@ -39,19 +41,21 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     private isXrayOnline: boolean = false;
     private systemStats: ISystemStats | null = null;
     private isXrayStartedProccesing: boolean = false;
-    private xtlsConfigInbounds: Array<string> = [];
     private nodeVersion: string | null = null;
     constructor(
         @InjectXtls() private readonly xtlsSdk: XtlsApi,
         @InjectSupervisord() private readonly supervisordApi: SupervisordClient,
         private readonly internalService: InternalService,
+        private readonly configService: ConfigService,
     ) {
         this.xrayPath = '/usr/local/bin/xray';
         this.xrayVersion = null;
         this.systemStats = null;
         this.isXrayStartedProccesing = false;
         this.nodeVersion = null;
-        this.xtlsConfigInbounds = [];
+        this.disableHashedSetCheck = this.configService.getOrThrow<boolean>(
+            'DISABLE_HASHED_SET_CHECK',
+        );
     }
 
     async onModuleInit() {
@@ -76,10 +80,24 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
     public async startXray(
         config: Record<string, unknown>,
         ip: string,
+        hashPayload: IHashPayload | null,
     ): Promise<ICommandResponse<StartXrayResponseModel>> {
         const tm = performance.now();
 
         try {
+            if (!hashPayload) {
+                const errMessage =
+                    'Hash payload is null. Update Remnawave to version 2.1.0 or downgrade @remnawave/node to 2.0.0.';
+                this.logger.error(errMessage);
+
+                return {
+                    isOk: false,
+                    response: new StartXrayResponseModel(false, null, errMessage, null, {
+                        version: this.nodeVersion,
+                    }),
+                };
+            }
+
             if (this.isXrayStartedProccesing) {
                 this.logger.warn('Request already in progress');
                 return {
@@ -100,9 +118,25 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
             const fullConfig = generateApiConfig(config);
 
-            this.xtlsConfigInbounds = await this.extractInboundTags(fullConfig);
+            if (this.isXrayOnline && !this.disableHashedSetCheck) {
+                const isNeedRestart = this.internalService.isNeedRestartCore(hashPayload);
+                if (!isNeedRestart) {
+                    return {
+                        isOk: true,
+                        response: new StartXrayResponseModel(
+                            true,
+                            this.xrayVersion,
+                            null,
+                            this.systemStats,
+                            {
+                                version: this.nodeVersion,
+                            },
+                        ),
+                    };
+                }
+            }
 
-            this.internalService.setXrayConfig(fullConfig);
+            this.internalService.extractUsersFromConfig(hashPayload, fullConfig);
 
             const xrayProcess = await this.restartXrayProcess();
 
@@ -228,7 +262,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
             await this.killAllXrayProcesses();
 
             this.isXrayOnline = false;
-            this.internalService.setXrayConfig({});
+            this.internalService.cleanup();
 
             return {
                 isOk: true,
@@ -407,17 +441,5 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                 error: error instanceof Error ? error.message : 'Unknown error',
             };
         }
-    }
-
-    private async extractInboundTags(config: Record<string, unknown>): Promise<string[]> {
-        if (!config.inbounds || !Array.isArray(config.inbounds)) {
-            return [];
-        }
-
-        return config.inbounds.map((inbound: { tag: string }) => inbound.tag);
-    }
-
-    public getSavedInboundsTags(): string[] {
-        return this.xtlsConfigInbounds;
     }
 }

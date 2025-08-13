@@ -79,6 +79,10 @@ export namespace AddUserCommand {
                 BaseHttpUser,
             ]),
         ),
+        hashData: z.object({
+            vlessUuid: z.string().uuid(),
+            prevVlessUuid: z.optional(z.string().uuid()),
+        }),
     });
 
     export type Request = z.infer<typeof RequestSchema>;

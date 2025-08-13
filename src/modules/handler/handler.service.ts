@@ -10,9 +10,9 @@ import { ICommandResponse } from '@common/types/command-response.type';
 import { ERRORS } from '@libs/contracts/constants/errors';
 
 import { AddUserResponseModel, RemoveUserResponseModel } from './models';
+import { InternalService } from '../internal/internal.service';
 import { GetInboundUsersCountResponseModel } from './models';
 import { GetInboundUsersResponseModel } from './models';
-import { XrayService } from '../xray-core/xray.service';
 import { IRemoveUserRequest } from './interfaces';
 import { TAddUserRequest } from './interfaces';
 
@@ -22,19 +22,24 @@ export class HandlerService {
 
     constructor(
         @InjectXtls() private readonly xtlsApi: XtlsApi,
-        private readonly xrayService: XrayService,
+        private readonly internalService: InternalService,
     ) {}
 
     public async addUser(data: TAddUserRequest): Promise<ICommandResponse<AddUserResponseModel>> {
         try {
-            const { data: requestData } = data;
+            const { data: requestData, hashData } = data;
             const response: Array<ISdkResponse<AddUserResponseModelFromSdk>> = [];
 
-            const inboundsTags = this.xrayService.getSavedInboundsTags();
+            const inboundsTags = this.internalService.getXtlsConfigInbounds();
 
             for (const tag of inboundsTags) {
                 this.logger.debug(`Removing user: ${requestData[0].username} from tag: ${tag}`);
                 await this.xtlsApi.handler.removeUser(tag, requestData[0].username);
+                if (hashData.prevVlessUuid) {
+                    this.internalService.removeUserFromInbound(tag, hashData.prevVlessUuid);
+                } else {
+                    this.internalService.removeUserFromInbound(tag, hashData.vlessUuid);
+                }
             }
 
             for (const item of requestData) {
@@ -50,6 +55,9 @@ export class HandlerService {
                             password: item.password,
                             level: item.level,
                         });
+                        if (tempRes.isOk) {
+                            this.internalService.addUserToInbound(item.tag, hashData.vlessUuid);
+                        }
                         response.push(tempRes);
                         break;
                     case 'vless':
@@ -60,6 +68,9 @@ export class HandlerService {
                             flow: item.flow,
                             level: item.level,
                         });
+                        if (tempRes.isOk) {
+                            this.internalService.addUserToInbound(item.tag, hashData.vlessUuid);
+                        }
                         response.push(tempRes);
                         break;
                     case 'shadowsocks':
@@ -71,6 +82,9 @@ export class HandlerService {
                             ivCheck: item.ivCheck,
                             level: item.level,
                         });
+                        if (tempRes.isOk) {
+                            this.internalService.addUserToInbound(item.tag, hashData.vlessUuid);
+                        }
                         response.push(tempRes);
                         break;
                 }
@@ -138,13 +152,14 @@ export class HandlerService {
         data: IRemoveUserRequest,
     ): Promise<ICommandResponse<RemoveUserResponseModel>> {
         try {
-            const { username } = data;
+            const { username, hashData } = data;
             const response: Array<ISdkResponse<RemoveUserResponseModelFromSdk>> = [];
 
-            const inboundsTags = this.xrayService.getSavedInboundsTags();
+            const inboundsTags = this.internalService.getXtlsConfigInbounds();
 
             for (const tag of inboundsTags) {
                 const tempRes = await this.xtlsApi.handler.removeUser(tag, username);
+                this.internalService.removeUserFromInbound(tag, hashData.vlessUuid);
                 response.push(tempRes);
             }
 

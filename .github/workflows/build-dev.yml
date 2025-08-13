@@ -21,10 +21,20 @@ jobs:
           thread_id: ${{ secrets.TELEGRAM_TOPIC_ID }}
           status: pending
           notify_fields: 'repo_with_tag,commit,workflow'
-          title: 'Building docker image.'
+          title: 'Building docker images.'
 
-  build-docker-image:
+  build-docker-images:
+    name: Build ${{ matrix.image.name }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image:
+          - name: 'Main Image'
+            tag: 'remnawave/node:dev'
+            build_args: ''
+          - name: 'SNI Image'
+            tag: 'remnawave/node:sni-dev'
+            build_args: 'UPSTREAM_REPO=kastov'
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -46,18 +56,18 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push ${{ matrix.image.name }}
         uses: docker/build-push-action@v3
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            remnawave/node:dev
+          build-args: ${{ matrix.image.build_args }}
+          tags: ${{ matrix.image.tag }}
 
   send-finish-tg-msg:
     name: Send TG message
-    needs: [build-docker-image]
+    needs: [build-docker-images]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
@@ -75,7 +85,7 @@ jobs:
 
   notify-on-error:
     runs-on: ubuntu-latest
-    needs: [build-docker-image]
+    needs: [build-docker-images]
     if: failure()
     steps:
       - name: Checkout source code

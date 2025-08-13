@@ -1,6 +1,10 @@
 import { CipherType } from '@remnawave/xtls-sdk/build/src/xray-protos/proxy/shadowsocks/config';
 
 export interface TAddUserRequest {
+    hashData: {
+        vlessUuid: string;
+        prevVlessUuid?: string;
+    };
     data: Array<
         | {
               cipherType: CipherType;

@@ -119,8 +119,18 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
             const fullConfig = generateApiConfig(config);
 
             if (this.isXrayOnline && !this.disableHashedSetCheck) {
-                const isNeedRestart = this.internalService.isNeedRestartCore(hashPayload);
-                if (!isNeedRestart) {
+                const { isOk } = await this.xtlsSdk.stats.getSysStats();
+
+                let shouldRestart = false;
+
+                if (isOk) {
+                    shouldRestart = this.internalService.isNeedRestartCore(hashPayload);
+                } else {
+                    this.logger.warn(`Xray Core health check failed, restarting...`);
+                    shouldRestart = true;
+                }
+
+                if (!shouldRestart) {
                     return {
                         isOk: true,
                         response: new StartXrayResponseModel(

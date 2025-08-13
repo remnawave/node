@@ -138,6 +138,12 @@ export class InternalService {
         const usersSet = this.inboundsHashMap.get(inboundTag);
 
         if (!usersSet) {
+            this.logger.warn(
+                `Inbound ${inboundTag} not found in inboundsHashMap, creating new one`,
+            );
+
+            this.inboundsHashMap.set(inboundTag, new HashedSet([user]));
+
             return;
         }
 

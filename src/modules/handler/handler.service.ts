@@ -30,11 +30,15 @@ export class HandlerService {
             const { data: requestData, hashData } = data;
             const response: Array<ISdkResponse<AddUserResponseModelFromSdk>> = [];
 
-            const inboundsTags = this.internalService.getXtlsConfigInbounds();
+            for (const item of requestData) {
+                this.internalService.addXtlsConfigInbound(item.tag);
+            }
 
-            for (const tag of inboundsTags) {
+            for (const tag of this.internalService.getXtlsConfigInbounds()) {
                 this.logger.debug(`Removing user: ${requestData[0].username} from tag: ${tag}`);
+
                 await this.xtlsApi.handler.removeUser(tag, requestData[0].username);
+
                 if (hashData.prevVlessUuid) {
                     this.internalService.removeUserFromInbound(tag, hashData.prevVlessUuid);
                 } else {
@@ -119,35 +123,6 @@ export class HandlerService {
         }
     }
 
-    public async getInboundUsers(
-        tag: string,
-    ): Promise<ICommandResponse<GetInboundUsersResponseModel>> {
-        try {
-            // TODO: add a better way to return users (trojan, vless, etc)
-            const response = await this.xtlsApi.handler.getInboundUsers(tag);
-
-            if (!response.isOk || !response.data) {
-                return {
-                    isOk: false,
-                    code: ERRORS.FAILED_TO_GET_INBOUND_USERS.code,
-                    response: new GetInboundUsersResponseModel([]),
-                };
-            }
-
-            return {
-                isOk: true,
-                response: new GetInboundUsersResponseModel(response.data.users),
-            };
-        } catch (error) {
-            this.logger.error(error);
-            return {
-                isOk: false,
-                code: ERRORS.FAILED_TO_GET_INBOUND_USERS.code,
-                response: new GetInboundUsersResponseModel([]),
-            };
-        }
-    }
-
     public async removeUser(
         data: IRemoveUserRequest,
     ): Promise<ICommandResponse<RemoveUserResponseModel>> {
@@ -155,10 +130,11 @@ export class HandlerService {
             const { username, hashData } = data;
             const response: Array<ISdkResponse<RemoveUserResponseModelFromSdk>> = [];
 
-            const inboundsTags = this.internalService.getXtlsConfigInbounds();
+            for (const tag of this.internalService.getXtlsConfigInbounds()) {
+                this.logger.debug(`Removing user: ${username} from tag: ${tag}`);
 
-            for (const tag of inboundsTags) {
                 const tempRes = await this.xtlsApi.handler.removeUser(tag, username);
+
                 this.internalService.removeUserFromInbound(tag, hashData.vlessUuid);
                 response.push(tempRes);
             }
@@ -188,6 +164,35 @@ export class HandlerService {
                 isOk: false,
                 code: ERRORS.INTERNAL_SERVER_ERROR.code,
                 response: new RemoveUserResponseModel(false, message),
+            };
+        }
+    }
+
+    public async getInboundUsers(
+        tag: string,
+    ): Promise<ICommandResponse<GetInboundUsersResponseModel>> {
+        try {
+            // TODO: add a better way to return users (trojan, vless, etc)
+            const response = await this.xtlsApi.handler.getInboundUsers(tag);
+
+            if (!response.isOk || !response.data) {
+                return {
+                    isOk: false,
+                    code: ERRORS.FAILED_TO_GET_INBOUND_USERS.code,
+                    response: new GetInboundUsersResponseModel([]),
+                };
+            }
+
+            return {
+                isOk: true,
+                response: new GetInboundUsersResponseModel(response.data.users),
+            };
+        } catch (error) {
+            this.logger.error(error);
+            return {
+                isOk: false,
+                code: ERRORS.FAILED_TO_GET_INBOUND_USERS.code,
+                response: new GetInboundUsersResponseModel([]),
             };
         }
     }

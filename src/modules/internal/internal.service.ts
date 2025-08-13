@@ -12,7 +12,7 @@ export class InternalService {
     private xrayConfig: null | Record<string, unknown> = null;
     private emptyConfigHash: null | string = null;
     private inboundsHashMap: Map<string, HashedSet> = new Map();
-    private xtlsConfigInbounds: string[] = [];
+    private xtlsConfigInbounds: Set<string> = new Set();
 
     constructor() {}
 
@@ -69,7 +69,7 @@ export class InternalService {
             }
 
             for (const [inboundTag, usersSet] of this.inboundsHashMap) {
-                this.xtlsConfigInbounds.push(inboundTag);
+                this.xtlsConfigInbounds.add(inboundTag);
                 this.logger.log(`Inbound ${inboundTag} contains ${usersSet.size} user(s)`);
             }
         }
@@ -158,15 +158,26 @@ export class InternalService {
         }
 
         usersSet.delete(user);
+
+        if (usersSet.size === 0) {
+            this.xtlsConfigInbounds.delete(inboundTag);
+            this.inboundsHashMap.delete(inboundTag);
+
+            this.logger.warn(`Inbound ${inboundTag} has no users, clearing inboundsHashMap.`);
+        }
     }
 
-    public getXtlsConfigInbounds(): string[] {
+    public getXtlsConfigInbounds(): Set<string> {
         return this.xtlsConfigInbounds;
+    }
+
+    public addXtlsConfigInbound(inboundTag: string): void {
+        this.xtlsConfigInbounds.add(inboundTag);
     }
 
     public cleanup(): void {
         this.inboundsHashMap.clear();
-        this.xtlsConfigInbounds = [];
+        this.xtlsConfigInbounds.clear();
         this.xrayConfig = null;
         this.emptyConfigHash = null;
     }

@@ -91,7 +91,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                 this.logger.error(errMessage);
 
                 return {
-                    isOk: false,
+                    isOk: true,
                     response: new StartXrayResponseModel(false, null, errMessage, null, {
                         version: this.nodeVersion,
                     }),
@@ -116,11 +116,21 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
             this.isXrayStartedProccesing = true;
 
-            const fullConfig = generateApiConfig(config);
-
             if (this.isXrayOnline && !this.disableHashedSetCheck) {
-                const isNeedRestart = this.internalService.isNeedRestartCore(hashPayload);
-                if (!isNeedRestart) {
+                const { isOk } = await this.xtlsSdk.stats.getSysStats();
+
+                let shouldRestart = false;
+
+                if (isOk) {
+                    shouldRestart = this.internalService.isNeedRestartCore(hashPayload);
+                } else {
+                    this.isXrayOnline = false;
+                    shouldRestart = true;
+
+                    this.logger.warn(`Xray Core health check failed, restarting...`);
+                }
+
+                if (!shouldRestart) {
                     return {
                         isOk: true,
                         response: new StartXrayResponseModel(
@@ -135,6 +145,8 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                     };
                 }
             }
+
+            const fullConfig = generateApiConfig(config);
 
             this.internalService.extractUsersFromConfig(hashPayload, fullConfig);
 
@@ -152,7 +164,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                 }
 
                 return {
-                    isOk: false,
+                    isOk: true,
                     response: new StartXrayResponseModel(false, null, xrayProcess.error, null, {
                         version: this.nodeVersion,
                     }),

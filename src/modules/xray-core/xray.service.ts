@@ -91,7 +91,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                 this.logger.error(errMessage);
 
                 return {
-                    isOk: false,
+                    isOk: true,
                     response: new StartXrayResponseModel(false, null, errMessage, null, {
                         version: this.nodeVersion,
                     }),
@@ -115,8 +115,6 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
             }
 
             this.isXrayStartedProccesing = true;
-
-            const fullConfig = generateApiConfig(config);
 
             if (this.isXrayOnline && !this.disableHashedSetCheck) {
                 const { isOk } = await this.xtlsSdk.stats.getSysStats();
@@ -148,6 +146,8 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                 }
             }
 
+            const fullConfig = generateApiConfig(config);
+
             this.internalService.extractUsersFromConfig(hashPayload, fullConfig);
 
             const xrayProcess = await this.restartXrayProcess();
@@ -164,7 +164,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                 }
 
                 return {
-                    isOk: false,
+                    isOk: true,
                     response: new StartXrayResponseModel(false, null, xrayProcess.error, null, {
                         version: this.nodeVersion,
                     }),

@@ -7,7 +7,7 @@ RUN npm run build --omit=dev
 RUN npm ci --omit=dev --legacy-peer-deps \
     && npm cache clean --force
 
-FROM oven/bun:1 AS base
+FROM oven/bun:1.2.20-debian AS base
 
 ARG XRAY_CORE_VERSION=v25.8.3
 ARG UPSTREAM_REPO=XTLS

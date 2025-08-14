@@ -126,8 +126,10 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                 if (isOk) {
                     shouldRestart = this.internalService.isNeedRestartCore(hashPayload);
                 } else {
-                    this.logger.warn(`Xray Core health check failed, restarting...`);
+                    this.isXrayOnline = false;
                     shouldRestart = true;
+
+                    this.logger.warn(`Xray Core health check failed, restarting...`);
                 }
 
                 if (!shouldRestart) {

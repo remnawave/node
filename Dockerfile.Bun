@@ -41,4 +41,4 @@ COPY ./libs ./libs
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
-CMD ["bun", "run", "start:prod"]
+CMD ["bun", "run", "start:bun"]

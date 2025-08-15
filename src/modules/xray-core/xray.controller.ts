@@ -30,6 +30,8 @@ export class XrayController {
         @Ip() ip: string,
         @HashPayload() hashPayload: IHashPayload | null,
     ): Promise<StartXrayResponseDto> {
+        this.logger.log(`JWT: ${JSON.stringify(hashPayload)}`);
+
         const response = await this.xrayService.startXray(body, ip, hashPayload);
         const data = errorHandler(response);
 

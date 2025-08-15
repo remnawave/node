@@ -1,6 +1,6 @@
 {
   "name": "@remnawave/node",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Remnawave Node",
   "private": false,
   "type": "commonjs",
@@ -20,7 +20,7 @@
     "start": "nest start",
     "start:dev": "NODE_ENV=development nest start --watch",
     "start:debug": "NODE_ENV=development nest start --debug --watch",
-    "start:prod": "NODE_ENV=production node dist/src/main",
+    "start:prod": "NODE_ENV=production node --max-http-header-size=65536 dist/src/main",
     "start:bun": "NODE_ENV=production bun run dist/src/main",
     "prepare": "husky",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",

@@ -78,7 +78,6 @@ async function bootstrap(): Promise<void> {
     });
 
     app.useGlobalPipes(new ZodValidationPipe());
-    app.enableShutdownHooks();
 
     await app.listen(Number(config.getOrThrow<string>('APP_PORT')));
 
@@ -97,7 +96,23 @@ async function bootstrap(): Promise<void> {
         },
     );
 
-    internalApp.listen(XRAY_INTERNAL_API_PORT, '127.0.0.1');
+    const internalServer = internalApp.listen(XRAY_INTERNAL_API_PORT, '127.0.0.1');
+
+    let internalServerClosed = false;
+
+    const closeInternalServer = () => {
+        if (internalServerClosed) return;
+        internalServerClosed = true;
+
+        internalServer.close(() => {
+            logger.info('Shutting down...');
+        });
+    };
+
+    app.enableShutdownHooks();
+
+    process.on('SIGINT', closeInternalServer);
+    process.on('SIGTERM', closeInternalServer);
 
     logger.info(
         '\n' +

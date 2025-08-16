@@ -1,0 +1,10 @@
+services:
+  remnawave-node-local:
+    container_name: remnawave-node-local
+    hostname: remnawave-node-local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    network_mode: host
+    env_file:
+      - .env

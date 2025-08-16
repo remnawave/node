@@ -39,6 +39,10 @@ COPY ./libs ./libs
 RUN npm ci --omit=dev --legacy-peer-deps \
     && npm cache clean --force
 
+
+ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max-http-header-size=65536"
+
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
-CMD ["npm", "run", "start:prod"]
+CMD ["node", "dist/src/main"]

@@ -25,7 +25,8 @@
     "prepare": "husky",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "lint:fix:imports": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix --rule 'perfectionist/sort-imports: error'"
+    "lint:fix:imports": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix --rule 'perfectionist/sort-imports: error'",
+    "knip": "knip"
   },
   "dependencies": {
     "@cjs-exporter/execa": "9.5.2",
@@ -59,20 +60,15 @@
     "systeminformation": "^5.25.11",
     "table": "^6.9.0",
     "winston": "^3.17.0",
-    "zod": "^3.24.2"
+    "zod": "3.25.76"
   },
   "devDependencies": {
     "@nestjs/cli": "11.0.10",
     "@nestjs/schematics": "11.0.7",
     "@types/compression": "^1.8.1",
     "@types/express": "^5.0.3",
-    "@types/js-yaml": "^4.0.9",
-    "@types/jsonwebtoken": "^9.0.10",
-    "@types/mjml": "^4.7.4",
     "@types/morgan": "^1.9.10",
-    "@types/node": "^22.13.14",
-    "@types/nunjucks": "^3.2.6",
-    "@types/object-hash": "^3.0.6",
+    "@types/node": "^22.17.2",
     "@types/passport-jwt": "^4.0.1",
     "@types/semver": "^7.7.0",
     "@typescript-eslint/eslint-plugin": "8.28.0",
@@ -82,6 +78,7 @@
     "eslint-plugin-paths": "^1.1.0",
     "eslint-plugin-perfectionist": "^4.10.1",
     "eslint-plugin-prettier": "^5.2.5",
+    "knip": "^5.62.0",
     "prettier": "^3.5.3",
     "source-map-support": "^0.5.21",
     "ts-loader": "9.5.2",

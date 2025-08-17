@@ -1,9 +1,9 @@
 import { Body, Controller, Get, Ip, Logger, Post, UseFilters, UseGuards } from '@nestjs/common';
 
 import { HashPayload } from '@common/decorators/get-hash-payload/get-hash-payload';
-import { HttpExceptionFilter } from '@common/exception/httpException.filter';
-import { JwtDefaultGuard } from '@common/guards/jwt-guards/def-jwt-guard';
+import { HttpExceptionFilter } from '@common/exception/http-exception.filter';
 import { errorHandler } from '@common/helpers/error-handler.helper';
+import { JwtDefaultGuard } from '@common/guards/jwt-guards';
 import { XRAY_CONTROLLER, XRAY_ROUTES } from '@libs/contracts/api/controllers/xray';
 import { IHashPayload } from '@libs/contracts/constants';
 

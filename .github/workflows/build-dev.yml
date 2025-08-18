@@ -39,7 +39,7 @@ jobs:
             build_args: 'UPSTREAM_REPO=kastov'
           - name: 'Bun Image'
             tag: 'remnawave/node:bun-dev'
-            dockerfile: 'Dockerfile.Bun'
+            dockerfile: 'bun.Dockerfile'
             build_args: ''
     steps:
       - name: Checkout

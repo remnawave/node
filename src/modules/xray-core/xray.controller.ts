@@ -4,7 +4,7 @@ import { HashPayload } from '@common/decorators/get-hash-payload/get-hash-payloa
 import { HttpExceptionFilter } from '@common/exception/http-exception.filter';
 import { errorHandler } from '@common/helpers/error-handler.helper';
 import { JwtDefaultGuard } from '@common/guards/jwt-guards';
-import { XRAY_CONTROLLER, XRAY_ROUTES } from '@libs/contracts/api/controllers/xray';
+import { XRAY_CONTROLLER, XRAY_ROUTES } from '@libs/contracts/api';
 import { IHashPayload } from '@libs/contracts/constants';
 
 import {

@@ -1,4 +1,6 @@
+import { getSemaphore } from '@henrygd/semaphore';
 import ems from 'enhanced-ms';
+import pMap from 'p-map';
 
 import { Injectable, Logger } from '@nestjs/common';
 
@@ -9,6 +11,8 @@ import { IHashPayload } from '@libs/contracts/constants';
 @Injectable()
 export class InternalService {
     private readonly logger = new Logger(InternalService.name);
+    private readonly mutex = getSemaphore();
+
     private xrayConfig: null | Record<string, unknown> = null;
     private emptyConfigHash: null | string = null;
     private inboundsHashMap: Map<string, HashedSet> = new Map();
@@ -29,10 +33,10 @@ export class InternalService {
         this.xrayConfig = config;
     }
 
-    public extractUsersFromConfig(
+    public async extractUsersFromConfig(
         hashPayload: IHashPayload,
         newConfig: Record<string, unknown>,
-    ): void {
+    ): Promise<void> {
         this.cleanup();
 
         this.emptyConfigHash = hashPayload.emptyConfig;
@@ -44,33 +48,40 @@ export class InternalService {
 
         const start = performance.now();
         if (newConfig.inbounds && Array.isArray(newConfig.inbounds)) {
-            for (const inbound of newConfig.inbounds) {
-                const inboundTag: string = inbound.tag;
+            await pMap(
+                newConfig.inbounds,
+                async (inbound) => {
+                    const inboundTag: string = inbound.tag;
 
-                if (!inboundTag || !hashPayload.inbounds.find((item) => item.tag === inboundTag)) {
-                    continue;
-                }
+                    if (
+                        !inboundTag ||
+                        !hashPayload.inbounds.find((item) => item.tag === inboundTag)
+                    ) {
+                        return;
+                    }
 
-                const usersSet = new HashedSet();
+                    const usersSet = new HashedSet();
 
-                if (
-                    inbound.settings &&
-                    inbound.settings.clients &&
-                    Array.isArray(inbound.settings.clients)
-                ) {
-                    for (const client of inbound.settings.clients) {
-                        if (client.id) {
-                            usersSet.add(client.id);
+                    if (
+                        inbound.settings &&
+                        inbound.settings.clients &&
+                        Array.isArray(inbound.settings.clients)
+                    ) {
+                        for (const client of inbound.settings.clients) {
+                            if (client.id) {
+                                usersSet.add(client.id);
+                            }
                         }
                     }
-                }
 
-                this.inboundsHashMap.set(inboundTag, usersSet);
-            }
+                    this.inboundsHashMap.set(inboundTag, usersSet);
+                },
+                { concurrency: 20 },
+            );
 
             for (const [inboundTag, usersSet] of this.inboundsHashMap) {
                 this.xtlsConfigInbounds.add(inboundTag);
-                this.logger.log(`Inbound ${inboundTag} contains ${usersSet.size} user(s)`);
+                this.logger.log(`${inboundTag} has ${usersSet.size} users`);
             }
         }
 
@@ -90,12 +101,12 @@ export class InternalService {
             }
 
             if (incomingHashPayload.emptyConfig !== this.emptyConfigHash) {
-                this.logger.log('Detected changes in Xray Core base configuration');
+                this.logger.warn('Detected changes in Xray Core base configuration');
                 return true;
             }
 
             if (incomingHashPayload.inbounds.length !== this.inboundsHashMap.size) {
-                this.logger.log('Number of Xray Core inbounds has changed');
+                this.logger.warn('Number of Xray Core inbounds has changed');
                 return true;
             }
 
@@ -105,14 +116,14 @@ export class InternalService {
                 );
 
                 if (!incomingInbound) {
-                    this.logger.log(
+                    this.logger.warn(
                         `Inbound ${inboundTag} no longer exists in Xray Core configuration`,
                     );
                     return true;
                 }
 
                 if (usersSet.hash64String !== incomingInbound.hash) {
-                    this.logger.log(
+                    this.logger.warn(
                         `User configuration changed for inbound ${inboundTag} (${usersSet.hash64String} → ${incomingInbound.hash})`,
                     );
                     return true;
@@ -134,36 +145,52 @@ export class InternalService {
         }
     }
 
-    public addUserToInbound(inboundTag: string, user: string): void {
-        const usersSet = this.inboundsHashMap.get(inboundTag);
+    public async addUserToInbound(inboundTag: string, user: string): Promise<void> {
+        await this.mutex.acquire();
 
-        if (!usersSet) {
-            this.logger.warn(
-                `Inbound ${inboundTag} not found in inboundsHashMap, creating new one`,
-            );
+        try {
+            const usersSet = this.inboundsHashMap.get(inboundTag);
 
-            this.inboundsHashMap.set(inboundTag, new HashedSet([user]));
+            if (!usersSet) {
+                this.logger.warn(
+                    `Inbound ${inboundTag} not found in inboundsHashMap, creating new one`,
+                );
 
-            return;
+                this.inboundsHashMap.set(inboundTag, new HashedSet([user]));
+
+                return;
+            }
+
+            usersSet.add(user);
+        } catch (error) {
+            this.logger.error(`Failed to add user to inbound ${inboundTag}: ${error}`);
+        } finally {
+            this.mutex.release();
         }
-
-        usersSet.add(user);
     }
 
-    public removeUserFromInbound(inboundTag: string, user: string): void {
-        const usersSet = this.inboundsHashMap.get(inboundTag);
+    public async removeUserFromInbound(inboundTag: string, user: string): Promise<void> {
+        await this.mutex.acquire();
 
-        if (!usersSet) {
-            return;
-        }
+        try {
+            const usersSet = this.inboundsHashMap.get(inboundTag);
 
-        usersSet.delete(user);
+            if (!usersSet) {
+                return;
+            }
 
-        if (usersSet.size === 0) {
-            this.xtlsConfigInbounds.delete(inboundTag);
-            this.inboundsHashMap.delete(inboundTag);
+            usersSet.delete(user);
 
-            this.logger.warn(`Inbound ${inboundTag} has no users, clearing inboundsHashMap.`);
+            if (usersSet.size === 0) {
+                this.xtlsConfigInbounds.delete(inboundTag);
+                this.inboundsHashMap.delete(inboundTag);
+
+                this.logger.warn(`Inbound ${inboundTag} has no users, clearing inboundsHashMap.`);
+            }
+        } catch (error) {
+            this.logger.error(`Failed to remove user from inbound ${inboundTag}: ${error}`);
+        } finally {
+            this.mutex.release();
         }
     }
 

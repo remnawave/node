@@ -29,7 +29,6 @@ export class InternalService {
     }
 
     public setXrayConfig(config: Record<string, unknown>): void {
-        this.logger.debug('Setting new xray config');
         this.xrayConfig = config;
     }
 
@@ -48,15 +47,14 @@ export class InternalService {
 
         const start = performance.now();
         if (newConfig.inbounds && Array.isArray(newConfig.inbounds)) {
+            const validTags = new Set(hashPayload.inbounds.map((item) => item.tag));
+
             await pMap(
                 newConfig.inbounds,
                 async (inbound) => {
                     const inboundTag: string = inbound.tag;
 
-                    if (
-                        !inboundTag ||
-                        !hashPayload.inbounds.find((item) => item.tag === inboundTag)
-                    ) {
+                    if (!inboundTag || !validTags.has(inboundTag)) {
                         return;
                     }
 

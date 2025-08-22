@@ -29,17 +29,9 @@ jobs:
     strategy:
       matrix:
         image:
-          - name: 'Main Image'
+          - name: 'Dev Image'
             tag: 'remnawave/node:dev'
             dockerfile: 'Dockerfile'
-            build_args: ''
-          - name: 'SNI Image'
-            tag: 'remnawave/node:sni-dev'
-            dockerfile: 'Dockerfile'
-            build_args: 'UPSTREAM_REPO=kastov'
-          - name: 'Bun Image'
-            tag: 'remnawave/node:bun-dev'
-            dockerfile: 'bun.Dockerfile'
             build_args: ''
     steps:
       - name: Checkout

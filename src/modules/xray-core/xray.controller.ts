@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Ip, Logger, Post, UseFilters, UseGuards } from '@nestjs/common';
 
+import { XForceRestart } from '@common/decorators/get-x-force-restart/get-x-force-restart';
 import { HashPayload } from '@common/decorators/get-hash-payload/get-hash-payload';
 import { HttpExceptionFilter } from '@common/exception/http-exception.filter';
 import { errorHandler } from '@common/helpers/error-handler.helper';
@@ -29,8 +30,9 @@ export class XrayController {
         @Body() body: StartXrayRequestDto,
         @Ip() ip: string,
         @HashPayload() hashPayload: IHashPayload | null,
+        @XForceRestart() forceRestart: boolean,
     ): Promise<StartXrayResponseDto> {
-        const response = await this.xrayService.startXray(body, ip, hashPayload);
+        const response = await this.xrayService.startXray(body, ip, hashPayload, forceRestart);
         const data = errorHandler(response);
 
         return {

@@ -77,6 +77,7 @@ export class XrayService implements OnApplicationBootstrap {
         config: Record<string, unknown>,
         ip: string,
         hashPayload: IHashPayload | null,
+        forceRestart: boolean,
     ): Promise<ICommandResponse<StartXrayResponseModel>> {
         const tm = performance.now();
 
@@ -112,7 +113,7 @@ export class XrayService implements OnApplicationBootstrap {
 
             this.isXrayStartedProccesing = true;
 
-            if (this.isXrayOnline && !this.disableHashedSetCheck) {
+            if (this.isXrayOnline && !this.disableHashedSetCheck && !forceRestart) {
                 const { isOk } = await this.xtlsSdk.stats.getSysStats();
 
                 let shouldRestart = false;
@@ -140,6 +141,10 @@ export class XrayService implements OnApplicationBootstrap {
                         ),
                     };
                 }
+            }
+
+            if (forceRestart) {
+                this.logger.warn('Force restart requested');
             }
 
             const fullConfig = generateApiConfig(config);

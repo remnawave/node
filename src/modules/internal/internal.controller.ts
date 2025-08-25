@@ -1,8 +1,8 @@
 import { Controller, Get, UseFilters, UseGuards } from '@nestjs/common';
 
-import { PortGuard } from '@common/guards/request-port-guard/request-port.guard';
-import { HttpExceptionFilter } from '@common/exception/httpException.filter';
-import { OnPort } from '@common/decorators/port/port.decorator';
+import { PortGuard } from '@common/guards/request-port-guard';
+import { HttpExceptionFilter } from '@common/exception';
+import { OnPort } from '@common/decorators/port';
 import {
     XRAY_INTERNAL_API_CONTROLLER,
     XRAY_INTERNAL_API_PATH,

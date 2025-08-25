@@ -1,8 +1,13 @@
 #!/bin/sh
 
-echo "Starting entrypoint script..."
+echo "[Entrypoint] Starting entrypoint script..."
 supervisord -c /etc/supervisord.conf &
-echo "Supervisord started"
+echo "[Entrypoint] Supervisord started successfully"
 sleep 1
-echo "Executing: $@"
+echo "[Entrypoint] Getting Xray version..."
+XRAY_CORE_VERSION=$(/usr/local/bin/xray version | head -n 1)
+export XRAY_CORE_VERSION
+echo "[Entrypoint] Xray version: $XRAY_CORE_VERSION"
+
+echo "[Entrypoint] Executing command: $@"
 exec "$@"

@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { RemoveUserResponseModel as RemoveUserResponseModelFromSdk } from '@remnawave/xtls-sdk/build/src/handler/models/remove-user';
-import { AddUserResponseModel as AddUserResponseModelFromSdk } from '@remnawave/xtls-sdk/build/src/handler/models/add-user';
+import {
+    RemoveUserResponseModel as RemoveUserResponseModelFromSdk,
+    AddUserResponseModel as AddUserResponseModelFromSdk,
+} from '@remnawave/xtls-sdk/build/src/handler/models';
 import { ISdkResponse } from '@remnawave/xtls-sdk/build/src/common/types';
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { XtlsApi } from '@remnawave/xtls-sdk';
@@ -9,12 +11,14 @@ import { XtlsApi } from '@remnawave/xtls-sdk';
 import { ICommandResponse } from '@common/types/command-response.type';
 import { ERRORS } from '@libs/contracts/constants/errors';
 
-import { AddUserResponseModel, RemoveUserResponseModel } from './models';
+import {
+    GetInboundUsersCountResponseModel,
+    GetInboundUsersResponseModel,
+    AddUserResponseModel,
+    RemoveUserResponseModel,
+} from './models';
+import { IRemoveUserRequest, TAddUserRequest } from './interfaces';
 import { InternalService } from '../internal/internal.service';
-import { GetInboundUsersCountResponseModel } from './models';
-import { GetInboundUsersResponseModel } from './models';
-import { IRemoveUserRequest } from './interfaces';
-import { TAddUserRequest } from './interfaces';
 
 @Injectable()
 export class HandlerService {
@@ -40,9 +44,9 @@ export class HandlerService {
                 await this.xtlsApi.handler.removeUser(tag, requestData[0].username);
 
                 if (hashData.prevVlessUuid) {
-                    this.internalService.removeUserFromInbound(tag, hashData.prevVlessUuid);
+                    await this.internalService.removeUserFromInbound(tag, hashData.prevVlessUuid);
                 } else {
-                    this.internalService.removeUserFromInbound(tag, hashData.vlessUuid);
+                    await this.internalService.removeUserFromInbound(tag, hashData.vlessUuid);
                 }
             }
 
@@ -60,7 +64,10 @@ export class HandlerService {
                             level: item.level,
                         });
                         if (tempRes.isOk) {
-                            this.internalService.addUserToInbound(item.tag, hashData.vlessUuid);
+                            await this.internalService.addUserToInbound(
+                                item.tag,
+                                hashData.vlessUuid,
+                            );
                         }
                         response.push(tempRes);
                         break;
@@ -73,7 +80,10 @@ export class HandlerService {
                             level: item.level,
                         });
                         if (tempRes.isOk) {
-                            this.internalService.addUserToInbound(item.tag, hashData.vlessUuid);
+                            await this.internalService.addUserToInbound(
+                                item.tag,
+                                hashData.vlessUuid,
+                            );
                         }
                         response.push(tempRes);
                         break;
@@ -87,7 +97,10 @@ export class HandlerService {
                             level: item.level,
                         });
                         if (tempRes.isOk) {
-                            this.internalService.addUserToInbound(item.tag, hashData.vlessUuid);
+                            await this.internalService.addUserToInbound(
+                                item.tag,
+                                hashData.vlessUuid,
+                            );
                         }
                         response.push(tempRes);
                         break;
@@ -135,7 +148,7 @@ export class HandlerService {
 
                 const tempRes = await this.xtlsApi.handler.removeUser(tag, username);
 
-                this.internalService.removeUserFromInbound(tag, hashData.vlessUuid);
+                await this.internalService.removeUserFromInbound(tag, hashData.vlessUuid);
                 response.push(tempRes);
             }
 

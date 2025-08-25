@@ -1,10 +1,11 @@
 import { Body, Controller, Get, Ip, Logger, Post, UseFilters, UseGuards } from '@nestjs/common';
 
+import { XForceRestart } from '@common/decorators/get-x-force-restart/get-x-force-restart';
 import { HashPayload } from '@common/decorators/get-hash-payload/get-hash-payload';
-import { HttpExceptionFilter } from '@common/exception/httpException.filter';
-import { JwtDefaultGuard } from '@common/guards/jwt-guards/def-jwt-guard';
+import { HttpExceptionFilter } from '@common/exception/http-exception.filter';
 import { errorHandler } from '@common/helpers/error-handler.helper';
-import { XRAY_CONTROLLER, XRAY_ROUTES } from '@libs/contracts/api/controllers/xray';
+import { JwtDefaultGuard } from '@common/guards/jwt-guards';
+import { XRAY_CONTROLLER, XRAY_ROUTES } from '@libs/contracts/api';
 import { IHashPayload } from '@libs/contracts/constants';
 
 import {
@@ -29,8 +30,9 @@ export class XrayController {
         @Body() body: StartXrayRequestDto,
         @Ip() ip: string,
         @HashPayload() hashPayload: IHashPayload | null,
+        @XForceRestart() forceRestart: boolean,
     ): Promise<StartXrayResponseDto> {
-        const response = await this.xrayService.startXray(body, ip, hashPayload);
+        const response = await this.xrayService.startXray(body, ip, hashPayload, forceRestart);
         const data = errorHandler(response);
 
         return {

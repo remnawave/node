@@ -16,6 +16,13 @@ RUN mkdir -p /var/log/supervisor
 WORKDIR /opt/app
 COPY --from=build /opt/app/dist ./dist
 
+RUN echo '#!/bin/bash' > /usr/local/bin/xlogs \
+    && echo 'tail -n +1 -f /var/log/supervisor/xray.out.log' >> /usr/local/bin/xlogs \
+    && chmod +x /usr/local/bin/xlogs
+
+RUN echo '#!/bin/bash' > /usr/local/bin/xerrors \
+    && echo 'tail -n +1 -f /var/log/supervisor/xray.err.log' >> /usr/local/bin/xerrors \
+    && chmod +x /usr/local/bin/xerrors
 
 RUN apk add --no-cache \
     curl \

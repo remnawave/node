@@ -10,11 +10,11 @@ import morgan from 'morgan';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 
-import { NotFoundExceptionFilter } from '@common/exception/not-found-exception.filter';
-import { customLogFilter } from '@common/utils/filter-logs/filter-logs';
 import { parseNodePayload } from '@common/utils/decode-node-payload';
 import { getStartMessage } from '@common/utils/get-start-message';
 import { isDevelopment } from '@common/utils/is-development';
+import { NotFoundExceptionFilter } from '@common/exception';
+import { customLogFilter } from '@common/utils/filter-logs';
 import { XRAY_INTERNAL_API_PORT, XRAY_INTERNAL_FULL_PATH } from '@libs/contracts/constants';
 import { REST_API, ROOT } from '@libs/contracts/api';
 

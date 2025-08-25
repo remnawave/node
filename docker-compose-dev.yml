@@ -2,7 +2,7 @@ services:
   remnawave-node-dev:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: dev.Dockerfile
     container_name: remnawave-node-dev
     hostname: remnawave-node-dev
     networks:

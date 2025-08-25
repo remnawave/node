@@ -14,7 +14,7 @@ export async function getStartMessage(
 
     const xrayService = app.get(XrayService);
 
-    const xrayInfo = await xrayService.getXrayInfo();
+    const xrayInfo = xrayService.getXrayInfo();
 
     return table(
         [

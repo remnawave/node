@@ -1,13 +1,12 @@
 import { ProcessInfo } from 'node-supervisord/dist/interfaces';
 import { SupervisordClient } from 'node-supervisord';
-import { execa } from '@cjs-exporter/execa';
 import { readPackageJSON } from 'pkg-types';
 import { table } from 'table';
 import ems from 'enhanced-ms';
 import pRetry from 'p-retry';
 import semver from 'semver';
 
-import { Injectable, Logger, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { InjectSupervisord } from '@remnawave/supervisord-nestjs';
@@ -31,7 +30,7 @@ import { InternalService } from '../internal/internal.service';
 const XRAY_PROCESS_NAME = 'xray' as const;
 
 @Injectable()
-export class XrayService implements OnApplicationBootstrap, OnModuleInit {
+export class XrayService implements OnApplicationBootstrap {
     private readonly logger = new Logger(XrayService.name);
     private readonly disableHashedSetCheck: boolean;
 
@@ -58,14 +57,11 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
         );
     }
 
-    async onModuleInit() {
-        this.xrayVersion = await this.getXrayVersionFromExec();
-    }
-
     async onApplicationBootstrap() {
         try {
             const pkg = await readPackageJSON();
 
+            this.xrayVersion = this.getXrayVersionFromEnv();
             this.systemStats = await getSystemStats();
             this.nodeVersion = pkg.version || null;
 
@@ -81,6 +77,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
         config: Record<string, unknown>,
         ip: string,
         hashPayload: IHashPayload | null,
+        forceRestart: boolean,
     ): Promise<ICommandResponse<StartXrayResponseModel>> {
         const tm = performance.now();
 
@@ -116,7 +113,7 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
             this.isXrayStartedProccesing = true;
 
-            if (this.isXrayOnline && !this.disableHashedSetCheck) {
+            if (this.isXrayOnline && !this.disableHashedSetCheck && !forceRestart) {
                 const { isOk } = await this.xtlsSdk.stats.getSysStats();
 
                 let shouldRestart = false;
@@ -144,6 +141,10 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
                         ),
                     };
                 }
+            }
+
+            if (forceRestart) {
+                this.logger.warn('Force restart requested');
             }
 
             const fullConfig = generateApiConfig(config);
@@ -332,47 +333,16 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
 
     public async killAllXrayProcesses(): Promise<void> {
         try {
-            try {
-                await this.supervisordApi.stopProcess(XRAY_PROCESS_NAME, true);
-            } catch (error) {
-                this.logger.error(`Response from supervisorctl stop: ${error}`);
-            }
-
-            await execa('pkill', ['xray'], { reject: false });
-
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-
-            await execa('pkill', ['-9', 'xray'], { reject: false });
-
-            try {
-                const { stdout } = await execa('lsof', ['-i', ':61000', '-t']);
-                if (stdout) {
-                    await execa('kill', ['-9', stdout.trim()], { reject: false });
-                }
-            } catch (e) {
-                this.logger.error(`Failed to kill Xray process: ${e}`);
-            }
-
-            this.logger.log('Killed all Xray processes');
-        } catch (error) {
-            this.logger.log(`No existing Xray processes found. Error: ${error}`);
-        }
-    }
-
-    public async supervisorctlStop(): Promise<void> {
-        try {
             await this.supervisordApi.stopProcess(XRAY_PROCESS_NAME, true);
 
-            this.logger.log('Supervisorctl: XTLS stopped.');
+            this.logger.log('Supervisord: Xray processes killed.');
         } catch (error) {
-            this.logger.log('Supervisorctl: XTLS stop failed. Error: ', error);
+            this.logger.log(`Supervisord: No existing Xray processes found. Error: ${error}`);
         }
     }
 
-    private async getXrayVersionFromExec(): Promise<null | string> {
-        const output = await execa(this.xrayPath, ['version']);
-
-        const version = semver.valid(semver.coerce(output.stdout));
+    private getXrayVersionFromEnv(): null | string {
+        const version = semver.valid(semver.coerce(process.env.XRAY_CORE_VERSION));
 
         if (version) {
             this.xrayVersion = version;
@@ -381,13 +351,12 @@ export class XrayService implements OnApplicationBootstrap, OnModuleInit {
         return version;
     }
 
-    public async getXrayInfo(): Promise<{
+    public getXrayInfo(): {
         version: string | null;
         path: string;
         systemInfo: ISystemStats | null;
-    }> {
-        const output = await execa(this.xrayPath, ['version']);
-        const version = semver.valid(semver.coerce(output.stdout));
+    } {
+        const version = this.getXrayVersionFromEnv();
 
         if (version) {
             this.xrayVersion = version;

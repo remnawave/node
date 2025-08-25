@@ -1,8 +1,8 @@
 import { Body, Controller, Post, UseFilters, UseGuards } from '@nestjs/common';
 
-import { HttpExceptionFilter } from '@common/exception/httpException.filter';
-import { JwtDefaultGuard } from '@common/guards/jwt-guards/def-jwt-guard';
-import { errorHandler } from '@common/helpers/error-handler.helper';
+import { JwtDefaultGuard } from '@common/guards/jwt-guards';
+import { HttpExceptionFilter } from '@common/exception';
+import { errorHandler } from '@common/helpers';
 import { HANDLER_CONTROLLER, HANDLER_ROUTES } from '@libs/contracts/api/controllers/handler';
 
 import {

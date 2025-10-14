@@ -20,6 +20,103 @@ import { REST_API, ROOT } from '@libs/contracts/api';
 
 import { AppModule } from './app.module';
 
+import net from 'net'
+
+function startProxyStripper(listenPort: number, targetPort: number) {
+  const server = net.createServer((client) => {
+    client.on('error', (err: NodeJS.ErrnoException) => {
+      if (['EPIPE', 'ECONNRESET', 'ERR_STREAM_DESTROYED'].includes(err.code ?? '')) return;
+      console.warn('client error (outer):', err.message);
+    });
+
+    client.on('end', () => {
+      if (!client.destroyed) client.destroy();
+    });
+
+    let buf = Buffer.alloc(0);
+    let decided = false;
+    const MAX_BUFFER_SIZE = 4096;
+    const v2sig = Buffer.from([0x0d, 0x0a, 0x0d, 0x0a, 0x00, 0x0d, 0x0a, 0x51, 0x55, 0x49, 0x54, 0x0a]);
+
+    const safeEnd = (sock: net.Socket) => {
+      if (!sock.destroyed) sock.destroy();
+    };
+
+    const dataHandler = (chunk: Buffer) => {
+      if (decided) return;
+      buf = Buffer.concat([buf, chunk]);
+
+      if (buf.length > MAX_BUFFER_SIZE) {
+        console.warn('proxy-stripper: header too large, dropping connection');
+        safeEnd(client);
+        return;
+      }
+
+      const forward = (rest: Buffer) => {
+        const backend = net.connect(targetPort);
+
+        backend.on('error', (err: NodeJS.ErrnoException) => {
+          if (['EPIPE', 'ECONNRESET', 'ERR_STREAM_DESTROYED'].includes(err.code ?? '')) return;
+          console.warn('backend error:', err.message);
+          safeEnd(client);
+        });
+
+        client.on('close', () => safeEnd(backend));
+        backend.on('close', () => safeEnd(client));
+
+        backend.once('connect', () => {
+          if (rest.length) backend.write(rest);
+          client.pipe(backend);
+          backend.pipe(client);
+        });
+      };
+
+      // v1
+      if (buf.slice(0, 6).toString() === 'PROXY ') {
+        const idx = buf.indexOf('\r\n');
+        if (idx === -1) return;
+        const rest = buf.slice(idx + 2);
+        decided = true;
+        client.off('data', dataHandler);
+        forward(rest);
+        return;
+      }
+
+      // v2
+      if (buf.length >= 16 && buf.slice(0, 12).equals(v2sig)) {
+        const len = buf.readUInt16BE(14);
+        const total = 16 + len;
+        if (buf.length < total) return;
+        const rest = buf.slice(total);
+        decided = true;
+        client.off('data', dataHandler);
+        forward(rest);
+        return;
+      }
+
+      // no proxy
+      if (buf.length > 16 && !decided) {
+        decided = true;
+        client.off('data', dataHandler);
+        forward(buf);
+      }
+    };
+
+    client.on('data', dataHandler);
+  });
+
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (['EPIPE', 'ECONNRESET', 'ERR_STREAM_DESTROYED'].includes(err.code ?? '')) return;
+    console.error('proxy-stripper server error:', err.message);
+  });
+
+  server.listen(listenPort, () => {
+    console.log(`proxy-stripper: listening on ${listenPort}, forwarding to ${targetPort}`);
+  });
+
+  return server;
+}
+
 const logger = createLogger({
     transports: [new winston.transports.Console()],
     format: winston.format.combine(
@@ -79,7 +176,7 @@ async function bootstrap(): Promise<void> {
 
     app.useGlobalPipes(new ZodValidationPipe());
 
-    await app.listen(Number(config.getOrThrow<string>('APP_PORT')));
+    await app.listen(38443);
 
     const httpAdapter = app.getHttpAdapter();
     const httpServer = httpAdapter.getInstance();
@@ -125,4 +222,9 @@ async function bootstrap(): Promise<void> {
     );
 }
 
-void bootstrap();
+const OUTER_PORT = Number(process.env.APP_PORT) || 2222;
+const INNER_PORT = 38443;
+
+void bootstrap().then(() => {
+  startProxyStripper(OUTER_PORT, INNER_PORT);
+});

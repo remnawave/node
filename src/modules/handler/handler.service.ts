@@ -143,7 +143,16 @@ export class HandlerService {
             const { username, hashData } = data;
             const response: Array<ISdkResponse<RemoveUserResponseModelFromSdk>> = [];
 
-            for (const tag of this.internalService.getXtlsConfigInbounds()) {
+            const inboundTags = this.internalService.getXtlsConfigInbounds();
+
+            if (inboundTags.size === 0) {
+                return {
+                    isOk: true,
+                    response: new RemoveUserResponseModel(true, null),
+                };
+            }
+
+            for (const tag of inboundTags) {
                 this.logger.debug(`Removing user: ${username} from tag: ${tag}`);
 
                 const tempRes = await this.xtlsApi.handler.removeUser(tag, username);

@@ -79,7 +79,7 @@ async function bootstrap(): Promise<void> {
 
     app.useGlobalPipes(new ZodValidationPipe());
 
-    await app.listen(Number(config.getOrThrow<string>('APP_PORT')));
+    await app.listen(Number(config.getOrThrow<string>('NODE_PORT')));
 
     const httpAdapter = app.getHttpAdapter();
     const httpServer = httpAdapter.getInstance();
@@ -117,12 +117,30 @@ async function bootstrap(): Promise<void> {
     logger.info(
         '\n' +
             (await getStartMessage(
-                Number(config.getOrThrow<string>('APP_PORT')),
+                Number(config.getOrThrow<string>('NODE_PORT')),
                 XRAY_INTERNAL_API_PORT,
                 app,
             )) +
             '\n',
     );
+
+    // TODO: Remove this in the next version.
+    if (config.getOrThrow<boolean>('HAS_DEPRECATED_SSL_CERT')) {
+        logger.error('SSL_CERT is set, but it is deprecated. Use SECRET_KEY instead.');
+        logger.error('Please update your .env file to use SECRET_KEY instead of SSL_CERT.');
+        logger.error(
+            'SSL_CERT has been converted to SECRET_KEY. Automatic migration will be removed in the next version.',
+        );
+    }
+
+    // TODO: Remove this in the next version.
+    if (config.getOrThrow<boolean>('HAS_DEPRECATED_APP_PORT')) {
+        logger.error('APP_PORT is set, but it is deprecated. Use NODE_PORT instead.');
+        logger.error('Please update your .env file to use NODE_PORT instead of APP_PORT.');
+        logger.error(
+            'APP_PORT has been converted to NODE_PORT. Automatic migration will be removed in the next version.',
+        );
+    }
 }
 
 void bootstrap();

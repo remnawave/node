@@ -3,7 +3,8 @@ services:
     container_name: remnanode
     hostname: remnanode
     image: remnawave/node:latest
-    env_file:
-      - .env
     network_mode: host
     restart: always
+    environment:
+      - NODE_PORT=2222
+      - SECRET_KEY=""

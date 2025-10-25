@@ -18,7 +18,6 @@ import { InternalModule } from './modules/internal/internal.module';
         ConfigModule.forRoot({
             isGlobal: true,
             envFilePath: '.env',
-
             validate: (config) => validateEnvConfig<Env>(configSchema, config),
         }),
         XtlsSdkNestjsModule.forRootAsync({

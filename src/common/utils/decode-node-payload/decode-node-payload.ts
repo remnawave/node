@@ -6,22 +6,27 @@ interface INodePayload {
 }
 
 export function parseNodePayload(): INodePayload {
-    const nodePayload = process.env.SSL_CERT;
+    let nodePayload = process.env.SECRET_KEY;
+
     if (!nodePayload) {
-        throw new Error('SSL_CERT is not set');
+        nodePayload = process.env.SSL_CERT;
+    }
+
+    if (!nodePayload) {
+        throw new Error('SECRET_KEY is not set');
     }
 
     try {
         const parsed = JSON.parse(Buffer.from(nodePayload, 'base64').toString('utf-8'));
 
         if (!isValidNodePayload(parsed)) {
-            throw new Error('Invalid SSL certificate payload structure');
+            throw new Error('Invalid SECRET_KEY payload structure');
         }
 
         return parsed;
     } catch (error) {
         if (error instanceof SyntaxError) {
-            throw new Error('SSL_CERT contains invalid JSON');
+            throw new Error('SECRET_KEY contains invalid JSON');
         }
         throw error;
     }
@@ -32,13 +37,13 @@ export function parseNodePayloadFromConfigService(sslCert: string): INodePayload
         const parsed = JSON.parse(Buffer.from(sslCert, 'base64').toString('utf-8'));
 
         if (!isValidNodePayload(parsed)) {
-            throw new Error('Invalid SSL certificate payload structure');
+            throw new Error('Invalid SECRET_KEY payload structure');
         }
 
         return parsed;
     } catch (error) {
         if (error instanceof SyntaxError) {
-            throw new Error('SSL_CERT contains invalid JSON');
+            throw new Error('SECRET_KEY contains invalid JSON');
         }
         throw error;
     }

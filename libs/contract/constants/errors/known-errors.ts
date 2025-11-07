@@ -5,6 +5,6 @@ export const KNOWN_ERRORS = {
         code: 'RN-001',
         message: 'Xray core failed to start',
         documentationUrl:
-            'https://remna.st/docs/guides/common-errors#xml-rpc-fault-spawn-error-xray',
+            'https://docs.rw/docs/guides/common-errors#xml-rpc-fault-spawn-error-xray',
     },
 };

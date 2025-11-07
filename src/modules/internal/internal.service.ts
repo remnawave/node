@@ -201,6 +201,8 @@ export class InternalService {
     }
 
     public cleanup(): void {
+        this.logger.log('Cleaning up internal service.');
+
         this.inboundsHashMap.clear();
         this.xtlsConfigInbounds.clear();
         this.xrayConfig = null;

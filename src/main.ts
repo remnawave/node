@@ -4,6 +4,7 @@ import express, { json } from 'express';
 import { createLogger } from 'winston';
 import compression from 'compression';
 import * as winston from 'winston';
+import { Server } from 'https';
 import helmet from 'helmet';
 import morgan from 'morgan';
 
@@ -54,6 +55,10 @@ async function bootstrap(): Promise<void> {
             instance: logger,
         }),
     });
+
+    const nodeHttpServer: Server = app.getHttpServer();
+    nodeHttpServer.keepAliveTimeout = 60_000;
+    nodeHttpServer.headersTimeout = 61_000;
 
     app.use(json({ limit: '1000mb' }));
 

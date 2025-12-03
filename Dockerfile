@@ -47,6 +47,8 @@ RUN npm ci --omit=dev --legacy-peer-deps \
     && npm cache clean --force
 
 
+RUN ln -s /usr/local/bin/xray /usr/local/bin/rw-core
+
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-http-header-size=65536"
 

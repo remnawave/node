@@ -9,6 +9,7 @@ import { ERRORS } from '@libs/contracts/constants';
 import {
     GetAllInboundsStatsResponseModel,
     GetAllOutboundsStatsResponseModel,
+    GetCombinedStatsResponseModel,
     GetInboundStatsResponseModel,
     GetOutboundStatsResponseModel,
     GetSystemStatsResponseModel,
@@ -225,6 +226,38 @@ export class StatsService {
             return {
                 isOk: false,
                 ...ERRORS.FAILED_TO_GET_INBOUNDS_STATS,
+            };
+        }
+    }
+
+    public async getCombinedStats(
+        reset: boolean,
+    ): Promise<ICommandResponse<GetCombinedStatsResponseModel>> {
+        try {
+            const { isOk: isOkInbounds, data: inboundsData } =
+                await this.xtlsSdk.stats.getAllInboundsStats(reset);
+            const { isOk: isOkOutbounds, data: outboundsData } =
+                await this.xtlsSdk.stats.getAllOutboundsStats(reset);
+
+            if (!isOkInbounds || !inboundsData || !isOkOutbounds || !outboundsData) {
+                return {
+                    isOk: false,
+                    ...ERRORS.FAILED_TO_GET_COMBINED_STATS,
+                };
+            }
+
+            return {
+                isOk: true,
+                response: new GetCombinedStatsResponseModel(
+                    inboundsData.inbounds,
+                    outboundsData.outbounds,
+                ),
+            };
+        } catch (error) {
+            this.logger.error(error);
+            return {
+                isOk: false,
+                ...ERRORS.FAILED_TO_GET_COMBINED_STATS,
             };
         }
     }

@@ -9,7 +9,6 @@ export interface TAddUserRequest {
         | {
               cipherType: CipherType;
               ivCheck: boolean;
-              level: number;
               password: string;
               tag: string;
               type: 'shadowsocks';
@@ -17,7 +16,6 @@ export interface TAddUserRequest {
           }
         | {
               flow: '' | 'xtls-rprx-vision';
-              level: number;
               tag: string;
               type: 'vless';
               username: string;
@@ -26,27 +24,23 @@ export interface TAddUserRequest {
         | {
               http_password: string;
               http_username: string;
-              level: number;
               tag: string;
               type: 'http';
               username: string;
           }
         | {
               key: string;
-              level: number;
               tag: string;
               type: 'shadowsocks2022';
               username: string;
           }
         | {
-              level: number;
               password: string;
               tag: string;
               type: 'trojan';
               username: string;
           }
         | {
-              level: number;
               socks_password: string;
               socks_username: string;
               tag: string;

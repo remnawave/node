@@ -17,7 +17,8 @@ import { ISystemStats } from '@common/utils/get-system-stats/get-system-stats.in
 import { ICommandResponse } from '@common/types/command-response.type';
 import { generateApiConfig } from '@common/utils/generate-api-config';
 import { getSystemStats } from '@common/utils/get-system-stats';
-import { IHashPayload, KNOWN_ERRORS, REMNAWAVE_NODE_KNOWN_ERROR } from '@libs/contracts/constants';
+import { KNOWN_ERRORS, REMNAWAVE_NODE_KNOWN_ERROR } from '@libs/contracts/constants';
+import { StartXrayCommand } from '@libs/contracts/commands';
 
 import {
     GetNodeHealthCheckResponseModel,
@@ -74,27 +75,12 @@ export class XrayService implements OnApplicationBootstrap {
     }
 
     public async startXray(
-        config: Record<string, unknown>,
+        body: StartXrayCommand.Request,
         ip: string,
-        hashPayload: IHashPayload | null,
-        forceRestart: boolean,
     ): Promise<ICommandResponse<StartXrayResponseModel>> {
         const tm = performance.now();
 
         try {
-            if (!hashPayload) {
-                const errMessage =
-                    'Hash payload is null. Update Remnawave to version 2.1.0 or downgrade @remnawave/node to 2.0.0.';
-                this.logger.error(errMessage);
-
-                return {
-                    isOk: true,
-                    response: new StartXrayResponseModel(false, null, errMessage, null, {
-                        version: this.nodeVersion,
-                    }),
-                };
-            }
-
             if (this.isXrayStartedProccesing) {
                 this.logger.warn('Request already in progress');
                 return {
@@ -113,13 +99,13 @@ export class XrayService implements OnApplicationBootstrap {
 
             this.isXrayStartedProccesing = true;
 
-            if (this.isXrayOnline && !this.disableHashedSetCheck && !forceRestart) {
+            if (this.isXrayOnline && !this.disableHashedSetCheck && !body.internals.forceRestart) {
                 const { isOk } = await this.xtlsSdk.stats.getSysStats();
 
                 let shouldRestart = false;
 
                 if (isOk) {
-                    shouldRestart = this.internalService.isNeedRestartCore(hashPayload);
+                    shouldRestart = this.internalService.isNeedRestartCore(body.internals.hashes);
                 } else {
                     this.isXrayOnline = false;
                     shouldRestart = true;
@@ -143,13 +129,13 @@ export class XrayService implements OnApplicationBootstrap {
                 }
             }
 
-            if (forceRestart) {
+            if (body.internals.forceRestart) {
                 this.logger.warn('Force restart requested');
             }
 
-            const fullConfig = generateApiConfig(config);
+            const fullConfig = generateApiConfig(body.xrayConfig);
 
-            this.internalService.extractUsersFromConfig(hashPayload, fullConfig);
+            this.internalService.extractUsersFromConfig(body.internals.hashes, fullConfig);
 
             const xrayProcess = await this.restartXrayProcess();
 

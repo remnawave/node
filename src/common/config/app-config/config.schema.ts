@@ -18,13 +18,6 @@ export const configSchema = z
             .transform((val) => val === 'true'),
     })
     .superRefine((data, ctx) => {
-        if (!data.SECRET_KEY) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: 'SECRET_KEY is required.',
-            });
-        }
-
         if (data.SECRET_KEY) {
             try {
                 const parsed = parseNodePayloadFromConfigService(data.SECRET_KEY);

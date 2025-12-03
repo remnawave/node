@@ -6,11 +6,7 @@ interface INodePayload {
 }
 
 export function parseNodePayload(): INodePayload {
-    let nodePayload = process.env.SECRET_KEY;
-
-    if (!nodePayload) {
-        nodePayload = process.env.SSL_CERT;
-    }
+    const nodePayload = process.env.SECRET_KEY;
 
     if (!nodePayload) {
         throw new Error('SECRET_KEY is not set');

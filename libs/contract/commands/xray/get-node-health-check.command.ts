@@ -10,6 +10,7 @@ export namespace GetNodeHealthCheckCommand {
             isAlive: z.boolean(),
             xrayInternalStatusCached: z.boolean(),
             xrayVersion: z.string().nullable(),
+            nodeVersion: z.string(),
         }),
     });
 

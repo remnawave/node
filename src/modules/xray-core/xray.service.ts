@@ -41,7 +41,7 @@ export class XrayService implements OnApplicationBootstrap {
     private isXrayOnline: boolean = false;
     private systemStats: ISystemStats | null = null;
     private isXrayStartedProccesing: boolean = false;
-    private nodeVersion: string | null = null;
+    private nodeVersion: string = '0.0.0';
     constructor(
         @InjectXtls() private readonly xtlsSdk: XtlsApi,
         @InjectSupervisord() private readonly supervisordApi: SupervisordClient,
@@ -52,7 +52,6 @@ export class XrayService implements OnApplicationBootstrap {
         this.xrayVersion = null;
         this.systemStats = null;
         this.isXrayStartedProccesing = false;
-        this.nodeVersion = null;
         this.disableHashedSetCheck = this.configService.getOrThrow<boolean>(
             'DISABLE_HASHED_SET_CHECK',
         );
@@ -64,7 +63,7 @@ export class XrayService implements OnApplicationBootstrap {
 
             this.xrayVersion = this.getXrayVersionFromEnv();
             this.systemStats = await getSystemStats();
-            this.nodeVersion = pkg.version || null;
+            this.nodeVersion = pkg.version ?? '0.0.0';
 
             await this.supervisordApi.getState();
         } catch (error) {
@@ -305,6 +304,7 @@ export class XrayService implements OnApplicationBootstrap {
                     true,
                     this.isXrayOnline,
                     this.xrayVersion,
+                    this.nodeVersion,
                 ),
             };
         } catch (error) {
@@ -312,7 +312,7 @@ export class XrayService implements OnApplicationBootstrap {
 
             return {
                 isOk: true,
-                response: new GetNodeHealthCheckResponseModel(false, false, null),
+                response: new GetNodeHealthCheckResponseModel(false, false, null, this.nodeVersion),
             };
         }
     }

@@ -8,7 +8,7 @@
     "detour": "ss-in",
     "users": [
       {
-        "name": "sekai",
+        "name": "user",
         "password": "DCD3Z4o42bKUoFa3cC41Hw=="
       }
     ],
@@ -27,7 +27,7 @@
     "listen_port": 8443,
     "users": [
       {
-        "username": "sekai",
+        "username": "user",
         "password": "DCD3Z4o42bKUoFa3cC41Hw=="
       }
     ],
@@ -51,7 +51,7 @@
     "listen_port": 14489,
     "users": [
       {
-        "name": "sekai",
+        "name": "user",
         "password": "DCD3Z4o42bKUoFa3cC41Hw=="
       }
     ],

@@ -22,12 +22,7 @@
       "method": "2022-blake3-aes-128-gcm",
       "password": "amyt+nKUYYOnMJrZlxRoJA==",
       "sniff": true,
-      "users": [
-        {
-          "name": "Cygan",
-          "password": "PCD2Z4o12bKUoFa3cC97Hw=="
-        }
-      ]
+      "users": []
     },
     {
       "type": "hysteria2",
@@ -35,12 +30,7 @@
       "listen": "::",
       "listen_port": 14488,
       "sniff": true,
-      "users": [
-        {
-          "name": "Cygan",
-          "password": "VSPB+a+CdQFmlpQ1zaWcoEmf"
-        }
-      ],
+      "users": [],
       "obfs": {
         "type": "salamander",
         "password": "2ErQtacFbjilqI8R"
@@ -50,13 +40,13 @@
         "alpn": [
           "h3"
         ],
-        "server_name": "mm.geega.quest",
+        "server_name": "my.perfect.domain",
         "acme": {
           "domain": [
-            "mm.geega.quest"
+            "my.perfect.domain"
           ],
           "data_directory": "/var/lib/sing-box/cert",
-          "email": "admin@geega.quest",
+          "email": "admin@my.perfect.domain",
           "provider": "letsencrypt"
         }
       }
@@ -192,7 +182,7 @@
       "private_key": "8CcEo6fqPVnkJlJcBIZft034qdYfjR1rCYuWkvrI0kg=",
       "peers": [
         {
-          "address": "45.144.221.133",
+          "address": "127.0.0.1",
           "port": 25001,
           "public_key": "4h2nYJrRmU6wsMVHeTl/PyhNm/uQLs6UlBkoUTBWV0g=",
           "allowed_ips": [

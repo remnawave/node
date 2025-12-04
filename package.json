@@ -1,19 +1,11 @@
 {
-  "name": "@remnawave/node",
+  "name": "rm-sing-box-node",
   "version": "2.2.3",
-  "description": "Remnawave Node",
+  "description": "Remnawave Sing-Box Node",
   "private": false,
   "type": "commonjs",
   "license": "AGPL-3.0-only",
-  "author": "REMNAWAVE <github.com/remnawave>",
-  "homepage": "https://github.com/remnawave",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/remnawave/node"
-  },
-  "bugs": {
-    "url": "https://github.com/remnawave/node/issues"
-  },
+  "author": "BLVST & REMNAWAVE",
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",

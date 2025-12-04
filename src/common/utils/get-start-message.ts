@@ -20,14 +20,14 @@ export async function getStartMessage(
         [
             ['Docs → https://docs.rw\nCommunity → https://t.me/remnawave'],
             [`API Port: ${appPort}\nInternal Ports: 61000, ${internalPort}, 61002`],
-            [`XRay Core: v${xrayInfo.version || 'N/A'}\nXRay Path: ${xrayInfo.path}`],
+            [`Sing-Box Core: v${xrayInfo.version || 'N/A'}\nSing-Box Path: ${xrayInfo.path}`],
             [
                 `SI: ${xrayInfo.systemInfo?.cpuCores}C, ${xrayInfo.systemInfo?.cpuModel}, ${xrayInfo.systemInfo?.memoryTotal}`,
             ],
         ],
         {
             header: {
-                content: `Remnawave Node v${pkg.version}`,
+                content: `Remnawave Sing-Box Node v${pkg.version}`,
                 alignment: 'center',
             },
             columnDefault: {

@@ -10,12 +10,9 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { InjectSupervisord } from '@remnawave/supervisord-nestjs';
-import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
-import { XtlsApi } from '@remnawave/xtls-sdk';
 
 import { ISystemStats } from '@common/utils/get-system-stats/get-system-stats.interface';
 import { ICommandResponse } from '@common/types/command-response.type';
-import { generateApiConfig } from '@common/utils/generate-api-config';
 import { getSystemStats } from '@common/utils/get-system-stats';
 import { IHashPayload, KNOWN_ERRORS, REMNAWAVE_NODE_KNOWN_ERROR } from '@libs/contracts/constants';
 
@@ -27,30 +24,34 @@ import {
 } from './models';
 import { InternalService } from '../internal/internal.service';
 
-const XRAY_PROCESS_NAME = 'xray' as const;
+/** Supervisord process name for sing-box */
+const SINGBOX_PROCESS_NAME = 'singbox' as const;
+
+/** Supervisord process state: RUNNING */
+const PROCESS_STATE_RUNNING = 20;
 
 @Injectable()
 export class XrayService implements OnApplicationBootstrap {
     private readonly logger = new Logger(XrayService.name);
     private readonly disableHashedSetCheck: boolean;
 
-    private readonly xrayPath: string;
+    private readonly singBoxPath: string;
 
-    private xrayVersion: null | string = null;
-    private isXrayOnline: boolean = false;
+    private singBoxVersion: string | null = null;
+    private isSingBoxOnline: boolean = false;
     private systemStats: ISystemStats | null = null;
-    private isXrayStartedProccesing: boolean = false;
+    private isStartProcessing: boolean = false;
     private nodeVersion: string | null = null;
+
     constructor(
-        @InjectXtls() private readonly xtlsSdk: XtlsApi,
         @InjectSupervisord() private readonly supervisordApi: SupervisordClient,
         private readonly internalService: InternalService,
         private readonly configService: ConfigService,
     ) {
-        this.xrayPath = '/usr/local/bin/xray';
-        this.xrayVersion = null;
+        this.singBoxPath = '/usr/local/bin/sing-box';
+        this.singBoxVersion = null;
         this.systemStats = null;
-        this.isXrayStartedProccesing = false;
+        this.isStartProcessing = false;
         this.nodeVersion = null;
         this.disableHashedSetCheck = this.configService.getOrThrow<boolean>(
             'DISABLE_HASHED_SET_CHECK',
@@ -61,7 +62,7 @@ export class XrayService implements OnApplicationBootstrap {
         try {
             const pkg = await readPackageJSON();
 
-            this.xrayVersion = this.getXrayVersionFromEnv();
+            this.singBoxVersion = this.getSingBoxVersionFromEnv();
             this.systemStats = await getSystemStats();
             this.nodeVersion = pkg.version || null;
 
@@ -70,9 +71,18 @@ export class XrayService implements OnApplicationBootstrap {
             this.logger.error(`Error in Application Bootstrap: ${error}`);
         }
 
-        this.isXrayOnline = false;
+        this.isSingBoxOnline = false;
     }
 
+    /**
+     * Starts sing-box with the provided configuration.
+     * Method name kept as startXray for API compatibility.
+     *
+     * @param config - Sing-box configuration object
+     * @param ip - Master IP address
+     * @param hashPayload - Hash payload for config comparison
+     * @param forceRestart - Force restart even if config unchanged
+     */
     public async startXray(
         config: Record<string, unknown>,
         ip: string,
@@ -95,13 +105,13 @@ export class XrayService implements OnApplicationBootstrap {
                 };
             }
 
-            if (this.isXrayStartedProccesing) {
+            if (this.isStartProcessing) {
                 this.logger.warn('Request already in progress');
                 return {
                     isOk: true,
                     response: new StartXrayResponseModel(
                         false,
-                        this.xrayVersion,
+                        this.singBoxVersion,
                         'Request already in progress',
                         null,
                         {
@@ -111,20 +121,21 @@ export class XrayService implements OnApplicationBootstrap {
                 };
             }
 
-            this.isXrayStartedProccesing = true;
+            this.isStartProcessing = true;
 
-            if (this.isXrayOnline && !this.disableHashedSetCheck && !forceRestart) {
-                const { isOk } = await this.xtlsSdk.stats.getSysStats();
+            // Check if restart is needed based on config hash
+            if (this.isSingBoxOnline && !this.disableHashedSetCheck && !forceRestart) {
+                const isOnline = await this.checkSingBoxHealth();
 
                 let shouldRestart = false;
 
-                if (isOk) {
+                if (isOnline) {
                     shouldRestart = this.internalService.isNeedRestartCore(hashPayload);
                 } else {
-                    this.isXrayOnline = false;
+                    this.isSingBoxOnline = false;
                     shouldRestart = true;
 
-                    this.logger.warn(`Xray Core health check failed, restarting...`);
+                    this.logger.warn(`Sing-box health check failed, restarting...`);
                 }
 
                 if (!shouldRestart) {
@@ -132,7 +143,7 @@ export class XrayService implements OnApplicationBootstrap {
                         isOk: true,
                         response: new StartXrayResponseModel(
                             true,
-                            this.xrayVersion,
+                            this.singBoxVersion,
                             null,
                             this.systemStats,
                             {
@@ -147,64 +158,63 @@ export class XrayService implements OnApplicationBootstrap {
                 this.logger.warn('Force restart requested');
             }
 
-            const fullConfig = generateApiConfig(config);
+            // Store config and extract users - sing-box config is used as-is
+            await this.internalService.extractUsersFromConfig(hashPayload, config);
 
-            this.internalService.extractUsersFromConfig(hashPayload, fullConfig);
+            const singBoxProcess = await this.restartSingBoxProcess();
 
-            const xrayProcess = await this.restartXrayProcess();
-
-            if (xrayProcess.error) {
-                if (xrayProcess.error.includes('XML-RPC fault: SPAWN_ERROR: xray')) {
+            if (singBoxProcess.error) {
+                if (singBoxProcess.error.includes('XML-RPC fault: SPAWN_ERROR: singbox')) {
                     this.logger.error(REMNAWAVE_NODE_KNOWN_ERROR, {
                         timestamp: new Date().toISOString(),
-                        rawError: xrayProcess.error,
+                        rawError: singBoxProcess.error,
                         ...KNOWN_ERRORS.XRAY_FAILED_TO_START,
                     });
                 } else {
-                    this.logger.error(xrayProcess.error);
+                    this.logger.error(singBoxProcess.error);
                 }
 
                 return {
                     isOk: true,
-                    response: new StartXrayResponseModel(false, null, xrayProcess.error, null, {
+                    response: new StartXrayResponseModel(false, null, singBoxProcess.error, null, {
                         version: this.nodeVersion,
                     }),
                 };
             }
 
-            let isStarted = await this.getXrayInternalStatus();
+            let isStarted = await this.getSingBoxInternalStatus();
 
-            if (!isStarted && xrayProcess.processInfo!.state === 20) {
-                isStarted = await this.getXrayInternalStatus();
+            if (!isStarted && singBoxProcess.processInfo?.state === PROCESS_STATE_RUNNING) {
+                isStarted = await this.getSingBoxInternalStatus();
             }
 
             if (!isStarted) {
-                this.isXrayOnline = false;
+                this.isSingBoxOnline = false;
 
                 this.logger.error(
                     '\n' +
-                        table(
-                            [
-                                ['Version', this.xrayVersion],
-                                ['Master IP', ip],
-                                ['Internal Status', isStarted],
-                                ['Error', xrayProcess.error],
-                            ],
-                            {
-                                header: {
-                                    content: 'Xray failed to start',
-                                    alignment: 'center',
-                                },
+                    table(
+                        [
+                            ['Version', this.singBoxVersion],
+                            ['Master IP', ip],
+                            ['Internal Status', isStarted],
+                            ['Error', singBoxProcess.error],
+                        ],
+                        {
+                            header: {
+                                content: 'Sing-box failed to start',
+                                alignment: 'center',
                             },
-                        ),
+                        },
+                    ),
                 );
 
                 return {
                     isOk: true,
                     response: new StartXrayResponseModel(
                         isStarted,
-                        this.xrayVersion,
-                        xrayProcess.error,
+                        this.singBoxVersion,
+                        singBoxProcess.error,
                         this.systemStats,
                         {
                             version: this.nodeVersion,
@@ -213,29 +223,29 @@ export class XrayService implements OnApplicationBootstrap {
                 };
             }
 
-            this.isXrayOnline = true;
+            this.isSingBoxOnline = true;
 
             this.logger.log(
                 '\n' +
-                    table(
-                        [
-                            ['Version', this.xrayVersion],
-                            ['Master IP', ip],
-                        ],
-                        {
-                            header: {
-                                content: 'Xray started',
-                                alignment: 'center',
-                            },
+                table(
+                    [
+                        ['Version', this.singBoxVersion],
+                        ['Master IP', ip],
+                    ],
+                    {
+                        header: {
+                            content: 'Sing-box started',
+                            alignment: 'center',
                         },
-                    ),
+                    },
+                ),
             );
 
             return {
                 isOk: true,
                 response: new StartXrayResponseModel(
                     isStarted,
-                    this.xrayVersion,
+                    this.singBoxVersion,
                     null,
                     this.systemStats,
                     {
@@ -249,7 +259,7 @@ export class XrayService implements OnApplicationBootstrap {
                 errorMessage = error.message;
             }
 
-            this.logger.error(`Failed to start Xray: ${errorMessage}`);
+            this.logger.error(`Failed to start Sing-box: ${errorMessage}`);
 
             return {
                 isOk: true,
@@ -259,22 +269,26 @@ export class XrayService implements OnApplicationBootstrap {
             };
         } finally {
             this.logger.log(
-                'Attempt to start XTLS took: ' +
-                    ems(performance.now() - tm, {
-                        extends: 'short',
-                        includeMs: true,
-                    }),
+                'Attempt to start Sing-box took: ' +
+                ems(performance.now() - tm, {
+                    extends: 'short',
+                    includeMs: true,
+                }),
             );
 
-            this.isXrayStartedProccesing = false;
+            this.isStartProcessing = false;
         }
     }
 
+    /**
+     * Stops sing-box process.
+     * Method name kept as stopXray for API compatibility.
+     */
     public async stopXray(): Promise<ICommandResponse<StopXrayResponseModel>> {
         try {
-            await this.killAllXrayProcesses();
+            await this.killAllSingBoxProcesses();
 
-            this.isXrayOnline = false;
+            this.isSingBoxOnline = false;
             this.internalService.cleanup();
 
             return {
@@ -282,7 +296,7 @@ export class XrayService implements OnApplicationBootstrap {
                 response: new StopXrayResponseModel(true),
             };
         } catch (error) {
-            this.logger.error(`Failed to stop Xray Process: ${error}`);
+            this.logger.error(`Failed to stop Sing-box Process: ${error}`);
             return {
                 isOk: true,
                 response: new StopXrayResponseModel(false),
@@ -290,19 +304,23 @@ export class XrayService implements OnApplicationBootstrap {
         }
     }
 
+    /**
+     * Gets sing-box status and version.
+     * Method name kept as getXrayStatusAndVersion for API compatibility.
+     */
     public async getXrayStatusAndVersion(): Promise<
         ICommandResponse<GetXrayStatusAndVersionResponseModel>
     > {
         try {
-            const version = this.xrayVersion;
-            const status = await this.getXrayInternalStatus();
+            const version = this.singBoxVersion;
+            const status = await this.getSingBoxInternalStatus();
 
             return {
                 isOk: true,
                 response: new GetXrayStatusAndVersionResponseModel(status, version),
             };
         } catch (error) {
-            this.logger.error(`Failed to get Xray status and version ${error}`);
+            this.logger.error(`Failed to get Sing-box status and version ${error}`);
 
             return {
                 isOk: true,
@@ -311,14 +329,17 @@ export class XrayService implements OnApplicationBootstrap {
         }
     }
 
+    /**
+     * Gets node health check status.
+     */
     public async getNodeHealthCheck(): Promise<ICommandResponse<GetNodeHealthCheckResponseModel>> {
         try {
             return {
                 isOk: true,
                 response: new GetNodeHealthCheckResponseModel(
                     true,
-                    this.isXrayOnline,
-                    this.xrayVersion,
+                    this.isSingBoxOnline,
+                    this.singBoxVersion,
                 ),
             };
         } catch (error) {
@@ -331,52 +352,101 @@ export class XrayService implements OnApplicationBootstrap {
         }
     }
 
-    public async killAllXrayProcesses(): Promise<void> {
-        try {
-            await this.supervisordApi.stopProcess(XRAY_PROCESS_NAME, true);
+    /**
+     * Restarts the sing-box process via supervisord.
+     * Public method for use by HandlerService.
+     */
+    public async restartProcess(): Promise<{ success: boolean; error: string | null }> {
+        const result = await this.restartSingBoxProcess();
+        return {
+            success: result.error === null,
+            error: result.error,
+        };
+    }
 
-            this.logger.log('Supervisord: Xray processes killed.');
+    /**
+     * Kills all sing-box processes.
+     * Method name kept for internal compatibility.
+     */
+    public async killAllXrayProcesses(): Promise<void> {
+        await this.killAllSingBoxProcesses();
+    }
+
+    /**
+     * Kills all sing-box processes via supervisord.
+     */
+    private async killAllSingBoxProcesses(): Promise<void> {
+        try {
+            await this.supervisordApi.stopProcess(SINGBOX_PROCESS_NAME, true);
+
+            this.logger.log('Supervisord: Sing-box processes killed.');
         } catch (error) {
-            this.logger.log(`Supervisord: No existing Xray processes found. Error: ${error}`);
+            this.logger.log(`Supervisord: No existing Sing-box processes found. Error: ${error}`);
         }
     }
 
-    private getXrayVersionFromEnv(): null | string {
-        const version = semver.valid(semver.coerce(process.env.XRAY_CORE_VERSION));
+    /**
+     * Gets sing-box version from environment variable.
+     */
+    private getSingBoxVersionFromEnv(): string | null {
+        const version = semver.valid(semver.coerce(process.env.SINGBOX_VERSION));
 
         if (version) {
-            this.xrayVersion = version;
+            this.singBoxVersion = version;
         }
 
         return version;
     }
 
+    /**
+     * Gets sing-box information.
+     * Method name kept as getXrayInfo for API compatibility.
+     */
     public getXrayInfo(): {
         version: string | null;
         path: string;
         systemInfo: ISystemStats | null;
     } {
-        const version = this.getXrayVersionFromEnv();
+        const version = this.getSingBoxVersionFromEnv();
 
         if (version) {
-            this.xrayVersion = version;
+            this.singBoxVersion = version;
         }
 
         return {
             version: version,
-            path: this.xrayPath,
+            path: this.singBoxPath,
             systemInfo: this.systemStats,
         };
     }
 
-    private async getXrayInternalStatus(): Promise<boolean> {
+    /**
+     * Checks if sing-box is healthy by verifying process state.
+     */
+    private async checkSingBoxHealth(): Promise<boolean> {
+        try {
+            const processInfo = await this.supervisordApi.getProcessInfo(SINGBOX_PROCESS_NAME);
+            return processInfo.state === PROCESS_STATE_RUNNING;
+        } catch (error) {
+            this.logger.debug(`Sing-box health check error: ${error}`);
+            return false;
+        }
+    }
+
+    /**
+     * Gets sing-box internal status by checking supervisord process state.
+     * Uses retry logic to handle startup delay.
+     */
+    private async getSingBoxInternalStatus(): Promise<boolean> {
         try {
             return await pRetry(
                 async () => {
-                    const { isOk, message } = await this.xtlsSdk.stats.getSysStats();
+                    const processInfo = await this.supervisordApi.getProcessInfo(
+                        SINGBOX_PROCESS_NAME,
+                    );
 
-                    if (!isOk) {
-                        throw new Error(message);
+                    if (processInfo.state !== PROCESS_STATE_RUNNING) {
+                        throw new Error(`Process state is ${processInfo.state}, not running`);
                     }
 
                     return true;
@@ -387,33 +457,36 @@ export class XrayService implements OnApplicationBootstrap {
                     maxTimeout: 2000,
                     onFailedAttempt: (error) => {
                         this.logger.debug(
-                            `Get Xray internal status attempt ${error.attemptNumber} failed. ${error.retriesLeft} retries left.`,
+                            `Get Sing-box internal status attempt ${error.attemptNumber} failed. ${error.retriesLeft} retries left.`,
                         );
                     },
                 },
             );
         } catch (error) {
-            this.logger.error(`Failed to get Xray internal status: ${error}`);
+            this.logger.error(`Failed to get Sing-box internal status: ${error}`);
             return false;
         }
     }
 
-    private async restartXrayProcess(): Promise<{
+    /**
+     * Restarts sing-box process via supervisord.
+     */
+    private async restartSingBoxProcess(): Promise<{
         processInfo: ProcessInfo | null;
         error: string | null;
     }> {
         try {
-            const processState = await this.supervisordApi.getProcessInfo(XRAY_PROCESS_NAME);
+            const processState = await this.supervisordApi.getProcessInfo(SINGBOX_PROCESS_NAME);
 
             // Reference: https://supervisord.org/subprocess.html#process-states
-            if (processState.state === 20) {
-                await this.supervisordApi.stopProcess(XRAY_PROCESS_NAME, true);
+            if (processState.state === PROCESS_STATE_RUNNING) {
+                await this.supervisordApi.stopProcess(SINGBOX_PROCESS_NAME, true);
             }
 
-            await this.supervisordApi.startProcess(XRAY_PROCESS_NAME, true);
+            await this.supervisordApi.startProcess(SINGBOX_PROCESS_NAME, true);
 
             return {
-                processInfo: await this.supervisordApi.getProcessInfo(XRAY_PROCESS_NAME),
+                processInfo: await this.supervisordApi.getProcessInfo(SINGBOX_PROCESS_NAME),
                 error: null,
             };
         } catch (error) {

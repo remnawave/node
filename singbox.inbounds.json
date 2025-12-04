@@ -33,13 +33,13 @@
     ],
     "tls": {
       "enabled": true,
-      "server_name": "mm.geega.quest",
+      "server_name": "my.perfect.domain",
       "acme": {
         "domain": [
-          "mm.geega.quest"
+          "my.perfect.domain"
         ],
         "data_directory": "/var/lib/sing-box/cert",
-        "email": "admin@geega.quest",
+        "email": "admin@my.perfect.domain",
         "provider": "letsencrypt"
       }
     }
@@ -57,13 +57,13 @@
     ],
     "tls": {
       "enabled": true,
-      "server_name": "mm.geega.quest",
+      "server_name": "my.perfect.domain",
       "acme": {
         "domain": [
-          "mm.geega.quest"
+          "my.perfect.domain"
         ],
         "data_directory": "/var/lib/sing-box/cert",
-        "email": "admin@geega.quest",
+        "email": "admin@my.perfect.domain",
         "provider": "letsencrypt"
       }
     }

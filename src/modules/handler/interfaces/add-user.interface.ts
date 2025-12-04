@@ -1,57 +1,134 @@
-import { CipherType } from '@remnawave/xtls-sdk/build/src/xray-protos/proxy/shadowsocks/config';
+/**
+ * Type of user to add - maps to sing-box inbound types
+ */
+export type UserType =
+    | 'vless'
+    | 'trojan'
+    | 'shadowsocks'
+    | 'shadowsocks2022'
+    | 'http'
+    | 'socks'
+    | 'hysteria2'
+    | 'shadowtls'
+    | 'naive'
+    | 'anytls';
 
+/**
+ * Base user request data
+ */
+interface IBaseUserData {
+    tag: string;
+    username: string;
+    level?: number;
+}
+
+/**
+ * VLESS user data
+ */
+interface IVlessUserData extends IBaseUserData {
+    type: 'vless';
+    uuid: string;
+    flow?: '' | 'xtls-rprx-vision';
+}
+
+/**
+ * Trojan user data
+ */
+interface ITrojanUserData extends IBaseUserData {
+    type: 'trojan';
+    password: string;
+}
+
+/**
+ * Legacy Shadowsocks user data (pre-2022)
+ */
+interface IShadowsocksUserData extends IBaseUserData {
+    type: 'shadowsocks';
+    password: string;
+    cipherType?: number;
+    ivCheck?: boolean;
+}
+
+/**
+ * Shadowsocks 2022 user data
+ */
+interface IShadowsocks2022UserData extends IBaseUserData {
+    type: 'shadowsocks2022';
+    key: string;
+}
+
+/**
+ * HTTP proxy user data
+ */
+interface IHttpUserData extends IBaseUserData {
+    type: 'http';
+    http_username: string;
+    http_password: string;
+}
+
+/**
+ * SOCKS proxy user data
+ */
+interface ISocksUserData extends IBaseUserData {
+    type: 'socks';
+    socks_username: string;
+    socks_password: string;
+}
+
+/**
+ * Hysteria2 user data
+ */
+interface IHysteria2UserData extends IBaseUserData {
+    type: 'hysteria2';
+    password: string;
+}
+
+/**
+ * ShadowTLS user data
+ */
+interface IShadowTLSUserData extends IBaseUserData {
+    type: 'shadowtls';
+    password: string;
+}
+
+/**
+ * Naive user data
+ */
+interface INaiveUserData extends IBaseUserData {
+    type: 'naive';
+    password: string;
+}
+
+/**
+ * AnyTLS user data
+ */
+interface IAnyTLSUserData extends IBaseUserData {
+    type: 'anytls';
+    password: string;
+}
+
+/**
+ * Union type for all user data types
+ */
+export type TUserData =
+    | IVlessUserData
+    | ITrojanUserData
+    | IShadowsocksUserData
+    | IShadowsocks2022UserData
+    | IHttpUserData
+    | ISocksUserData
+    | IHysteria2UserData
+    | IShadowTLSUserData
+    | INaiveUserData
+    | IAnyTLSUserData;
+
+/**
+ * Request interface for adding a user
+ */
 export interface TAddUserRequest {
     hashData: {
         vlessUuid: string;
         prevVlessUuid?: string;
     };
-    data: Array<
-        | {
-              cipherType: CipherType;
-              ivCheck: boolean;
-              level: number;
-              password: string;
-              tag: string;
-              type: 'shadowsocks';
-              username: string;
-          }
-        | {
-              flow: '' | 'xtls-rprx-vision';
-              level: number;
-              tag: string;
-              type: 'vless';
-              username: string;
-              uuid: string;
-          }
-        | {
-              http_password: string;
-              http_username: string;
-              level: number;
-              tag: string;
-              type: 'http';
-              username: string;
-          }
-        | {
-              key: string;
-              level: number;
-              tag: string;
-              type: 'shadowsocks2022';
-              username: string;
-          }
-        | {
-              level: number;
-              password: string;
-              tag: string;
-              type: 'trojan';
-              username: string;
-          }
-        | {
-              level: number;
-              socks_password: string;
-              socks_username: string;
-              tag: string;
-              type: 'socks';
-              username: string;
-          }
-    >;
+    data: TUserData[];
 }

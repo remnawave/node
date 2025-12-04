@@ -17,8 +17,8 @@ export const configSchema = z
         SSL_CERT: z.string().optional(),
         SECRET_KEY: z.string().optional(),
         JWT_PUBLIC_KEY: z.string().optional(),
-        XTLS_IP: z.string().default('127.0.0.1'),
-        XTLS_PORT: z.string().default('61000'),
+        // XTLS_IP and XTLS_PORT removed - not needed for sing-box
+        SINGBOX_VERSION: z.string().optional(),
         HAS_DEPRECATED_SSL_CERT: z
             .string()
             .default('false')
@@ -73,4 +73,4 @@ export const configSchema = z
     });
 
 export type ConfigSchema = z.infer<typeof configSchema>;
-export class Env extends createZodDto(configSchema) {}
+export class Env extends createZodDto(configSchema) { }

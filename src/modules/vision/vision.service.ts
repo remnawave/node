@@ -1,9 +1,4 @@
-import objectHash from 'object-hash';
-
 import { Injectable, Logger } from '@nestjs/common';
-
-import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
-import { XtlsApi } from '@remnawave/xtls-sdk';
 
 import { ICommandResponse } from '@common/types/command-response.type';
 import { ERRORS } from '@libs/contracts/constants/errors';
@@ -11,86 +6,63 @@ import { ERRORS } from '@libs/contracts/constants/errors';
 import { BlockIpResponseModel, UnblockIpResponseModel } from './models';
 import { BlockIpRequestDto, UnblockIpRequestDto } from './dtos';
 
+/**
+ * Vision service for IP blocking functionality.
+ *
+ * NOTE: This is a stub implementation as sing-box does not have
+ * a runtime API for managing route rules dynamically.
+ *
+ * To block IPs in sing-box, rules must be added to the config
+ * and the process must be restarted. This is not implemented
+ * as it would require frequent restarts and is not practical.
+ *
+ * TODO: Consider alternative approaches:
+ * 1. Use external firewall (iptables/nftables)
+ * 2. Integrate with fail2ban
+ * 3. Use sing-box rule-set files that can be reloaded
+ */
 @Injectable()
 export class VisionService {
     private readonly logger = new Logger(VisionService.name);
 
-    constructor(@InjectXtls() private readonly xtlsApi: XtlsApi) {}
-
-    public async blockIp(dto: BlockIpRequestDto): Promise<ICommandResponse<BlockIpResponseModel>> {
-        try {
-            const { ip } = dto;
-
-            const ipHash = this.getIpHash(ip);
-
-            const res = await this.xtlsApi.router.addSrcIpRule({
-                ruleTag: ipHash,
-                outbound: 'BLOCK',
-                append: true,
-                ip: ip,
-            });
-
-            this.logger.log(res);
-
-            if (!res.isOk) {
-                throw new Error(res.message);
-            }
-
-            return {
-                isOk: true,
-                response: new BlockIpResponseModel(true, null),
-            };
-        } catch (error) {
-            this.logger.error(error);
-            let message = '';
-            if (error instanceof Error) {
-                message = error.message;
-            }
-            return {
-                isOk: false,
-                code: ERRORS.INTERNAL_SERVER_ERROR.code,
-                response: new BlockIpResponseModel(false, message),
-            };
-        }
+    constructor() {
+        this.logger.warn(
+            'VisionService: IP blocking is not supported in sing-box mode. ' +
+            'Consider using external firewall or fail2ban for IP blocking.',
+        );
     }
 
+    /**
+     * Blocks an IP address.
+     * Stub: Always returns failure as not supported in sing-box.
+     */
+    public async blockIp(dto: BlockIpRequestDto): Promise<ICommandResponse<BlockIpResponseModel>> {
+        this.logger.warn(`blockIp called for IP: ${dto.ip} - not supported in sing-box mode`);
+
+        return {
+            isOk: true,
+            response: new BlockIpResponseModel(
+                false,
+                'IP blocking is not supported in sing-box mode. Use external firewall.',
+            ),
+        };
+    }
+
+    /**
+     * Unblocks an IP address.
+     * Stub: Always returns failure as not supported in sing-box.
+     */
     public async unblockIp(
         dto: UnblockIpRequestDto,
     ): Promise<ICommandResponse<UnblockIpResponseModel>> {
-        try {
-            const { ip } = dto;
+        this.logger.warn(`unblockIp called for IP: ${dto.ip} - not supported in sing-box mode`);
 
-            const ipHash = this.getIpHash(ip);
-
-            const res = await this.xtlsApi.router.removeRuleByRuleTag({
-                ruleTag: ipHash,
-            });
-
-            this.logger.log(res);
-
-            if (!res.isOk) {
-                throw new Error(res.message);
-            }
-
-            return {
-                isOk: true,
-                response: new UnblockIpResponseModel(true, null),
-            };
-        } catch (error) {
-            this.logger.error(error);
-            let message = '';
-            if (error instanceof Error) {
-                message = error.message;
-            }
-            return {
-                isOk: false,
-                code: ERRORS.INTERNAL_SERVER_ERROR.code,
-                response: new UnblockIpResponseModel(false, message),
-            };
-        }
-    }
-
-    private getIpHash(ip: string): string {
-        return objectHash(ip, { algorithm: 'md5', encoding: 'hex' });
+        return {
+            isOk: true,
+            response: new UnblockIpResponseModel(
+                false,
+                'IP unblocking is not supported in sing-box mode. Use external firewall.',
+            ),
+        };
     }
 }

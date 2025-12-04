@@ -1,8 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
-import { XtlsApi } from '@remnawave/xtls-sdk';
-
 import { ICommandResponse } from '@common/types/command-response.type';
 import { ERRORS } from '@libs/contracts/constants';
 
@@ -17,215 +14,156 @@ import {
 } from './models';
 import { IGetUserOnlineStatusRequest } from './interfaces';
 
+/**
+ * Stats service for sing-box.
+ *
+ * NOTE: This is a stub implementation as sing-box V2Ray API requires
+ * additional configuration and gRPC client setup. These methods return
+ * empty/default data until V2Ray API integration is implemented.
+ *
+ * TODO: Implement V2Ray API gRPC client for statistics
+ * Config required in sing-box:
+ * {
+ *   "experimental": {
+ *     "v2ray_api": {
+ *       "listen": "127.0.0.1:10085",
+ *       "stats": { "enabled": true, "users": [...] }
+ *     }
+ *   }
+ * }
+ */
 @Injectable()
 export class StatsService {
-    constructor(@InjectXtls() private readonly xtlsSdk: XtlsApi) {}
     private readonly logger = new Logger(StatsService.name);
 
+    constructor() {
+        this.logger.warn(
+            'StatsService: Running in stub mode. Statistics are not available without V2Ray API.',
+        );
+    }
+
+    /**
+     * Gets user online status.
+     * Stub: Always returns offline as sing-box doesn't track online status without V2Ray API.
+     */
     public async getUserOnlineStatus(
         body: IGetUserOnlineStatusRequest,
     ): Promise<ICommandResponse<GetUserOnlineStatusResponseModel>> {
-        try {
-            const response = await this.xtlsSdk.stats.getUserOnlineStatus(body.username);
+        this.logger.debug(`getUserOnlineStatus called for user: ${body.username} (stub)`);
 
-            if (response.isOk && response.data) {
-                return {
-                    isOk: true,
-                    response: new GetUserOnlineStatusResponseModel(response.data.online),
-                };
-            }
-
-            return {
-                isOk: true,
-                response: new GetUserOnlineStatusResponseModel(false),
-            };
-        } catch (error) {
-            this.logger.error(error);
-            return {
-                isOk: true,
-                response: new GetUserOnlineStatusResponseModel(false),
-            };
-        }
+        return {
+            isOk: true,
+            response: new GetUserOnlineStatusResponseModel(false),
+        };
     }
 
+    /**
+     * Gets system statistics.
+     * Stub: Returns empty stats as not available without V2Ray API.
+     */
     public async getSystemStats(): Promise<ICommandResponse<GetSystemStatsResponseModel>> {
-        try {
-            const response = await this.xtlsSdk.stats.getSysStats();
+        this.logger.debug('getSystemStats called (stub)');
 
-            if (!response.isOk || !response.data) {
-                this.logger.warn(response);
-                return {
-                    isOk: false,
-                    ...ERRORS.FAILED_TO_GET_SYSTEM_STATS,
-                };
-            }
-
-            return {
-                isOk: true,
-                response: new GetSystemStatsResponseModel(response.data),
-            };
-        } catch (error) {
-            this.logger.error(error);
-            return {
-                isOk: false,
-                ...ERRORS.FAILED_TO_GET_SYSTEM_STATS,
-            };
-        }
+        // Return minimal system stats
+        return {
+            isOk: true,
+            response: new GetSystemStatsResponseModel({
+                numGoroutine: 0,
+                numGC: 0,
+                alloc: 0,
+                totalAlloc: 0,
+                sys: 0,
+                mallocs: 0,
+                frees: 0,
+                liveObjects: 0,
+                pauseTotalNs: 0,
+                uptime: 0,
+            }),
+        };
     }
 
+    /**
+     * Gets all users' traffic statistics.
+     * Stub: Returns empty array as not available without V2Ray API.
+     */
     public async getUsersStats(
         reset: boolean,
     ): Promise<ICommandResponse<GetUsersStatsResponseModel>> {
-        try {
-            const response = await this.xtlsSdk.stats.getAllUsersStats(reset);
+        this.logger.debug(`getUsersStats called with reset=${reset} (stub)`);
 
-            if (!response.isOk || !response.data) {
-                this.logger.warn(response);
-
-                return {
-                    isOk: false,
-                    ...ERRORS.FAILED_TO_GET_USERS_STATS,
-                };
-            }
-
-            return {
-                isOk: true,
-                response: new GetUsersStatsResponseModel(
-                    response.data.users.filter((user) => user.uplink !== 0 || user.downlink !== 0),
-                ),
-            };
-
-            // const demoRes = Array.from({ length: 160_000 }, (_, i) => ({
-            //     username: String(i + 1),
-            //     uplink: Math.floor(Math.random() * (107374182400 - 10485760) + 10485760), // Random between 10MB and 100GB
-            //     downlink: Math.floor(Math.random() * (107374182400 - 10485760) + 10485760), // Random between 10MB and 100GB
-            // }));
-
-            // return {
-            //     isOk: true,
-            //     response: new GetUsersStatsResponseModel(demoRes),
-            // };
-        } catch (error) {
-            this.logger.error(error);
-            return {
-                isOk: false,
-                ...ERRORS.FAILED_TO_GET_USERS_STATS,
-            };
-        }
+        return {
+            isOk: true,
+            response: new GetUsersStatsResponseModel([]),
+        };
     }
 
+    /**
+     * Gets inbound statistics.
+     * Stub: Returns zero stats as not available without V2Ray API.
+     */
     public async getInboundStats(
         tag: string,
         reset: boolean,
     ): Promise<ICommandResponse<GetInboundStatsResponseModel>> {
-        try {
-            const response = await this.xtlsSdk.stats.getInboundStats(tag, reset);
+        this.logger.debug(`getInboundStats called for tag=${tag}, reset=${reset} (stub)`);
 
-            if (!response.isOk || !response.data || !response.data.inbound) {
-                return {
-                    isOk: false,
-                    ...ERRORS.FAILED_TO_GET_INBOUND_STATS,
-                };
-            }
-
-            return {
-                isOk: true,
-                response: new GetInboundStatsResponseModel({
-                    inbound: response.data.inbound.inbound,
-                    downlink: response.data.inbound.downlink,
-                    uplink: response.data.inbound.uplink,
-                }),
-            };
-        } catch (error) {
-            this.logger.error(error);
-            return {
-                isOk: false,
-                ...ERRORS.FAILED_TO_GET_INBOUND_STATS,
-            };
-        }
+        return {
+            isOk: true,
+            response: new GetInboundStatsResponseModel({
+                inbound: tag,
+                downlink: 0,
+                uplink: 0,
+            }),
+        };
     }
 
+    /**
+     * Gets outbound statistics.
+     * Stub: Returns zero stats as not available without V2Ray API.
+     */
     public async getOutboundStats(
         tag: string,
         reset: boolean,
     ): Promise<ICommandResponse<GetOutboundStatsResponseModel>> {
-        try {
-            const response = await this.xtlsSdk.stats.getOutboundStats(tag, reset);
+        this.logger.debug(`getOutboundStats called for tag=${tag}, reset=${reset} (stub)`);
 
-            if (!response.isOk || !response.data || !response.data.outbound) {
-                return {
-                    isOk: false,
-                    ...ERRORS.FAILED_TO_GET_OUTBOUND_STATS,
-                };
-            }
-
-            return {
-                isOk: true,
-                response: new GetOutboundStatsResponseModel({
-                    outbound: response.data.outbound.outbound,
-                    downlink: response.data.outbound.downlink,
-                    uplink: response.data.outbound.uplink,
-                }),
-            };
-        } catch (error) {
-            this.logger.error(error);
-            return {
-                isOk: false,
-                ...ERRORS.FAILED_TO_GET_OUTBOUND_STATS,
-            };
-        }
+        return {
+            isOk: true,
+            response: new GetOutboundStatsResponseModel({
+                outbound: tag,
+                downlink: 0,
+                uplink: 0,
+            }),
+        };
     }
 
+    /**
+     * Gets all inbounds' statistics.
+     * Stub: Returns empty array as not available without V2Ray API.
+     */
     public async getAllInboundsStats(
         reset: boolean,
     ): Promise<ICommandResponse<GetAllInboundsStatsResponseModel>> {
-        try {
-            const response = await this.xtlsSdk.stats.getAllInboundsStats(reset);
+        this.logger.debug(`getAllInboundsStats called with reset=${reset} (stub)`);
 
-            if (!response.isOk || !response.data) {
-                return {
-                    isOk: false,
-                    ...ERRORS.FAILED_TO_GET_INBOUNDS_STATS,
-                };
-            }
-
-            return {
-                isOk: true,
-                response: new GetAllInboundsStatsResponseModel(response.data.inbounds),
-            };
-        } catch (error) {
-            this.logger.error(error);
-            return {
-                isOk: false,
-                ...ERRORS.FAILED_TO_GET_INBOUNDS_STATS,
-            };
-        }
+        return {
+            isOk: true,
+            response: new GetAllInboundsStatsResponseModel([]),
+        };
     }
 
+    /**
+     * Gets all outbounds' statistics.
+     * Stub: Returns empty array as not available without V2Ray API.
+     */
     public async getAllOutboundsStats(
         reset: boolean,
     ): Promise<ICommandResponse<GetAllOutboundsStatsResponseModel>> {
-        try {
-            const response = await this.xtlsSdk.stats.getAllOutboundsStats(reset);
+        this.logger.debug(`getAllOutboundsStats called with reset=${reset} (stub)`);
 
-            if (!response.isOk || !response.data) {
-                this.logger.error(response);
-                return {
-                    isOk: false,
-                    ...ERRORS.FAILED_TO_GET_OUTBOUNDS_STATS,
-                };
-            }
-
-            return {
-                isOk: true,
-                response: new GetAllOutboundsStatsResponseModel(response.data.outbounds),
-            };
-        } catch (error) {
-            this.logger.error(error);
-            return {
-                isOk: false,
-                ...ERRORS.FAILED_TO_GET_INBOUNDS_STATS,
-            };
-        }
+        return {
+            isOk: true,
+            response: new GetAllOutboundsStatsResponseModel([]),
+        };
     }
 }

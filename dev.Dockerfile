@@ -17,22 +17,25 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | b
 
 ENV PATH="/root/.nvm/versions/node/v22.14.0/bin:${PATH}"
 
-# Установка Xray
-RUN curl -L https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-latest-xray.sh | bash -s -- v25.6.8
+# Установка sing-box
+COPY install.sh /tmp/install.sh
+RUN chmod +x /tmp/install.sh \
+    && /tmp/install.sh latest \
+    && rm /tmp/install.sh
 
 
-RUN mkdir -p /var/log/supervisor /var/lib/rnode/xray /app \
-    && echo '{}' > /var/lib/rnode/xray/xray-config.json
+RUN mkdir -p /var/log/supervisor /var/lib/rnode/singbox /app \
+    && echo '{}' > /var/lib/rnode/singbox/singbox-config.json
 
 WORKDIR /app
 
 
 EXPOSE 24000
 
-COPY supervisord.conf /var/lib/rnode/xray/supervisor.conf
+COPY supervisord.conf /var/lib/rnode/singbox/supervisor.conf
 
 RUN echo '#!/bin/bash\n\
-    supervisord -c /var/lib/rnode/xray/supervisor.conf &\n\
+    supervisord -c /var/lib/rnode/singbox/supervisor.conf &\n\
     exec "$@"' > /usr/local/bin/entrypoint.sh \
     && chmod +x /usr/local/bin/entrypoint.sh
 

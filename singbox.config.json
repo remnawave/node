@@ -1,0 +1,206 @@
+{
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  "dns": {
+    "strategy": "ipv4_only",
+    "servers": [
+      {
+        "tag": "google",
+        "type": "tls",
+        "server": "8.8.8.8"
+      }
+    ]
+  },
+  "inbounds": [
+    {
+      "type": "shadowsocks",
+      "tag": "ss-in",
+      "listen": "::",
+      "listen_port": 12288,
+      "method": "2022-blake3-aes-128-gcm",
+      "password": "amyt+nKUYYOnMJrZlxRoJA==",
+      "sniff": true,
+      "users": [
+        {
+          "name": "Cygan",
+          "password": "PCD2Z4o12bKUoFa3cC97Hw=="
+        }
+      ]
+    },
+    {
+      "type": "hysteria2",
+      "tag": "hy2-in",
+      "listen": "::",
+      "listen_port": 14488,
+      "sniff": true,
+      "users": [
+        {
+          "name": "Cygan",
+          "password": "VSPB+a+CdQFmlpQ1zaWcoEmf"
+        }
+      ],
+      "obfs": {
+        "type": "salamander",
+        "password": "2ErQtacFbjilqI8R"
+      },
+      "tls": {
+        "enabled": true,
+        "alpn": [
+          "h3"
+        ],
+        "server_name": "mm.geega.quest",
+        "acme": {
+          "domain": [
+            "mm.geega.quest"
+          ],
+          "data_directory": "/var/lib/sing-box/cert",
+          "email": "admin@geega.quest",
+          "provider": "letsencrypt"
+        }
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "DIRECT"
+    },
+    {
+      "type": "block",
+      "tag": "BLOCK"
+    },
+    {
+      "type": "direct",
+      "tag": "RUDIRECT",
+      "bind_interface": "wg0"
+    }
+  ],
+  "route": {
+    "rule_set": [
+      {
+        "tag": "torrent-clients",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/legiz-ru/sb-rule-sets/main/torrent-clients.srs",
+        "download_detour": "DIRECT"
+      },
+      {
+        "tag": "discord-voice-ip-list",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://github.com/legiz-ru/sb-rule-sets/raw/main/discord-voice-ip-list.srs",
+        "download_detour": "DIRECT"
+      },
+      {
+        "tag": "ru-bundle",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://cdn.jsdelivr.net/gh/legiz-ru/sb-rule-sets@main/ru-bundle.srs",
+        "download_detour": "DIRECT"
+      },
+      {
+        "tag": "ru-app-list",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/legiz-ru/sb-rule-sets/main/ru-app-list.srs",
+        "download_detour": "DIRECT"
+      },
+      {
+        "tag": "geosite-ru",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geosite/geosite-category-ru.srs",
+        "download_detour": "DIRECT"
+      },
+      {
+        "tag": "geoip-ru",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://github.com/runetfreedom/russia-v2ray-rules-dat/raw/release/sing-box/rule-set-geoip/geoip-ru.srs",
+        "download_detour": "DIRECT"
+      }
+    ],
+    "rules": [
+      {
+        "protocol": "dns",
+        "action": "hijack-dns"
+      },
+      {
+        "port": 53,
+        "action": "hijack-dns"
+      },
+      {
+        "protocol": [
+          "bittorrent"
+        ],
+        "outbound": "BLOCK"
+      },
+      {
+        "rule_set": [
+          "torrent-clients"
+        ],
+        "outbound": "BLOCK"
+      },
+      {
+        "ip_is_private": true,
+        "outbound": "BLOCK"
+      },
+      {
+        "rule_set": "discord-voice-ip-list",
+        "outbound": "DIRECT"
+      },
+      {
+        "rule_set": "ru-bundle",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "youtube.com",
+          "googlevideo.com",
+          "ytimg.com"
+        ],
+        "outbound": "DIRECT"
+      },
+      {
+        "rule_set": [
+          "ru-app-list",
+          "geosite-ru",
+          "geoip-ru"
+        ],
+        "outbound": "RUDIRECT"
+      },
+      {
+        "domain_suffix": [
+          "2ip.ru"
+        ],
+        "outbound": "RUDIRECT"
+      }
+    ],
+    "auto_detect_interface": true
+  },
+  "endpoints": [
+    {
+      "type": "wireguard",
+      "tag": "wg-ep",
+      "system": true,
+      "name": "wg0",
+      "address": [
+        "10.10.10.2/32"
+      ],
+      "private_key": "8CcEo6fqPVnkJlJcBIZft034qdYfjR1rCYuWkvrI0kg=",
+      "peers": [
+        {
+          "address": "45.144.221.133",
+          "port": 25001,
+          "public_key": "4h2nYJrRmU6wsMVHeTl/PyhNm/uQLs6UlBkoUTBWV0g=",
+          "allowed_ips": [
+            "0.0.0.0/0"
+          ],
+          "persistent_keepalive_interval": 25
+        }
+      ]
+    }
+  ]
+}

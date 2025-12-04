@@ -1,0 +1,71 @@
+[
+  {
+    "type": "shadowtls",
+    "tag": "st-in",
+    "listen": "::",
+    "listen_port": 9443,
+    "version": 3,
+    "detour": "ss-in",
+    "users": [
+      {
+        "name": "sekai",
+        "password": "DCD3Z4o42bKUoFa3cC41Hw=="
+      }
+    ],
+    "handshake": {
+      "server": "apple.com",
+      "server_port": 443
+    },
+    "strict_mode": false,
+    "wildcard_sni": ""
+  },
+  {
+    "type": "naive",
+    "tag": "naive-in",
+    "network": "tcp",
+    "listen": "::",
+    "listen_port": 8443,
+    "users": [
+      {
+        "username": "sekai",
+        "password": "DCD3Z4o42bKUoFa3cC41Hw=="
+      }
+    ],
+    "tls": {
+      "enabled": true,
+      "server_name": "mm.geega.quest",
+      "acme": {
+        "domain": [
+          "mm.geega.quest"
+        ],
+        "data_directory": "/var/lib/sing-box/cert",
+        "email": "admin@geega.quest",
+        "provider": "letsencrypt"
+      }
+    }
+  },
+  {
+    "type": "anytls",
+    "tag": "anytls-in",
+    "listen": "::",
+    "listen_port": 14489,
+    "users": [
+      {
+        "name": "sekai",
+        "password": "DCD3Z4o42bKUoFa3cC41Hw=="
+      }
+    ],
+    "tls": {
+      "enabled": true,
+      "server_name": "mm.geega.quest",
+      "acme": {
+        "domain": [
+          "mm.geega.quest"
+        ],
+        "data_directory": "/var/lib/sing-box/cert",
+        "email": "admin@geega.quest",
+        "provider": "letsencrypt"
+      }
+    }
+  }
+]

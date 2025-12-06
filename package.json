@@ -70,7 +70,7 @@
     "@types/compression": "^1.8.1",
     "@types/express": "^5.0.6",
     "@types/morgan": "^1.9.10",
-    "@types/node": "^22.17.2",
+    "@types/node": "^24.10.1",
     "@types/object-hash": "^3.0.6",
     "@types/passport-jwt": "^4.0.1",
     "@types/semver": "^7.7.1",

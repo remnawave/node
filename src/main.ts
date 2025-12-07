@@ -1,9 +1,11 @@
 import { utilities as nestWinstonModuleUtilities, WinstonModule } from 'nest-winston';
+import * as bodyParser from '@kastov/body-parser-with-zstd';
 import { ZodValidationPipe } from 'nestjs-zod';
 import express, { json } from 'express';
 import { createLogger } from 'winston';
 import compression from 'compression';
 import * as winston from 'winston';
+import { Server } from 'https';
 import helmet from 'helmet';
 import morgan from 'morgan';
 
@@ -50,12 +52,23 @@ async function bootstrap(): Promise<void> {
             requestCert: true,
             rejectUnauthorized: true,
         },
+        bodyParser: false,
         logger: WinstonModule.createLogger({
             instance: logger,
         }),
     });
 
-    app.use(json({ limit: '1000mb' }));
+    app.use(
+        bodyParser.json({
+            limit: '1000mb',
+        }),
+    );
+
+    const nodeHttpServer: Server = app.getHttpServer();
+    nodeHttpServer.keepAliveTimeout = 60_000;
+    nodeHttpServer.headersTimeout = 61_000;
+
+    // app.use(json({ limit: '1000mb' }));
 
     app.use(compression());
 
@@ -123,24 +136,6 @@ async function bootstrap(): Promise<void> {
             )) +
             '\n',
     );
-
-    // TODO: Remove this in the next version.
-    if (config.getOrThrow<boolean>('HAS_DEPRECATED_SSL_CERT')) {
-        logger.error('SSL_CERT is set, but it is deprecated. Use SECRET_KEY instead.');
-        logger.error('Please update your .env file to use SECRET_KEY instead of SSL_CERT.');
-        logger.error(
-            'SSL_CERT has been converted to SECRET_KEY. Automatic migration will be removed in the next version.',
-        );
-    }
-
-    // TODO: Remove this in the next version.
-    if (config.getOrThrow<boolean>('HAS_DEPRECATED_APP_PORT')) {
-        logger.error('APP_PORT is set, but it is deprecated. Use NODE_PORT instead.');
-        logger.error('Please update your .env file to use NODE_PORT instead of APP_PORT.');
-        logger.error(
-            'APP_PORT has been converted to NODE_PORT. Automatic migration will be removed in the next version.',
-        );
-    }
 }
 
 void bootstrap();

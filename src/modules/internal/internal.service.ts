@@ -6,7 +6,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { HashedSet } from '@remnawave/hashed-set';
 
-import { IHashPayload } from '@libs/contracts/constants';
+import { StartXrayCommand } from '@libs/contracts/commands';
 
 @Injectable()
 export class InternalService {
@@ -33,21 +33,21 @@ export class InternalService {
     }
 
     public async extractUsersFromConfig(
-        hashPayload: IHashPayload,
+        hashes: StartXrayCommand.Request['internals']['hashes'],
         newConfig: Record<string, unknown>,
     ): Promise<void> {
         this.cleanup();
 
-        this.emptyConfigHash = hashPayload.emptyConfig;
+        this.emptyConfigHash = hashes.emptyConfig;
         this.xrayConfig = newConfig;
 
         this.logger.log(
-            `Starting user extraction from inbounds... Hash payload: ${JSON.stringify(hashPayload)}`,
+            `Starting user extraction from inbounds... Hash payload: ${JSON.stringify(hashes)}`,
         );
 
         const start = performance.now();
         if (newConfig.inbounds && Array.isArray(newConfig.inbounds)) {
-            const validTags = new Set(hashPayload.inbounds.map((item) => item.tag));
+            const validTags = new Set(hashes.inbounds.map((item) => item.tag));
 
             await pMap(
                 newConfig.inbounds,
@@ -91,25 +91,27 @@ export class InternalService {
         this.logger.log(`User extraction completed in ${result ? result : '0ms'}`);
     }
 
-    public isNeedRestartCore(incomingHashPayload: IHashPayload): boolean {
+    public isNeedRestartCore(
+        incomingHashes: StartXrayCommand.Request['internals']['hashes'],
+    ): boolean {
         const start = performance.now();
         try {
             if (!this.emptyConfigHash) {
                 return true;
             }
 
-            if (incomingHashPayload.emptyConfig !== this.emptyConfigHash) {
+            if (incomingHashes.emptyConfig !== this.emptyConfigHash) {
                 this.logger.warn('Detected changes in Xray Core base configuration');
                 return true;
             }
 
-            if (incomingHashPayload.inbounds.length !== this.inboundsHashMap.size) {
+            if (incomingHashes.inbounds.length !== this.inboundsHashMap.size) {
                 this.logger.warn('Number of Xray Core inbounds has changed');
                 return true;
             }
 
             for (const [inboundTag, usersSet] of this.inboundsHashMap) {
-                const incomingInbound = incomingHashPayload.inbounds.find(
+                const incomingInbound = incomingHashes.inbounds.find(
                     (item) => item.tag === inboundTag,
                 );
 

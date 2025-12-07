@@ -10,6 +10,8 @@ import {
     GetAllInboundsStatsResponseDto,
     GetAllOutboundsStatsRequestDto,
     GetAllOutboundsStatsResponseDto,
+    GetCombinedStatsRequestDto,
+    GetCombinedStatsResponseDto,
     GetInboundStatsRequestDto,
     GetInboundStatsResponseDto,
     GetOutboundStatsRequestDto,
@@ -108,6 +110,19 @@ export class StatsController {
     ): Promise<GetAllOutboundsStatsResponseDto> {
         const { reset } = body;
         const response = await this.statsService.getAllOutboundsStats(reset);
+        const data = errorHandler(response);
+
+        return {
+            response: data,
+        };
+    }
+
+    @Post(STATS_ROUTES.GET_COMBINED_STATS)
+    public async getCombinedStats(
+        @Body() body: GetCombinedStatsRequestDto,
+    ): Promise<GetCombinedStatsResponseDto> {
+        const { reset } = body;
+        const response = await this.statsService.getCombinedStats(reset);
         const data = errorHandler(response);
 
         return {

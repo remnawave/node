@@ -45,4 +45,9 @@ export const ERRORS = {
         message: 'Failed to get outbounds stats',
         httpCode: 500,
     },
+    FAILED_TO_GET_COMBINED_STATS: {
+        code: 'A017',
+        message: 'Failed to get combined stats',
+        httpCode: 500,
+    },
 } as const;

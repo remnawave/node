@@ -1,11 +1,11 @@
-FROM node:22-alpine AS build
+FROM node:24.11-alpine AS build
 WORKDIR /opt/app
 ADD . .
 RUN npm ci --legacy-peer-deps
 RUN npm run build --omit=dev
 
 
-FROM node:22-alpine
+FROM node:24.11-alpine
 
 ARG XRAY_CORE_VERSION=v25.10.15
 ARG UPSTREAM_REPO=XTLS
@@ -46,6 +46,8 @@ COPY ./libs ./libs
 RUN npm ci --omit=dev --legacy-peer-deps \
     && npm cache clean --force
 
+
+RUN ln -s /usr/local/bin/xray /usr/local/bin/rw-core
 
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-http-header-size=65536"

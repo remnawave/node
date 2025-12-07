@@ -17,7 +17,8 @@ import { ISystemStats } from '@common/utils/get-system-stats/get-system-stats.in
 import { ICommandResponse } from '@common/types/command-response.type';
 import { generateApiConfig } from '@common/utils/generate-api-config';
 import { getSystemStats } from '@common/utils/get-system-stats';
-import { IHashPayload, KNOWN_ERRORS, REMNAWAVE_NODE_KNOWN_ERROR } from '@libs/contracts/constants';
+import { KNOWN_ERRORS, REMNAWAVE_NODE_KNOWN_ERROR } from '@libs/contracts/constants';
+import { StartXrayCommand } from '@libs/contracts/commands';
 
 import {
     GetNodeHealthCheckResponseModel,
@@ -40,7 +41,7 @@ export class XrayService implements OnApplicationBootstrap {
     private isXrayOnline: boolean = false;
     private systemStats: ISystemStats | null = null;
     private isXrayStartedProccesing: boolean = false;
-    private nodeVersion: string | null = null;
+    private nodeVersion: string = '0.0.0';
     constructor(
         @InjectXtls() private readonly xtlsSdk: XtlsApi,
         @InjectSupervisord() private readonly supervisordApi: SupervisordClient,
@@ -51,7 +52,6 @@ export class XrayService implements OnApplicationBootstrap {
         this.xrayVersion = null;
         this.systemStats = null;
         this.isXrayStartedProccesing = false;
-        this.nodeVersion = null;
         this.disableHashedSetCheck = this.configService.getOrThrow<boolean>(
             'DISABLE_HASHED_SET_CHECK',
         );
@@ -63,7 +63,7 @@ export class XrayService implements OnApplicationBootstrap {
 
             this.xrayVersion = this.getXrayVersionFromEnv();
             this.systemStats = await getSystemStats();
-            this.nodeVersion = pkg.version || null;
+            this.nodeVersion = pkg.version ?? '0.0.0';
 
             await this.supervisordApi.getState();
         } catch (error) {
@@ -74,27 +74,12 @@ export class XrayService implements OnApplicationBootstrap {
     }
 
     public async startXray(
-        config: Record<string, unknown>,
+        body: StartXrayCommand.Request,
         ip: string,
-        hashPayload: IHashPayload | null,
-        forceRestart: boolean,
     ): Promise<ICommandResponse<StartXrayResponseModel>> {
         const tm = performance.now();
 
         try {
-            if (!hashPayload) {
-                const errMessage =
-                    'Hash payload is null. Update Remnawave to version 2.1.0 or downgrade @remnawave/node to 2.0.0.';
-                this.logger.error(errMessage);
-
-                return {
-                    isOk: true,
-                    response: new StartXrayResponseModel(false, null, errMessage, null, {
-                        version: this.nodeVersion,
-                    }),
-                };
-            }
-
             if (this.isXrayStartedProccesing) {
                 this.logger.warn('Request already in progress');
                 return {
@@ -113,13 +98,13 @@ export class XrayService implements OnApplicationBootstrap {
 
             this.isXrayStartedProccesing = true;
 
-            if (this.isXrayOnline && !this.disableHashedSetCheck && !forceRestart) {
+            if (this.isXrayOnline && !this.disableHashedSetCheck && !body.internals.forceRestart) {
                 const { isOk } = await this.xtlsSdk.stats.getSysStats();
 
                 let shouldRestart = false;
 
                 if (isOk) {
-                    shouldRestart = this.internalService.isNeedRestartCore(hashPayload);
+                    shouldRestart = this.internalService.isNeedRestartCore(body.internals.hashes);
                 } else {
                     this.isXrayOnline = false;
                     shouldRestart = true;
@@ -143,13 +128,13 @@ export class XrayService implements OnApplicationBootstrap {
                 }
             }
 
-            if (forceRestart) {
+            if (body.internals.forceRestart) {
                 this.logger.warn('Force restart requested');
             }
 
-            const fullConfig = generateApiConfig(config);
+            const fullConfig = generateApiConfig(body.xrayConfig);
 
-            this.internalService.extractUsersFromConfig(hashPayload, fullConfig);
+            this.internalService.extractUsersFromConfig(body.internals.hashes, fullConfig);
 
             const xrayProcess = await this.restartXrayProcess();
 
@@ -319,6 +304,7 @@ export class XrayService implements OnApplicationBootstrap {
                     true,
                     this.isXrayOnline,
                     this.xrayVersion,
+                    this.nodeVersion,
                 ),
             };
         } catch (error) {
@@ -326,7 +312,7 @@ export class XrayService implements OnApplicationBootstrap {
 
             return {
                 isOk: true,
-                response: new GetNodeHealthCheckResponseModel(false, false, null),
+                response: new GetNodeHealthCheckResponseModel(false, false, null, this.nodeVersion),
             };
         }
     }

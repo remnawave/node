@@ -61,7 +61,7 @@ export class HandlerService {
                             tag: item.tag,
                             username: item.username,
                             password: item.password,
-                            level: item.level,
+                            level: 0,
                         });
                         if (tempRes.isOk) {
                             await this.internalService.addUserToInbound(
@@ -77,7 +77,7 @@ export class HandlerService {
                             username: item.username,
                             uuid: item.uuid,
                             flow: item.flow,
-                            level: item.level,
+                            level: 0,
                         });
                         if (tempRes.isOk) {
                             await this.internalService.addUserToInbound(
@@ -94,7 +94,7 @@ export class HandlerService {
                             password: item.password,
                             cipherType: item.cipherType,
                             ivCheck: item.ivCheck,
-                            level: item.level,
+                            level: 0,
                         });
                         if (tempRes.isOk) {
                             await this.internalService.addUserToInbound(

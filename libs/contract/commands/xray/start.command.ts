@@ -3,7 +3,22 @@ import { z } from 'zod';
 import { REST_API } from '../../api';
 export namespace StartXrayCommand {
     export const url = REST_API.XRAY.START;
-    export const RequestSchema = z.record(z.unknown());
+    export const RequestSchema = z.object({
+        internals: z.object({
+            forceRestart: z.boolean().default(false),
+            hashes: z.object({
+                emptyConfig: z.string(),
+                inbounds: z.array(
+                    z.object({
+                        usersCount: z.number(),
+                        hash: z.string(),
+                        tag: z.string(),
+                    }),
+                ),
+            }),
+        }),
+        xrayConfig: z.record(z.unknown()),
+    });
 
     export type Request = z.infer<typeof RequestSchema>;
 

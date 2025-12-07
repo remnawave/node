@@ -37,13 +37,7 @@ jobs:
               ghcr.io/remnawave/node:latest
               ghcr.io/remnawave/node:${{github.ref_name}}
             build_args: ''
-          - name: 'Core v25.6.8'
-            tags: |
-              remnawave/node:xray-v25.6.8-latest
-              remnawave/node:xray-v25.6.8-${{github.ref_name}}
-              ghcr.io/remnawave/node:xray-v25.6.8-latest
-              ghcr.io/remnawave/node:xray-v25.6.8-${{github.ref_name}}
-            build_args: 'XRAY_CORE_VERSION=v25.6.8'
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3

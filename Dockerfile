@@ -7,7 +7,7 @@ RUN npm run build --omit=dev
 
 FROM node:24.11-alpine
 
-ARG XRAY_CORE_VERSION=v25.10.15
+ARG XRAY_CORE_VERSION=v25.12.8
 ARG UPSTREAM_REPO=XTLS
 ARG XRAY_CORE_INSTALL_SCRIPT=https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-xray.sh
 

@@ -20,13 +20,14 @@ export const XRAY_DEFAULT_STATS_MODEL = {
     stats: {},
 } as const;
 
-export const XRAY_DEFAULT_API_MODEL = {
-    api: {
-        services: ['HandlerService', 'StatsService', 'RoutingService'],
-        listen: '127.0.0.1:61000',
-        tag: 'REMNAWAVE_API',
-    },
-} as const;
+export const XRAY_DEFAULT_API_MODEL = (port: number) =>
+    ({
+        api: {
+            services: ['HandlerService', 'StatsService', 'RoutingService'],
+            listen: `127.0.0.1:${port}`,
+            tag: 'REMNAWAVE_API',
+        },
+    }) as const;
 
 export const XRAY_API_INBOUND_MODEL = {
     tag: 'api',

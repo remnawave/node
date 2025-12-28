@@ -3,13 +3,10 @@ import { readPackageJSON } from 'pkg-types';
 
 import { INestApplication } from '@nestjs/common';
 
+import { getInternalRestPort, getSupervisordPort, getXtlsApiPort } from './get-initial-ports';
 import { XrayService } from '../../modules/xray-core/xray.service';
 
-export async function getStartMessage(
-    appPort: number,
-    internalPort: number,
-    app: INestApplication,
-) {
+export async function getStartMessage(appPort: number, app: INestApplication) {
     const pkg = await readPackageJSON();
 
     const xrayService = app.get(XrayService);
@@ -19,7 +16,9 @@ export async function getStartMessage(
     return table(
         [
             ['Docs → https://docs.rw\nCommunity → https://t.me/remnawave'],
-            [`API Port: ${appPort}\nInternal Ports: 61000, ${internalPort}, 61002`],
+            [
+                `API Port: ${appPort}\nInternal Ports: ${getXtlsApiPort()}, ${getInternalRestPort()}, ${getSupervisordPort()}`,
+            ],
             [`XRay Core: v${xrayInfo.version || 'N/A'}\nXRay Path: ${xrayInfo.path}`],
             [
                 `SI: ${xrayInfo.systemInfo?.cpuCores}C, ${xrayInfo.systemInfo?.cpuModel}, ${xrayInfo.systemInfo?.memoryTotal}`,

@@ -52,6 +52,10 @@ RUN ln -s /usr/local/bin/xray /usr/local/bin/rw-core
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-http-header-size=65536"
 
+ENV SUPERVISORD_PORT=61002
+ENV INTERNAL_REST_PORT=61001
+ENV XTLS_API_PORT=61000
+
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 CMD ["node", "dist/src/main"]

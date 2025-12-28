@@ -1,10 +1,11 @@
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 
 import { SupervisordNestjsModule } from '@remnawave/supervisord-nestjs';
 import { XtlsSdkNestjsModule } from '@remnawave/xtls-sdk-nestjs';
 
+import { getSupervisordPort, getXtlsApiPort } from '@common/utils/get-initial-ports';
 import { JwtStrategy } from '@common/guards/jwt-guards/strategies/validate-token';
 import { validateEnvConfig } from '@common/utils/validate-env-config';
 import { configSchema, Env } from '@common/config/app-config';
@@ -21,11 +22,11 @@ import { InternalModule } from './modules/internal/internal.module';
             validate: (config) => validateEnvConfig<Env>(configSchema, config),
         }),
         XtlsSdkNestjsModule.forRootAsync({
-            imports: [ConfigModule],
-            inject: [ConfigService],
-            useFactory: (configService: ConfigService) => ({
-                ip: configService.getOrThrow<string>('XTLS_IP'),
-                port: configService.getOrThrow<string>('XTLS_PORT'),
+            imports: [],
+            inject: [],
+            useFactory: () => ({
+                ip: '127.0.0.1',
+                port: getXtlsApiPort().toString(),
                 options: {
                     'grpc.max_receive_message_length': 100_000_000, // 100MB
                 },
@@ -35,7 +36,7 @@ import { InternalModule } from './modules/internal/internal.module';
             imports: [],
             inject: [],
             useFactory: () => ({
-                host: 'http://127.0.0.1:61002',
+                host: `http://127.0.0.1:${getSupervisordPort()}`,
                 options: {
                     username: 'remnawave',
                     password: 'glcmYQLRwPXDXIBq',

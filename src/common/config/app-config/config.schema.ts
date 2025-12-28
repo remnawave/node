@@ -10,12 +10,19 @@ export const configSchema = z
         }),
         SECRET_KEY: z.string(),
         JWT_PUBLIC_KEY: z.string().optional(),
-        XTLS_IP: z.string().default('127.0.0.1'),
-        XTLS_PORT: z.string().default('61000'),
         DISABLE_HASHED_SET_CHECK: z
             .string()
             .default('false')
             .transform((val) => val === 'true'),
+        SUPERVISORD_PORT: z.string().transform((port) => {
+            return parseInt(port, 10);
+        }),
+        INTERNAL_REST_PORT: z.string().transform((port) => {
+            return parseInt(port, 10);
+        }),
+        XTLS_API_PORT: z.string().transform((port) => {
+            return parseInt(port, 10);
+        }),
     })
     .superRefine((data, ctx) => {
         if (data.SECRET_KEY) {

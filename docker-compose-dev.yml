@@ -8,7 +8,7 @@ services:
     networks:
       - remnawave-node-dev
     ports:
-      - 24000:24000
+      - 11000:11000
     restart: no
     labels:
       dev.containers.features: 'common'

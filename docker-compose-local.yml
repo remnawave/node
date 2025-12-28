@@ -5,6 +5,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    network_mode: host
+    networks:
+      - remnawave-node-dev
+    ports:
+      - '11000:11000'
     env_file:
       - .env
+
+networks:
+  remnawave-node-dev:
+    external: false

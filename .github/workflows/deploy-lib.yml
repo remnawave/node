@@ -45,9 +45,7 @@ jobs:
 
       - name: Publish package on NPM
         working-directory: './libs/contract'
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
 
   send-telegram-message:
     name: Send Telegram message

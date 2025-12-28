@@ -291,7 +291,7 @@ export class HandlerService {
             };
         } finally {
             this.logger.log(
-                't: ' +
+                'Users addition took: ' +
                     ems(performance.now() - tm, {
                         extends: 'short',
                         includeMs: true,

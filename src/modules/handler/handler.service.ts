@@ -1,3 +1,5 @@
+import ems from 'enhanced-ms';
+
 import { Injectable, Logger } from '@nestjs/common';
 
 import {
@@ -199,9 +201,9 @@ export class HandlerService {
     public async addUsers(
         data: AddUsersRequestDto,
     ): Promise<ICommandResponse<AddUserResponseModel>> {
+        const tm = performance.now();
         try {
             const { affectedInboundTags, users } = data;
-            const response: Array<ISdkResponse<AddUserResponseModelFromSdk>> = [];
 
             for (const tag of affectedInboundTags) {
                 this.internalService.addXtlsConfigInbound(tag);
@@ -235,7 +237,7 @@ export class HandlerService {
                                     user.userData.vlessUuid,
                                 );
                             }
-                            response.push(tempRes);
+
                             break;
                         case 'vless':
                             tempRes = await this.xtlsApi.handler.addVlessUser({
@@ -251,7 +253,6 @@ export class HandlerService {
                                     user.userData.vlessUuid,
                                 );
                             }
-                            response.push(tempRes);
                             break;
                         case 'shadowsocks':
                             tempRes = await this.xtlsApi.handler.addShadowsocksUser({
@@ -268,20 +269,8 @@ export class HandlerService {
                                     user.userData.vlessUuid,
                                 );
                             }
-                            response.push(tempRes);
                             break;
                     }
-                }
-
-                if (response.every((res) => !res.isOk)) {
-                    this.logger.error('Error adding users: ' + JSON.stringify(response, null, 2));
-                    return {
-                        isOk: true,
-                        response: new AddUserResponseModel(
-                            false,
-                            response.find((res) => !res.isOk)?.message ?? null,
-                        ),
-                    };
                 }
             }
 
@@ -300,12 +289,21 @@ export class HandlerService {
                 code: ERRORS.INTERNAL_SERVER_ERROR.code,
                 response: new AddUserResponseModel(false, message),
             };
+        } finally {
+            this.logger.log(
+                't: ' +
+                    ems(performance.now() - tm, {
+                        extends: 'short',
+                        includeMs: true,
+                    }),
+            );
         }
     }
 
     public async removeUsers(
         data: RemoveUsersRequestDto,
     ): Promise<ICommandResponse<RemoveUserResponseModel>> {
+        const tm = performance.now();
         try {
             const inboundTags = this.internalService.getXtlsConfigInbounds();
 
@@ -320,9 +318,10 @@ export class HandlerService {
                 `Removing ${data.users.length} users from inbounds: ${Array.from(inboundTags).join(', ')}`,
             );
 
+            const removeUsersResponse: Array<ISdkResponse<RemoveUserResponseModelFromSdk>> = [];
+
             for (const user of data.users) {
                 const { userId, hashUuid } = user;
-                const response: Array<ISdkResponse<RemoveUserResponseModelFromSdk>> = [];
 
                 for (const tag of inboundTags) {
                     this.logger.debug(`Removing user: ${userId} from tag: ${tag}`);
@@ -330,19 +329,19 @@ export class HandlerService {
                     const tempRes = await this.xtlsApi.handler.removeUser(tag, userId);
 
                     await this.internalService.removeUserFromInbound(tag, hashUuid);
-                    response.push(tempRes);
+                    removeUsersResponse.push(tempRes);
                 }
+            }
 
-                if (response.every((res) => !res.isOk)) {
-                    this.logger.error(JSON.stringify(response, null, 2));
-                    return {
-                        isOk: true,
-                        response: new RemoveUserResponseModel(
-                            false,
-                            response.find((res) => !res.isOk)?.message ?? null,
-                        ),
-                    };
-                }
+            if (removeUsersResponse.every((res) => !res.isOk)) {
+                this.logger.error(JSON.stringify(removeUsersResponse, null, 2));
+                return {
+                    isOk: true,
+                    response: new RemoveUserResponseModel(
+                        false,
+                        removeUsersResponse.find((res) => !res.isOk)?.message ?? null,
+                    ),
+                };
             }
 
             return {
@@ -360,6 +359,14 @@ export class HandlerService {
                 code: ERRORS.INTERNAL_SERVER_ERROR.code,
                 response: new RemoveUserResponseModel(false, message),
             };
+        } finally {
+            this.logger.log(
+                'Users removal took: ' +
+                    ems(performance.now() - tm, {
+                        extends: 'short',
+                        includeMs: true,
+                    }),
+            );
         }
     }
 

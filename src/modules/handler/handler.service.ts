@@ -316,6 +316,10 @@ export class HandlerService {
                 };
             }
 
+            this.logger.log(
+                `Removing ${data.users.length} users from inbounds: ${Array.from(inboundTags).join(', ')}`,
+            );
+
             for (const user of data.users) {
                 const { userId, hashUuid } = user;
                 const response: Array<ISdkResponse<RemoveUserResponseModelFromSdk>> = [];

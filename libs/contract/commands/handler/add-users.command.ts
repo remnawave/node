@@ -2,51 +2,46 @@ import { z } from 'zod';
 
 import { REST_API } from '../../api';
 
-export enum CipherType {
-    AES_128_GCM = 5,
-    AES_256_GCM = 6,
-    CHACHA20_POLY1305 = 7,
-    NONE = 9,
-    UNKNOWN = 0,
-    UNRECOGNIZED = -1,
-    XCHACHA20_POLY1305 = 8,
-}
-
-export namespace AddUserCommand {
-    export const url = REST_API.HANDLER.ADD_USER;
+export namespace AddUsersCommand {
+    export const url = REST_API.HANDLER.ADD_USERS;
 
     const BaseTrojanUser = z.object({
         type: z.literal('trojan'),
         tag: z.string(),
-        username: z.string(),
-        password: z.string(),
     });
 
     const BaseVlessUser = z.object({
         type: z.literal('vless'),
         tag: z.string(),
-        username: z.string(),
-        uuid: z.string(),
         flow: z.enum(['xtls-rprx-vision', '']),
     });
 
     const BaseShadowsocksUser = z.object({
         type: z.literal('shadowsocks'),
         tag: z.string(),
-        username: z.string(),
-        password: z.string(),
-        cipherType: z.nativeEnum(CipherType),
-        ivCheck: z.boolean(),
     });
 
     export const RequestSchema = z.object({
-        data: z.array(
-            z.discriminatedUnion('type', [BaseTrojanUser, BaseVlessUser, BaseShadowsocksUser]),
+        affectedInboundTags: z.array(z.string()),
+        users: z.array(
+            z.object({
+                inboundData: z.array(
+                    z.discriminatedUnion('type', [
+                        BaseTrojanUser,
+                        BaseVlessUser,
+                        BaseShadowsocksUser,
+                    ]),
+                ),
+
+                userData: z.object({
+                    userId: z.string(),
+                    hashUuid: z.string().uuid(),
+                    vlessUuid: z.string().uuid(),
+                    trojanPassword: z.string(),
+                    ssPassword: z.string(),
+                }),
+            }),
         ),
-        hashData: z.object({
-            vlessUuid: z.string().uuid(),
-            prevVlessUuid: z.optional(z.string().uuid()),
-        }),
     });
 
     export type Request = z.infer<typeof RequestSchema>;

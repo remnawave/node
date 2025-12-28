@@ -6,6 +6,14 @@ import { errorHandler } from '@common/helpers';
 import { HANDLER_CONTROLLER, HANDLER_ROUTES } from '@libs/contracts/api/controllers/handler';
 
 import {
+    AddUsersRequestDto,
+    AddUsersResponseDto,
+    RemoveUserRequestDto,
+    RemoveUserResponseDto,
+    RemoveUsersRequestDto,
+    RemoveUsersResponseDto,
+} from './dtos';
+import {
     GetInboundUsersCountRequestDto,
     GetInboundUsersCountResponseDto,
 } from './dtos/get-inbound-users-count.dto';
@@ -14,7 +22,6 @@ import {
     GetInboundUsersResponseDto,
 } from './dtos/get-inbound-users.dto';
 import { AddUserRequestDto, AddUserResponseDto } from './dtos/add-user.dto';
-import { RemoveUserRequestDto, RemoveUserResponseDto } from './dtos';
 import { HandlerService } from './handler.service';
 
 @UseFilters(HttpExceptionFilter)
@@ -60,6 +67,26 @@ export class HandlerController {
         @Body() body: GetInboundUsersCountRequestDto,
     ): Promise<GetInboundUsersCountResponseDto> {
         const response = await this.handlerService.getInboundUsersCount(body.tag);
+        const data = errorHandler(response);
+
+        return {
+            response: data,
+        };
+    }
+
+    @Post(HANDLER_ROUTES.ADD_USERS)
+    public async addUsers(@Body() body: AddUsersRequestDto): Promise<AddUsersResponseDto> {
+        const response = await this.handlerService.addUsers(body);
+        const data = errorHandler(response);
+
+        return {
+            response: data,
+        };
+    }
+
+    @Post(HANDLER_ROUTES.REMOVE_USERS)
+    public async removeUsers(@Body() body: RemoveUsersRequestDto): Promise<RemoveUsersResponseDto> {
+        const response = await this.handlerService.removeUsers(body);
         const data = errorHandler(response);
 
         return {

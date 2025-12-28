@@ -1,3 +1,5 @@
+import ems from 'enhanced-ms';
+
 import { Injectable, Logger } from '@nestjs/common';
 
 import {
@@ -10,6 +12,7 @@ import { XtlsApi } from '@remnawave/xtls-sdk';
 
 import { ICommandResponse } from '@common/types/command-response.type';
 import { ERRORS } from '@libs/contracts/constants/errors';
+import { CipherType } from '@libs/contracts/commands';
 
 import {
     GetInboundUsersCountResponseModel,
@@ -17,7 +20,12 @@ import {
     AddUserResponseModel,
     RemoveUserResponseModel,
 } from './models';
-import { IRemoveUserRequest, TAddUserRequest } from './interfaces';
+import {
+    AddUserRequestDto,
+    AddUsersRequestDto,
+    RemoveUserRequestDto,
+    RemoveUsersRequestDto,
+} from './dtos';
 import { InternalService } from '../internal/internal.service';
 
 @Injectable()
@@ -29,7 +37,7 @@ export class HandlerService {
         private readonly internalService: InternalService,
     ) {}
 
-    public async addUser(data: TAddUserRequest): Promise<ICommandResponse<AddUserResponseModel>> {
+    public async addUser(data: AddUserRequestDto): Promise<ICommandResponse<AddUserResponseModel>> {
         try {
             const { data: requestData, hashData } = data;
             const response: Array<ISdkResponse<AddUserResponseModelFromSdk>> = [];
@@ -137,7 +145,7 @@ export class HandlerService {
     }
 
     public async removeUser(
-        data: IRemoveUserRequest,
+        data: RemoveUserRequestDto,
     ): Promise<ICommandResponse<RemoveUserResponseModel>> {
         try {
             const { username, hashData } = data;
@@ -187,6 +195,178 @@ export class HandlerService {
                 code: ERRORS.INTERNAL_SERVER_ERROR.code,
                 response: new RemoveUserResponseModel(false, message),
             };
+        }
+    }
+
+    public async addUsers(
+        data: AddUsersRequestDto,
+    ): Promise<ICommandResponse<AddUserResponseModel>> {
+        const tm = performance.now();
+        try {
+            const { affectedInboundTags, users } = data;
+
+            for (const tag of affectedInboundTags) {
+                this.internalService.addXtlsConfigInbound(tag);
+            }
+
+            this.logger.log(
+                `Adding ${users.length} users to inbounds: ${affectedInboundTags.join(', ')}`,
+            );
+
+            for (const user of users) {
+                for (const tag of this.internalService.getXtlsConfigInbounds()) {
+                    await this.xtlsApi.handler.removeUser(tag, user.userData.userId);
+
+                    await this.internalService.removeUserFromInbound(tag, user.userData.hashUuid);
+                }
+
+                for (const item of user.inboundData) {
+                    let tempRes = null;
+
+                    switch (item.type) {
+                        case 'trojan':
+                            tempRes = await this.xtlsApi.handler.addTrojanUser({
+                                tag: item.tag,
+                                username: user.userData.userId,
+                                password: user.userData.trojanPassword,
+                                level: 0,
+                            });
+                            if (tempRes.isOk) {
+                                await this.internalService.addUserToInbound(
+                                    item.tag,
+                                    user.userData.vlessUuid,
+                                );
+                            }
+
+                            break;
+                        case 'vless':
+                            tempRes = await this.xtlsApi.handler.addVlessUser({
+                                tag: item.tag,
+                                username: user.userData.userId,
+                                uuid: user.userData.vlessUuid,
+                                flow: item.flow,
+                                level: 0,
+                            });
+                            if (tempRes.isOk) {
+                                await this.internalService.addUserToInbound(
+                                    item.tag,
+                                    user.userData.vlessUuid,
+                                );
+                            }
+                            break;
+                        case 'shadowsocks':
+                            tempRes = await this.xtlsApi.handler.addShadowsocksUser({
+                                tag: item.tag,
+                                username: user.userData.userId,
+                                password: user.userData.ssPassword,
+                                cipherType: CipherType.CHACHA20_POLY1305,
+                                ivCheck: false,
+                                level: 0,
+                            });
+                            if (tempRes.isOk) {
+                                await this.internalService.addUserToInbound(
+                                    item.tag,
+                                    user.userData.vlessUuid,
+                                );
+                            }
+                            break;
+                    }
+                }
+            }
+
+            return {
+                isOk: true,
+                response: new AddUserResponseModel(true, null),
+            };
+        } catch (error) {
+            this.logger.error(error);
+            let message = '';
+            if (error instanceof Error) {
+                message = error.message;
+            }
+            return {
+                isOk: false,
+                code: ERRORS.INTERNAL_SERVER_ERROR.code,
+                response: new AddUserResponseModel(false, message),
+            };
+        } finally {
+            this.logger.log(
+                'Users addition took: ' +
+                    ems(performance.now() - tm, {
+                        extends: 'short',
+                        includeMs: true,
+                    }),
+            );
+        }
+    }
+
+    public async removeUsers(
+        data: RemoveUsersRequestDto,
+    ): Promise<ICommandResponse<RemoveUserResponseModel>> {
+        const tm = performance.now();
+        try {
+            const inboundTags = this.internalService.getXtlsConfigInbounds();
+
+            if (inboundTags.size === 0) {
+                return {
+                    isOk: true,
+                    response: new RemoveUserResponseModel(true, null),
+                };
+            }
+
+            this.logger.log(
+                `Removing ${data.users.length} users from inbounds: ${Array.from(inboundTags).join(', ')}`,
+            );
+
+            const removeUsersResponse: Array<ISdkResponse<RemoveUserResponseModelFromSdk>> = [];
+
+            for (const user of data.users) {
+                const { userId, hashUuid } = user;
+
+                for (const tag of inboundTags) {
+                    this.logger.debug(`Removing user: ${userId} from tag: ${tag}`);
+
+                    const tempRes = await this.xtlsApi.handler.removeUser(tag, userId);
+
+                    await this.internalService.removeUserFromInbound(tag, hashUuid);
+                    removeUsersResponse.push(tempRes);
+                }
+            }
+
+            if (removeUsersResponse.every((res) => !res.isOk)) {
+                this.logger.error(JSON.stringify(removeUsersResponse, null, 2));
+                return {
+                    isOk: true,
+                    response: new RemoveUserResponseModel(
+                        false,
+                        removeUsersResponse.find((res) => !res.isOk)?.message ?? null,
+                    ),
+                };
+            }
+
+            return {
+                isOk: true,
+                response: new RemoveUserResponseModel(true, null),
+            };
+        } catch (error: unknown) {
+            this.logger.error(error);
+            let message = '';
+            if (error instanceof Error) {
+                message = error.message;
+            }
+            return {
+                isOk: false,
+                code: ERRORS.INTERNAL_SERVER_ERROR.code,
+                response: new RemoveUserResponseModel(false, message),
+            };
+        } finally {
+            this.logger.log(
+                'Users removal took: ' +
+                    ems(performance.now() - tm, {
+                        extends: 'short',
+                        includeMs: true,
+                    }),
+            );
         }
     }
 

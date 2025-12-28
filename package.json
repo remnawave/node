@@ -1,6 +1,6 @@
 {
   "name": "@remnawave/node",
-  "version": "2.3.2",
+  "version": "2.5.0",
   "description": "Remnawave Node",
   "private": false,
   "type": "commonjs",
@@ -31,12 +31,12 @@
   "dependencies": {
     "@henrygd/semaphore": "0.1.0",
     "@kastov/body-parser-with-zstd": "2.2.2",
-    "@nestjs/common": "11.1.9",
+    "@nestjs/common": "11.1.10",
     "@nestjs/config": "4.0.2",
-    "@nestjs/core": "11.1.9",
+    "@nestjs/core": "11.1.10",
     "@nestjs/jwt": "11.0.2",
     "@nestjs/passport": "11.0.5",
-    "@nestjs/platform-express": "11.1.9",
+    "@nestjs/platform-express": "11.1.10",
     "@remnawave/hashed-set": "^0.0.4",
     "@remnawave/supervisord-nestjs": "0.1.1",
     "@remnawave/xtls-sdk": "0.8.0",
@@ -59,7 +59,7 @@
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
     "semver": "^7.7.3",
-    "systeminformation": "^5.27.13",
+    "systeminformation": "^5.28.3",
     "table": "^6.9.0",
     "winston": "^3.19.0",
     "zod": "3.25.76"

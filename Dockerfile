@@ -1,11 +1,11 @@
-FROM node:24.11-alpine AS build
+FROM node:24.13-alpine AS build
 WORKDIR /opt/app
 ADD . .
 RUN npm ci --legacy-peer-deps
 RUN npm run build --omit=dev
 
 
-FROM node:24.11-alpine
+FROM node:24.13-alpine
 
 ARG XRAY_CORE_VERSION=v25.12.8
 ARG UPSTREAM_REPO=XTLS

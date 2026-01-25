@@ -31,12 +31,12 @@
   "dependencies": {
     "@henrygd/semaphore": "0.1.0",
     "@kastov/body-parser-with-zstd": "2.2.2",
-    "@nestjs/common": "11.1.10",
+    "@nestjs/common": "11.1.12",
     "@nestjs/config": "4.0.2",
-    "@nestjs/core": "11.1.10",
+    "@nestjs/core": "11.1.12",
     "@nestjs/jwt": "11.0.2",
     "@nestjs/passport": "11.0.5",
-    "@nestjs/platform-express": "11.1.10",
+    "@nestjs/platform-express": "11.1.12",
     "@remnawave/hashed-set": "^0.0.4",
     "@remnawave/supervisord-nestjs": "0.1.1",
     "@remnawave/xtls-sdk": "0.8.0",
@@ -65,7 +65,7 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
-    "@nestjs/cli": "11.0.14",
+    "@nestjs/cli": "11.0.16",
     "@nestjs/schematics": "11.0.9",
     "@types/compression": "^1.8.1",
     "@types/express": "^5.0.6",

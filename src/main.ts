@@ -12,12 +12,13 @@ import morgan from 'morgan';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 
+import { getInternalRestPort } from '@common/utils/get-initial-ports';
 import { parseNodePayload } from '@common/utils/decode-node-payload';
 import { getStartMessage } from '@common/utils/get-start-message';
 import { isDevelopment } from '@common/utils/is-development';
 import { NotFoundExceptionFilter } from '@common/exception';
 import { customLogFilter } from '@common/utils/filter-logs';
-import { XRAY_INTERNAL_API_PORT, XRAY_INTERNAL_FULL_PATH } from '@libs/contracts/constants';
+import { XRAY_INTERNAL_FULL_PATH } from '@libs/contracts/constants';
 import { REST_API, ROOT } from '@libs/contracts/api';
 
 import { AppModule } from './app.module';
@@ -109,7 +110,7 @@ async function bootstrap(): Promise<void> {
         },
     );
 
-    const internalServer = internalApp.listen(XRAY_INTERNAL_API_PORT, '127.0.0.1');
+    const internalServer = internalApp.listen(getInternalRestPort(), '127.0.0.1');
 
     let internalServerClosed = false;
 
@@ -131,7 +132,7 @@ async function bootstrap(): Promise<void> {
         '\n' +
             (await getStartMessage(
                 Number(config.getOrThrow<string>('NODE_PORT')),
-                XRAY_INTERNAL_API_PORT,
+
                 app,
             )) +
             '\n',

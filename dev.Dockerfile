@@ -10,14 +10,13 @@ RUN apt-get update && apt-get install -y \
 ENV NVM_DIR=/root/.nvm
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash \
     && . $NVM_DIR/nvm.sh \
-    && nvm install v22.14.0 \
-    && nvm alias default v22.14.0 \
+    && nvm install v24.12.0 \
+    && nvm alias default v24.12.0 \
     && nvm use default
 
 
-ENV PATH="/root/.nvm/versions/node/v22.14.0/bin:${PATH}"
+ENV PATH="/root/.nvm/versions/node/v24.12.0/bin:${PATH}"
 
-# Установка Xray
 RUN curl -L https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-latest-xray.sh | bash -s -- v25.12.8
 
 
@@ -35,6 +34,11 @@ RUN echo '#!/bin/bash\n\
     supervisord -c /var/lib/rnode/xray/supervisor.conf &\n\
     exec "$@"' > /usr/local/bin/entrypoint.sh \
     && chmod +x /usr/local/bin/entrypoint.sh
+
+
+ENV SUPERVISORD_PORT=61002
+ENV INTERNAL_REST_PORT=61001
+ENV XTLS_API_PORT=61000
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 

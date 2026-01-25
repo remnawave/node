@@ -1,11 +1,11 @@
-FROM node:24.11-alpine AS build
+FROM node:24.13-alpine AS build
 WORKDIR /opt/app
 ADD . .
 RUN npm ci --legacy-peer-deps
 RUN npm run build --omit=dev
 
 
-FROM node:24.11-alpine
+FROM node:24.13-alpine
 
 ARG XRAY_CORE_VERSION=v25.12.8
 ARG UPSTREAM_REPO=XTLS
@@ -51,6 +51,10 @@ RUN ln -s /usr/local/bin/xray /usr/local/bin/rw-core
 
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-http-header-size=65536"
+
+ENV SUPERVISORD_PORT=61002
+ENV INTERNAL_REST_PORT=61001
+ENV XTLS_API_PORT=61000
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 

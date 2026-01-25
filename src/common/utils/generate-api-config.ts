@@ -5,6 +5,7 @@ import {
     // XRAY_ROUTING_RULES_MODEL,
 } from '@libs/contracts/constants/xray';
 
+import { getXtlsApiPort } from './get-initial-ports';
 import { IPolicyConfig } from './interfaces';
 
 export const generateApiConfig = (config: Record<string, unknown>): Record<string, unknown> => {
@@ -26,7 +27,7 @@ export const generateApiConfig = (config: Record<string, unknown>): Record<strin
     return {
         ...config,
         ...XRAY_DEFAULT_STATS_MODEL,
-        ...XRAY_DEFAULT_API_MODEL,
+        ...XRAY_DEFAULT_API_MODEL(getXtlsApiPort()),
         policy: builtPolicy,
         // routing: {
         //     ...(routing || {}),

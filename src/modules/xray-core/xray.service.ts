@@ -1,5 +1,5 @@
-import { ProcessInfo } from 'node-supervisord/dist/interfaces';
-import { SupervisordClient } from 'node-supervisord';
+import { ProcessInfo } from '@kastov/node-supervisord/dist/interfaces';
+import { SupervisordClient } from '@kastov/node-supervisord';
 import { readPackageJSON } from 'pkg-types';
 import { table } from 'table';
 import ems from 'enhanced-ms';
@@ -134,7 +134,7 @@ export class XrayService implements OnApplicationBootstrap {
 
             const fullConfig = generateApiConfig(body.xrayConfig);
 
-            this.internalService.extractUsersFromConfig(body.internals.hashes, fullConfig);
+            await this.internalService.extractUsersFromConfig(body.internals.hashes, fullConfig);
 
             const xrayProcess = await this.restartXrayProcess();
 

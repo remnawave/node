@@ -1,16 +1,18 @@
 import {
+    XRAY_API_INBOUND_MODEL,
     XRAY_DEFAULT_API_MODEL,
     XRAY_DEFAULT_POLICY_MODEL,
     XRAY_DEFAULT_STATS_MODEL,
-    // XRAY_ROUTING_RULES_MODEL,
+    XRAY_ROUTING_RULES_MODEL,
 } from '@libs/contracts/constants/xray';
 
+import { getServerCerts } from './generate-mtls-certs';
 import { getXtlsApiPort } from './get-initial-ports';
 import { IPolicyConfig } from './interfaces';
 
 export const generateApiConfig = (config: Record<string, unknown>): Record<string, unknown> => {
-    // const routing = config.routing as undefined | { rules?: unknown[] };
     const policyConfig = config.policy as undefined | IPolicyConfig;
+    const serverCerts = getServerCerts();
 
     const builtPolicy: IPolicyConfig = {
         levels: {
@@ -27,15 +29,23 @@ export const generateApiConfig = (config: Record<string, unknown>): Record<strin
     return {
         ...config,
         ...XRAY_DEFAULT_STATS_MODEL,
-        ...XRAY_DEFAULT_API_MODEL(getXtlsApiPort()),
+        ...XRAY_DEFAULT_API_MODEL,
+        inbounds: [
+            XRAY_API_INBOUND_MODEL({
+                port: getXtlsApiPort(),
+                caCertPem: serverCerts.caCertPem,
+                serverCertPem: serverCerts.serverCertPem,
+                serverKeyPem: serverCerts.serverKeyPem,
+            }),
+            ...(Array.isArray(config.inbounds) ? config.inbounds : []),
+        ],
         policy: builtPolicy,
-        // routing: {
-        //     ...(routing || {}),
-        //     rules: [XRAY_ROUTING_RULES_MODEL, ...(routing?.rules || [])],
-        // },
-        // inbounds: [
-        //     XRAY_API_INBOUND_MODEL,
-        //     ...(Array.isArray(config.inbounds) ? config.inbounds : []),
-        // ],
+        routing: {
+            ...(config.routing || {}),
+            rules: [
+                XRAY_ROUTING_RULES_MODEL,
+                ...((config.routing as { rules?: unknown[] })?.rules || []),
+            ],
+        },
     };
 };

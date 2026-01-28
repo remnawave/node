@@ -36,8 +36,6 @@ RUN echo '#!/bin/bash\n\
     && chmod +x /usr/local/bin/entrypoint.sh
 
 
-ENV SUPERVISORD_PORT=61002
-ENV INTERNAL_REST_PORT=61001
 ENV XTLS_API_PORT=61000
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

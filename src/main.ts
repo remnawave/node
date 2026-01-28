@@ -6,19 +6,20 @@ import { createLogger } from 'winston';
 import compression from 'compression';
 import * as winston from 'winston';
 import { Server } from 'https';
+import * as fs from 'node:fs';
 import helmet from 'helmet';
 import morgan from 'morgan';
 
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 
-import { getInternalRestPort } from '@common/utils/get-initial-ports';
+import { initializeMTLSCerts } from '@common/utils/generate-mtls-certs';
 import { parseNodePayload } from '@common/utils/decode-node-payload';
 import { getStartMessage } from '@common/utils/get-start-message';
 import { isDevelopment } from '@common/utils/is-development';
 import { NotFoundExceptionFilter } from '@common/exception';
 import { customLogFilter } from '@common/utils/filter-logs';
-import { XRAY_INTERNAL_FULL_PATH } from '@libs/contracts/constants';
+import { XRAY_INTERNAL_API_SOCKET_PATH, XRAY_INTERNAL_FULL_PATH } from '@libs/contracts/constants';
 import { REST_API, ROOT } from '@libs/contracts/api';
 
 import { AppModule } from './app.module';
@@ -43,6 +44,12 @@ const logger = createLogger({
 });
 
 async function bootstrap(): Promise<void> {
+    if (fs.existsSync(XRAY_INTERNAL_API_SOCKET_PATH)) {
+        fs.unlinkSync(XRAY_INTERNAL_API_SOCKET_PATH);
+    }
+
+    await initializeMTLSCerts();
+
     const nodePayload = parseNodePayload();
 
     const app = await NestFactory.create(AppModule, {
@@ -101,16 +108,14 @@ async function bootstrap(): Promise<void> {
     const internalApp = express();
     internalApp.use(json({ limit: '1000mb' }));
 
-    internalApp.use(
-        [XRAY_INTERNAL_FULL_PATH, '/' + REST_API.VISION.BLOCK_IP, '/' + REST_API.VISION.UNBLOCK_IP],
-        (req, res, next) => {
-            req.url = req.originalUrl;
+    // '/' + REST_API.VISION.BLOCK_IP, '/' + REST_API.VISION.UNBLOCK_IP
+    internalApp.use([XRAY_INTERNAL_FULL_PATH], (req, res, next) => {
+        req.url = req.originalUrl;
 
-            httpServer.handle(req, res, next);
-        },
-    );
+        httpServer.handle(req, res, next);
+    });
 
-    const internalServer = internalApp.listen(getInternalRestPort(), '127.0.0.1');
+    const internalServer = internalApp.listen(XRAY_INTERNAL_API_SOCKET_PATH);
 
     let internalServerClosed = false;
 
@@ -119,6 +124,10 @@ async function bootstrap(): Promise<void> {
         internalServerClosed = true;
 
         internalServer.close(() => {
+            if (fs.existsSync(XRAY_INTERNAL_API_SOCKET_PATH)) {
+                fs.unlinkSync(XRAY_INTERNAL_API_SOCKET_PATH);
+            }
+
             logger.info('Shutting down...');
         });
     };

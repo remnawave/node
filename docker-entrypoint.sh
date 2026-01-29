@@ -8,7 +8,7 @@ generate_random() {
 
 SUPERVISORD_USER=$(generate_random)
 SUPERVISORD_PASSWORD=$(generate_random)
-INTERNAL_REST_TOKEN=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 64)
+INTERNAL_REST_TOKEN=$(generate_random)
 
 echo "[Credentials] OK"
 

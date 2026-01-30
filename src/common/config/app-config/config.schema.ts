@@ -20,6 +20,7 @@ export const configSchema = z
         INTERNAL_REST_TOKEN: z.string(),
         SUPERVISORD_USER: z.string(),
         SUPERVISORD_PASSWORD: z.string(),
+        SOCKETS_RNDSTR: z.string(),
     })
     .superRefine((data, ctx) => {
         if (data.SECRET_KEY) {

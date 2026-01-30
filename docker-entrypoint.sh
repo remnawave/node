@@ -7,13 +7,14 @@ rm -f /run/supervisord-*.pid 2>/dev/null
 echo "[Entrypoint] Starting entrypoint script..."
 
 generate_random() {
-    tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 64
+    local length="${1:-64}"
+    tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c "$length"
 }
 
-RNDSTR=$(head -c 20 /dev/urandom | xxd -p | head -c 10)
-SUPERVISORD_USER=$(generate_random)
-SUPERVISORD_PASSWORD=$(generate_random)
-INTERNAL_REST_TOKEN=$(generate_random)
+RNDSTR=$(generate_random 10)
+SUPERVISORD_USER=$(generate_random 64)
+SUPERVISORD_PASSWORD=$(generate_random 64)
+INTERNAL_REST_TOKEN=$(generate_random 64)
 
 INTERNAL_SOCKET_PATH=/run/remnawave-internal-${RNDSTR}.sock
 SUPERVISORD_SOCKET_PATH=/run/supervisord-${RNDSTR}.sock

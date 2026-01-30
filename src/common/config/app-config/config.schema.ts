@@ -17,10 +17,11 @@ export const configSchema = z
         XTLS_API_PORT: z.string().transform((port) => {
             return parseInt(port, 10);
         }),
-        INTERNAL_REST_TOKEN: z.string(),
         SUPERVISORD_USER: z.string(),
         SUPERVISORD_PASSWORD: z.string(),
-        SOCKETS_RNDSTR: z.string(),
+        SUPERVISORD_SOCKET: z.string(),
+        INTERNAL_REST_TOKEN: z.string(),
+        INTERNAL_API_SOCKET: z.string(),
     })
     .superRefine((data, ctx) => {
         if (data.SECRET_KEY) {

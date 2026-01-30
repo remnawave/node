@@ -50,7 +50,7 @@ import { InternalModule } from './modules/internal/internal.module';
             imports: [ConfigModule],
             inject: [ConfigService],
             useFactory: (configService: ConfigService) => ({
-                connectionUrl: `http://unix:/run/supervisord-${configService.getOrThrow<string>('SOCKETS_RNDSTR')}.sock:/RPC2`,
+                connectionUrl: `http://unix:${configService.getOrThrow<string>('SUPERVISORD_SOCKET')}:/RPC2`,
                 options: {
                     username: configService.getOrThrow<string>('SUPERVISORD_USER'),
                     password: configService.getOrThrow<string>('SUPERVISORD_PASSWORD'),

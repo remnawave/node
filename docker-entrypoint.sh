@@ -3,18 +3,28 @@
 echo "[Entrypoint] Starting entrypoint script..."
 
 generate_random() {
-    tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 64
+    local l="$1"
+    tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c "$l"
 }
 
-SUPERVISORD_USER=$(generate_random)
-SUPERVISORD_PASSWORD=$(generate_random)
-INTERNAL_REST_TOKEN=$(generate_random)
-SOCKETS_RNDSTR=$(head -c 20 /dev/urandom | xxd -p | head -c 10)
+generate_hex() {
+    local l="$1"
+    tr -dc '0-9a-f' < /dev/urandom | head -c "$l"
+}
 
+RANDOM_HEX=$(generate_hex 16)
+SUPERVISORD_USER=$(generate_random 64)
+SUPERVISORD_PASSWORD=$(generate_random 64)
+SUPERVISORD_SOCKET="/run/supervisord-$RANDOM_HEX.sock"
+INTERNAL_REST_TOKEN=$(generate_random 64)
+INTERNAL_API_SOCKET="/run/remnawave-internal-$RANDOM_HEX.sock"
+
+export RANDOM_HEX
 export SUPERVISORD_USER
 export SUPERVISORD_PASSWORD
+export SUPERVISORD_SOCKET
 export INTERNAL_REST_TOKEN
-export SOCKETS_RNDSTR
+export INTERNAL_API_SOCKET
 
 echo "[Credentials] OK"
 

@@ -9,10 +9,12 @@ generate_random() {
 SUPERVISORD_USER=$(generate_random)
 SUPERVISORD_PASSWORD=$(generate_random)
 INTERNAL_REST_TOKEN=$(generate_random)
+SOCKETS_RNDSTR=$(head -c 20 /dev/urandom | xxd -p | head -c 10)
 
 export SUPERVISORD_USER
 export SUPERVISORD_PASSWORD
 export INTERNAL_REST_TOKEN
+export SOCKETS_RNDSTR
 
 echo "[Credentials] OK"
 

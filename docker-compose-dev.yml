@@ -5,6 +5,8 @@ services:
       dockerfile: dev.Dockerfile
     container_name: remnawave-node-dev
     hostname: remnawave-node-dev
+    env_file:
+      - .env
     networks:
       - remnawave-node-dev
     ports:

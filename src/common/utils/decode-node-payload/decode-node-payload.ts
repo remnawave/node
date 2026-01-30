@@ -5,6 +5,17 @@ interface INodePayload {
     nodeKeyPem: string;
 }
 
+function normalizePem(pem: string): string {
+    let normalized = pem.replace(/\\n/g, '\n');
+    normalized = normalized.replace(/\r\n/g, '\n');
+    normalized = normalized.replace(/(-----BEGIN [A-Z ]+-----)/g, '$1\n');
+    normalized = normalized.replace(/(-----END [A-Z ]+-----)/g, '\n$1');
+    normalized = normalized.replace(/\n+/g, '\n');
+
+    normalized = normalized.trim();
+    return normalized;
+}
+
 export function parseNodePayload(): INodePayload {
     const nodePayload = process.env.SECRET_KEY;
 
@@ -19,7 +30,12 @@ export function parseNodePayload(): INodePayload {
             throw new Error('Invalid SECRET_KEY payload structure');
         }
 
-        return parsed;
+        return {
+            caCertPem: normalizePem(parsed.caCertPem),
+            jwtPublicKey: normalizePem(parsed.jwtPublicKey),
+            nodeCertPem: normalizePem(parsed.nodeCertPem),
+            nodeKeyPem: normalizePem(parsed.nodeKeyPem),
+        };
     } catch (error) {
         if (error instanceof SyntaxError) {
             throw new Error('SECRET_KEY contains invalid JSON');
@@ -36,7 +52,12 @@ export function parseNodePayloadFromConfigService(sslCert: string): INodePayload
             throw new Error('Invalid SECRET_KEY payload structure');
         }
 
-        return parsed;
+        return {
+            caCertPem: normalizePem(parsed.caCertPem),
+            jwtPublicKey: normalizePem(parsed.jwtPublicKey),
+            nodeCertPem: normalizePem(parsed.nodeCertPem),
+            nodeKeyPem: normalizePem(parsed.nodeKeyPem),
+        };
     } catch (error) {
         if (error instanceof SyntaxError) {
             throw new Error('SECRET_KEY contains invalid JSON');

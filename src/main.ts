@@ -19,7 +19,7 @@ import { getStartMessage } from '@common/utils/get-start-message';
 import { isDevelopment } from '@common/utils/is-development';
 import { NotFoundExceptionFilter } from '@common/exception';
 import { customLogFilter } from '@common/utils/filter-logs';
-import { getXrayInternalApiSocketPath, XRAY_INTERNAL_FULL_PATH } from '@libs/contracts/constants';
+import { XRAY_INTERNAL_FULL_PATH } from '@libs/contracts/constants';
 import { REST_API, ROOT } from '@libs/contracts/api';
 
 import { AppModule } from './app.module';
@@ -44,9 +44,10 @@ const logger = createLogger({
 });
 
 async function bootstrap(): Promise<void> {
-    const sockerName = getXrayInternalApiSocketPath(process.env.SOCKETS_RNDSTR!);
-    if (fs.existsSync(sockerName)) {
-        fs.unlinkSync(sockerName);
+    const internalSocketPath = process.env.INTERNAL_SOCKET_PATH!;
+
+    if (fs.existsSync(internalSocketPath)) {
+        fs.unlinkSync(internalSocketPath);
     }
 
     await initializeMTLSCerts();
@@ -116,7 +117,7 @@ async function bootstrap(): Promise<void> {
         httpServer.handle(req, res, next);
     });
 
-    const internalServer = internalApp.listen(sockerName);
+    const internalServer = internalApp.listen(internalSocketPath);
 
     let internalServerClosed = false;
 
@@ -125,8 +126,8 @@ async function bootstrap(): Promise<void> {
         internalServerClosed = true;
 
         internalServer.close(() => {
-            if (fs.existsSync(sockerName)) {
-                fs.unlinkSync(sockerName);
+            if (fs.existsSync(internalSocketPath)) {
+                fs.unlinkSync(internalSocketPath);
             }
 
             logger.info('Shutting down...');

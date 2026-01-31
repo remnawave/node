@@ -53,7 +53,6 @@ export const XRAY_API_INBOUND_MODEL = ({
                 serverName: 'internal.remnawave.local',
                 disableSystemRoot: true,
                 rejectUnknownSni: true,
-                verifyPeerCertInNames: ['internal.remnawave.local'],
                 certificates: [
                     {
                         certificate: serverCertPem

@@ -11,43 +11,39 @@ ADD . .
 RUN npm ci --legacy-peer-deps
 RUN npm run build --omit=dev
 
-RUN apk add --no-cache curl unzip bash \
-    && curl -L ${XRAY_CORE_INSTALL_SCRIPT} | bash -s -- ${XRAY_CORE_VERSION} ${UPSTREAM_REPO}
+RUN apk add --no-cache curl unzip \
+    && curl -L ${XRAY_CORE_INSTALL_SCRIPT} | sh -s -- ${XRAY_CORE_VERSION} ${UPSTREAM_REPO}
 
-RUN echo '#!/bin/sh' > /usr/local/bin/rw-logs \
-    && echo 'tail -n +1 -f /var/log/supervisor/xray.out.log' >> /usr/local/bin/rw-logs \
-    && chmod +x /usr/local/bin/rw-logs
+RUN echo '#!/bin/sh' > /usr/local/bin/xlogs \
+    && echo 'tail -n +1 -f /var/log/supervisor/xray.out.log' >> /usr/local/bin/xlogs \
+    && chmod +x /usr/local/bin/xlogs
 
-RUN echo '#!/bin/sh' > /usr/local/bin/rw-errors \
-    && echo 'tail -n +1 -f /var/log/supervisor/xray.err.log' >> /usr/local/bin/rw-errors \
-    && chmod +x /usr/local/bin/rw-errors
+RUN echo '#!/bin/sh' > /usr/local/bin/xerrors \
+    && echo 'tail -n +1 -f /var/log/supervisor/xray.err.log' >> /usr/local/bin/xerrors \
+    && chmod +x /usr/local/bin/xerrors
 
 
 FROM node:24.13-alpine
 
-# app
+WORKDIR /opt/app
+
 COPY --from=build /opt/app/dist /opt/app/dist
-# xray
 COPY --from=build /usr/local/bin/xray /usr/local/bin/xray
 COPY --from=build /usr/local/share/xray/geoip.dat /usr/local/share/xray/geoip.dat
 COPY --from=build /usr/local/share/xray/geosite.dat /usr/local/share/xray/geosite.dat
-# logs and errors helpers
-COPY --from=build /usr/local/bin/rw-logs /usr/local/bin/rw-logs
-COPY --from=build /usr/local/bin/rw-errors /usr/local/bin/rw-errors
-
-RUN ln -s /usr/local/bin/xray /usr/local/bin/rw-core
-
-RUN apk add --no-cache supervisor
-RUN mkdir -p /var/log/supervisor
+COPY --from=build /usr/local/bin/xlogs /usr/local/bin/xlogs
+COPY --from=build /usr/local/bin/xerrors /usr/local/bin/xerrors
 
 COPY supervisord.conf /etc/supervisord.conf
 COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-WORKDIR /opt/app
-
 COPY package*.json ./
 COPY ./libs ./libs
+
+
+RUN apk add --no-cache supervisor && \
+    mkdir -p /var/log/supervisor && \
+    chmod +x /usr/local/bin/docker-entrypoint.sh && \
+    ln -s /usr/local/bin/xray /usr/local/bin/rw-core
 
 RUN npm ci --omit=dev --legacy-peer-deps \
     && npm cache clean --force

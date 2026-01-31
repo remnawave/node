@@ -27,6 +27,9 @@ export INTERNAL_SOCKET_PATH
 export SUPERVISORD_SOCKET_PATH
 export SUPERVISORD_PID_PATH
 
+echo "[Entrypoint] Getting Supervisord version..."
+echo "[Entrypoint] Supervisord version: $(supervisord --version | head -n 1)"
+
 supervisord -c /etc/supervisord.conf &
 echo "[Entrypoint] Supervisord started successfully"
 sleep 1

@@ -3,16 +3,39 @@
 import { colorize } from 'json-colorizer';
 import { Agent, request } from 'undici';
 import consola from 'consola';
+import fs from 'fs';
 
 const enum CLI_ACTIONS {
     DUMP_CONFIG = 'dump-config',
     EXIT = 'exit',
 }
 
+function loadEnvFromMainProcess(): { socketPath?: string; token?: string } {
+    try {
+        const environ = fs.readFileSync('/proc/1/environ', 'utf8');
+        const envVars = environ.split('\0').reduce(
+            (acc, pair) => {
+                const [key, value] = pair.split('=');
+                if (key && value) acc[key] = value;
+                return acc;
+            },
+            {} as Record<string, string>,
+        );
+
+        return {
+            socketPath: envVars.INTERNAL_SOCKET_PATH,
+            token: envVars.INTERNAL_REST_TOKEN,
+        };
+    } catch {
+        return {};
+    }
+}
+
 async function dumpConfig() {
     try {
-        const socketPath = process.env.INTERNAL_SOCKET_PATH;
-        const token = process.env.INTERNAL_REST_TOKEN;
+        const mainProcessEnv = loadEnvFromMainProcess();
+        const socketPath = mainProcessEnv.socketPath;
+        const token = mainProcessEnv.token;
 
         if (!socketPath || !token) {
             consola.error('Missing environment variables.');

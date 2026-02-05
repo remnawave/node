@@ -46,7 +46,7 @@ RUN apk add --no-cache supervisor && \
     ln -s /usr/local/bin/xray /usr/local/bin/rw-core
 
 RUN npm ci --omit=dev --legacy-peer-deps \
-    && npm cache clean --force \     
+    && npm cache clean --force \
     && npm link
 
 ENV NODE_ENV=production

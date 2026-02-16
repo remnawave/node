@@ -1,6 +1,6 @@
 {
   "name": "@remnawave/node",
-  "version": "2.5.4",
+  "version": "2.5.5",
   "description": "Remnawave Node",
   "private": false,
   "type": "commonjs",
@@ -13,6 +13,9 @@
   },
   "bugs": {
     "url": "https://github.com/remnawave/node/issues"
+  },
+  "bin": {
+    "cli": "dist/src/bin/cli/cli.js"
   },
   "scripts": {
     "build": "nest build",
@@ -31,23 +34,24 @@
   "dependencies": {
     "@henrygd/semaphore": "0.1.0",
     "@kastov/body-parser-with-zstd": "2.2.2",
-    "@nestjs/common": "11.1.12",
-    "@nestjs/config": "4.0.2",
-    "@nestjs/core": "11.1.12",
+    "@kastov/node-supervisord": ">=2.0.3",
+    "@nestjs/common": "11.1.13",
+    "@nestjs/config": "4.0.3",
+    "@nestjs/core": "11.1.13",
     "@nestjs/jwt": "11.0.2",
     "@nestjs/passport": "11.0.5",
-    "@nestjs/platform-express": "11.1.12",
+    "@nestjs/platform-express": "11.1.13",
     "@peculiar/webcrypto": "^1.5.0",
     "@peculiar/x509": "^1.14.3",
     "@remnawave/hashed-set": "^0.0.4",
     "@remnawave/supervisord-nestjs": "0.3.1",
-    "@kastov/node-supervisord": ">=2.0.3",
     "@remnawave/xtls-sdk": "0.10.0",
     "@remnawave/xtls-sdk-nestjs": "0.6.1",
     "compression": "^1.8.1",
     "enhanced-ms": "^4.2.0",
     "helmet": "^8.1.0",
     "husky": "9.1.7",
+    "json-colorizer": "^3.0.1",
     "morgan": "^1.10.1",
     "nanoid": "^5.1.6",
     "nest-winston": "^1.10.2",
@@ -63,8 +67,9 @@
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
     "semver": "^7.7.3",
-    "systeminformation": "^5.30.6",
+    "systeminformation": "^5.30.7",
     "table": "^6.9.0",
+    "undici": "^7.20.0",
     "winston": "^3.19.0",
     "zod": "3.25.76"
   },

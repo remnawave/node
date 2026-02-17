@@ -89,11 +89,9 @@ async function killSocketsByIP() {
             placeholder: '1.1.1.1',
         });
 
-        const targetIP = `::ffff:${ipAddress}`;
+        consola.start(`Killing sockets for IP: ${ipAddress}...`);
 
-        consola.start(`Killing sockets for IP: ${ipAddress} (${targetIP})...`);
-
-        const result = await killSockets({ src: targetIP, dst: targetIP });
+        const result = await killSockets({ src: ipAddress, dst: ipAddress, mode: 'or' });
 
         consola.success(colorize(JSON.stringify(result, null, 2)));
     } catch (error) {

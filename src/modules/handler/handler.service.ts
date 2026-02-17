@@ -1,6 +1,7 @@
+import { killSockets, hasCapNetAdmin } from 'sockdestroy';
 import ems from 'enhanced-ms';
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
 import {
     RemoveUserResponseModel as RemoveUserResponseModelFromSdk,
@@ -29,13 +30,25 @@ import {
 import { InternalService } from '../internal/internal.service';
 
 @Injectable()
-export class HandlerService {
+export class HandlerService implements OnModuleInit {
     private readonly logger = new Logger(HandlerService.name);
 
     constructor(
         @InjectXtls() private readonly xtlsApi: XtlsApi,
         private readonly internalService: InternalService,
     ) {}
+
+    public async onModuleInit(): Promise<void> {
+        try {
+            if (!hasCapNetAdmin()) {
+                this.logger.warn('CAP_NET_ADMIN is not available.');
+            } else {
+                this.logger.log('[OK] CAP_NET_ADMIN is available');
+            }
+        } catch (error: unknown) {
+            this.logger.error(error);
+        }
+    }
 
     public async addUser(data: AddUserRequestDto): Promise<ICommandResponse<AddUserResponseModel>> {
         try {
@@ -159,6 +172,8 @@ export class HandlerService {
                     response: new RemoveUserResponseModel(true, null),
                 };
             }
+
+            await this.destroyUserConnections(username);
 
             for (const tag of inboundTags) {
                 this.logger.debug(`Removing user: ${username} from tag: ${tag}`);
@@ -424,6 +439,42 @@ export class HandlerService {
                 code: ERRORS.FAILED_TO_GET_INBOUND_USERS.code,
                 response: new GetInboundUsersCountResponseModel(0),
             };
+        }
+    }
+
+    private async destroyUserConnections(userId: string): Promise<void> {
+        try {
+            if (!hasCapNetAdmin()) {
+                return;
+            }
+
+            const userIps = await this.xtlsApi.stats.rawClient.getStatsOnlineIpList({
+                name: `user>>>${userId}>>>online`,
+                reset: true,
+            });
+
+            const ips = Object.keys(userIps.ips);
+
+            if (ips.length === 0) {
+                return;
+            }
+
+            for (const ip of ips) {
+                try {
+                    const result = await killSockets({ src: ip, dst: ip, mode: 'or' });
+                    this.logger.debug(
+                        `Destroyed connections for user: ${userId} with IP: ${ip} - ${JSON.stringify(result, null, 2)}`,
+                    );
+                } catch (error) {
+                    this.logger.error(error);
+                }
+            }
+        } catch (error) {
+            if (error && typeof error === 'object' && 'code' in error && error.code === 5) {
+                return;
+            }
+
+            this.logger.error(`Failed to destroy connections for user ${userId}:`, error);
         }
     }
 }

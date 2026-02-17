@@ -1,3 +1,5 @@
+import { hasCapNetAdmin } from 'sockdestroy';
+
 import {
     XRAY_API_INBOUND_MODEL,
     XRAY_DEFAULT_API_MODEL,
@@ -13,6 +15,7 @@ import { IPolicyConfig } from './interfaces';
 export const generateApiConfig = (config: Record<string, unknown>): Record<string, unknown> => {
     const policyConfig = config.policy as undefined | IPolicyConfig;
     const serverCerts = getServerCerts();
+    const hasCapNetAdminResult = hasCapNetAdmin();
 
     const builtPolicy: IPolicyConfig = {
         levels: {
@@ -20,7 +23,7 @@ export const generateApiConfig = (config: Record<string, unknown>): Record<strin
                 ...(policyConfig?.levels?.['0'] || {}),
                 statsUserUplink: XRAY_DEFAULT_POLICY_MODEL.policy.levels['0'].statsUserUplink,
                 statsUserDownlink: XRAY_DEFAULT_POLICY_MODEL.policy.levels['0'].statsUserDownlink,
-                statsUserOnline: XRAY_DEFAULT_POLICY_MODEL.policy.levels['0'].statsUserOnline,
+                statsUserOnline: hasCapNetAdminResult,
             },
         },
         system: XRAY_DEFAULT_POLICY_MODEL.policy.system,

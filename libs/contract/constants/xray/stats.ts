@@ -4,7 +4,7 @@ export const XRAY_DEFAULT_POLICY_MODEL = {
             '0': {
                 statsUserUplink: true,
                 statsUserDownlink: true,
-                statsUserOnline: false,
+                statsUserOnline: true,
             },
         },
         system: {

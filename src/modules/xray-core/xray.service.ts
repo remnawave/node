@@ -66,12 +66,15 @@ export class XrayService implements OnApplicationBootstrap {
             this.nodeVersion = pkg.version ?? '0.0.0';
 
             await this.supervisordApi.getState();
-        } catch (error) {
-            if (error instanceof Error) {
-                if (error.message.includes('RequestError: connect ENOENT')) {
-                    this.logger.error('Supervisord socket file not found');
-                    process.exit(1);
-                }
+        } catch (error: unknown) {
+            if (
+                error !== null &&
+                typeof error === 'object' &&
+                'code' in error &&
+                error.code === 'ENOENT'
+            ) {
+                this.logger.error('Supervisord socket file not found, exiting...');
+                process.exit(1);
             }
 
             this.logger.error(`Error in Application Bootstrap: ${error}`);

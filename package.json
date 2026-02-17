@@ -67,6 +67,7 @@
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
     "semver": "^7.7.3",
+    "sockdestroy": "^1.0.0",
     "systeminformation": "^5.30.7",
     "table": "^6.9.0",
     "undici": "^7.20.0",

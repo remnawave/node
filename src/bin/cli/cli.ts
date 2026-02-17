@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { colorize } from 'json-colorizer';
+import { killSockets } from 'sockdestroy';
 import { Agent, request } from 'undici';
 import consola from 'consola';
 import fs from 'fs';
@@ -8,6 +9,7 @@ import fs from 'fs';
 const enum CLI_ACTIONS {
     DUMP_CONFIG = 'dump-config',
     EXIT = 'exit',
+    KILL_SOCKETS = 'kill-sockets',
 }
 
 function loadEnvFromMainProcess(): { socketPath?: string; token?: string } {
@@ -79,6 +81,30 @@ async function dumpConfig() {
     }
 }
 
+async function killSocketsByIP() {
+    try {
+        const ipAddress = await consola.prompt('Enter IP address to kill sockets for:', {
+            type: 'text',
+            required: true,
+            placeholder: '1.1.1.1',
+        });
+
+        const targetIP = `::ffff:${ipAddress}`;
+
+        consola.start(`Killing sockets for IP: ${ipAddress} (${targetIP})...`);
+
+        const result = await killSockets({ src: targetIP, dst: targetIP });
+
+        consola.success(colorize(JSON.stringify(result, null, 2)));
+    } catch (error) {
+        consola.fail('Failed to kill sockets');
+        if (error instanceof Error) {
+            consola.error(error.message);
+        }
+        process.exit(1);
+    }
+}
+
 async function main() {
     consola.box('Remnawave Node CLI v0.1');
 
@@ -92,6 +118,11 @@ async function main() {
                 hint: '',
             },
             {
+                value: CLI_ACTIONS.KILL_SOCKETS,
+                label: 'Kill sockets by IP',
+                hint: 'Drop connections for specific IP address',
+            },
+            {
                 value: CLI_ACTIONS.EXIT,
                 label: 'Exit',
             },
@@ -102,6 +133,10 @@ async function main() {
     switch (action) {
         case CLI_ACTIONS.DUMP_CONFIG:
             await dumpConfig();
+            break;
+
+        case CLI_ACTIONS.KILL_SOCKETS:
+            await killSocketsByIP();
             break;
 
         case CLI_ACTIONS.EXIT:
@@ -118,6 +153,9 @@ function parseArgs(): CLI_ACTIONS | null {
         case '--dump-config':
         case '-d':
             return CLI_ACTIONS.DUMP_CONFIG;
+        case '--kill-sockets':
+        case '-k':
+            return CLI_ACTIONS.KILL_SOCKETS;
         case '--help':
         case '-h':
             consola.log(`
@@ -125,6 +163,7 @@ Usage: cli [command]
 
 Commands:
   --dump-config, -d    Dump current XRay configuration
+  --kill-sockets, -k   Kill sockets by IP address
   --help, -h           Show this help message
 `);
             process.exit(0);
@@ -137,6 +176,11 @@ Commands:
 const cliAction = parseArgs();
 if (cliAction === CLI_ACTIONS.DUMP_CONFIG) {
     dumpConfig().catch((e) => {
+        consola.error('❌ An error occurred:', e);
+        process.exit(1);
+    });
+} else if (cliAction === CLI_ACTIONS.KILL_SOCKETS) {
+    killSocketsByIP().catch((e) => {
         consola.error('❌ An error occurred:', e);
         process.exit(1);
     });

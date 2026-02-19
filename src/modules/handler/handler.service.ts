@@ -338,6 +338,8 @@ export class HandlerService implements OnModuleInit {
             for (const user of data.users) {
                 const { userId, hashUuid } = user;
 
+                await this.destroyUserConnections(userId);
+
                 for (const tag of inboundTags) {
                     this.logger.debug(`Removing user: ${userId} from tag: ${tag}`);
 

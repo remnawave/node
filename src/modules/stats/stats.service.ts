@@ -13,6 +13,7 @@ import {
     GetInboundStatsResponseModel,
     GetOutboundStatsResponseModel,
     GetSystemStatsResponseModel,
+    GetUserIpListResponseModel,
     GetUserOnlineStatusResponseModel,
     GetUsersStatsResponseModel,
 } from './models';
@@ -258,6 +259,37 @@ export class StatsService {
             return {
                 isOk: false,
                 ...ERRORS.FAILED_TO_GET_COMBINED_STATS,
+            };
+        }
+    }
+
+    public async getUserIpList(
+        userId: string,
+    ): Promise<ICommandResponse<GetUserIpListResponseModel>> {
+        try {
+            const userIps = await this.xtlsSdk.stats.rawClient.getStatsOnlineIpList({
+                name: `user>>>${userId}>>>online`,
+                reset: true,
+            });
+
+            const ips = Object.keys(userIps.ips);
+
+            if (ips.length === 0) {
+                return {
+                    isOk: true,
+                    response: new GetUserIpListResponseModel([]),
+                };
+            }
+
+            return {
+                isOk: true,
+                response: new GetUserIpListResponseModel(ips),
+            };
+        } catch (error) {
+            this.logger.error(error);
+            return {
+                isOk: true,
+                response: new GetUserIpListResponseModel([]),
             };
         }
     }

@@ -16,17 +16,20 @@ import { ERRORS } from '@libs/contracts/constants/errors';
 import { CipherType } from '@libs/contracts/commands';
 
 import {
+    AddUserRequestDto,
+    AddUsersRequestDto,
+    DropIpsRequestDto,
+    DropUsersConnectionsRequestDto,
+    RemoveUserRequestDto,
+    RemoveUsersRequestDto,
+} from './dtos';
+import {
     GetInboundUsersCountResponseModel,
     GetInboundUsersResponseModel,
     AddUserResponseModel,
     RemoveUserResponseModel,
+    GenericResponseModel,
 } from './models';
-import {
-    AddUserRequestDto,
-    AddUsersRequestDto,
-    RemoveUserRequestDto,
-    RemoveUsersRequestDto,
-} from './dtos';
 import { InternalService } from '../internal/internal.service';
 
 @Injectable()
@@ -477,6 +480,58 @@ export class HandlerService implements OnModuleInit {
             }
 
             this.logger.error(`Failed to destroy connections for user ${userId}:`, error);
+        }
+    }
+
+    public async dropUsersConnections(
+        data: DropUsersConnectionsRequestDto,
+    ): Promise<ICommandResponse<GenericResponseModel>> {
+        try {
+            const { userIds } = data;
+
+            for (const userId of userIds) {
+                await this.destroyUserConnections(userId);
+            }
+
+            return {
+                isOk: true,
+                response: new GenericResponseModel(true),
+            };
+        } catch (error) {
+            this.logger.error(error);
+            return {
+                isOk: true,
+                response: new GenericResponseModel(false),
+            };
+        }
+    }
+
+    public async dropIps(data: DropIpsRequestDto): Promise<ICommandResponse<GenericResponseModel>> {
+        try {
+            const { ips } = data;
+
+            for (const ip of ips) {
+                try {
+                    const result = await killSockets({ src: ip, dst: ip, mode: 'or' });
+
+                    this.logger.debug(
+                        `Destroyed connections for IP: ${ip} - ${JSON.stringify(result, null, 2)}`,
+                    );
+                } catch (error) {
+                    this.logger.error(error);
+                }
+            }
+
+            return {
+                isOk: true,
+                response: new GenericResponseModel(true),
+            };
+        } catch (error) {
+            this.logger.error(error);
+            return {
+                isOk: true,
+                response: new GenericResponseModel(false),
+            };
         }
     }
 }

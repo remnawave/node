@@ -286,6 +286,13 @@ export class StatsService {
                 response: new GetUserIpListResponseModel(ips),
             };
         } catch (error) {
+            if (error && typeof error === 'object' && 'code' in error && error.code === 5) {
+                return {
+                    isOk: true,
+                    response: new GetUserIpListResponseModel([]),
+                };
+            }
+
             this.logger.error(error);
             return {
                 isOk: true,

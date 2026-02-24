@@ -1,6 +1,7 @@
+import { killSockets, hasCapNetAdmin } from 'sockdestroy';
 import ems from 'enhanced-ms';
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
 import {
     RemoveUserResponseModel as RemoveUserResponseModelFromSdk,
@@ -15,27 +16,45 @@ import { ERRORS } from '@libs/contracts/constants/errors';
 import { CipherType } from '@libs/contracts/commands';
 
 import {
+    AddUserRequestDto,
+    AddUsersRequestDto,
+    DropIpsRequestDto,
+    DropUsersConnectionsRequestDto,
+    RemoveUserRequestDto,
+    RemoveUsersRequestDto,
+} from './dtos';
+import {
     GetInboundUsersCountResponseModel,
     GetInboundUsersResponseModel,
     AddUserResponseModel,
     RemoveUserResponseModel,
+    GenericResponseModel,
 } from './models';
-import {
-    AddUserRequestDto,
-    AddUsersRequestDto,
-    RemoveUserRequestDto,
-    RemoveUsersRequestDto,
-} from './dtos';
 import { InternalService } from '../internal/internal.service';
 
 @Injectable()
-export class HandlerService {
+export class HandlerService implements OnModuleInit {
     private readonly logger = new Logger(HandlerService.name);
+    private capNetAdminAvailable = false;
 
     constructor(
         @InjectXtls() private readonly xtlsApi: XtlsApi,
         private readonly internalService: InternalService,
     ) {}
+
+    public async onModuleInit(): Promise<void> {
+        try {
+            if (!hasCapNetAdmin()) {
+                this.capNetAdminAvailable = false;
+                this.logger.warn('CAP_NET_ADMIN is not available.');
+            } else {
+                this.capNetAdminAvailable = true;
+                this.logger.log('[OK] CAP_NET_ADMIN is available');
+            }
+        } catch (error: unknown) {
+            this.logger.error(error);
+        }
+    }
 
     public async addUser(data: AddUserRequestDto): Promise<ICommandResponse<AddUserResponseModel>> {
         try {
@@ -160,6 +179,8 @@ export class HandlerService {
                 };
             }
 
+            const userIps = await this.getUserIps(username);
+
             for (const tag of inboundTags) {
                 this.logger.debug(`Removing user: ${username} from tag: ${tag}`);
 
@@ -168,6 +189,8 @@ export class HandlerService {
                 await this.internalService.removeUserFromInbound(tag, hashData.vlessUuid);
                 response.push(tempRes);
             }
+
+            await this.destroyConnections(userIps);
 
             if (response.every((res) => !res.isOk)) {
                 this.logger.error(JSON.stringify(response, null, 2));
@@ -323,6 +346,8 @@ export class HandlerService {
             for (const user of data.users) {
                 const { userId, hashUuid } = user;
 
+                const userIps = await this.getUserIps(userId);
+
                 for (const tag of inboundTags) {
                     this.logger.debug(`Removing user: ${userId} from tag: ${tag}`);
 
@@ -331,6 +356,8 @@ export class HandlerService {
                     await this.internalService.removeUserFromInbound(tag, hashUuid);
                     removeUsersResponse.push(tempRes);
                 }
+
+                await this.destroyConnections(userIps);
             }
 
             if (removeUsersResponse.every((res) => !res.isOk)) {
@@ -424,6 +451,90 @@ export class HandlerService {
                 code: ERRORS.FAILED_TO_GET_INBOUND_USERS.code,
                 response: new GetInboundUsersCountResponseModel(0),
             };
+        }
+    }
+
+    public async dropUsersConnections(
+        data: DropUsersConnectionsRequestDto,
+    ): Promise<ICommandResponse<GenericResponseModel>> {
+        try {
+            const { userIds } = data;
+
+            for (const userId of userIds) {
+                const userIps = await this.getUserIps(userId);
+                await this.destroyConnections(userIps);
+            }
+
+            return {
+                isOk: true,
+                response: new GenericResponseModel(true),
+            };
+        } catch (error) {
+            this.logger.error(error);
+            return {
+                isOk: true,
+                response: new GenericResponseModel(false),
+            };
+        }
+    }
+
+    public async dropIps(data: DropIpsRequestDto): Promise<ICommandResponse<GenericResponseModel>> {
+        try {
+            const { ips } = data;
+
+            await this.destroyConnections(ips);
+
+            return {
+                isOk: true,
+                response: new GenericResponseModel(true),
+            };
+        } catch (error) {
+            this.logger.error(error);
+            return {
+                isOk: true,
+                response: new GenericResponseModel(false),
+            };
+        }
+    }
+
+    private async destroyConnections(ips: string[] | null): Promise<void> {
+        if (!this.capNetAdminAvailable || !ips || ips.length === 0) {
+            return;
+        }
+
+        for (const ip of ips) {
+            try {
+                const result = await killSockets({ src: ip, dst: ip, mode: 'or' });
+                this.logger.debug(
+                    `Destroyed connections for IP: ${ip} - ${JSON.stringify(result, null, 2)}`,
+                );
+            } catch (error) {
+                this.logger.error(error);
+            }
+        }
+    }
+
+    private async getUserIps(userId: string): Promise<string[] | null> {
+        try {
+            if (!this.capNetAdminAvailable) {
+                return null;
+            }
+
+            const userIps = await this.xtlsApi.stats.rawClient.getStatsOnlineIpList({
+                name: `user>>>${userId}>>>online`,
+                reset: true,
+            });
+
+            const ips = Object.keys(userIps.ips);
+
+            return ips;
+        } catch (error) {
+            if (error && typeof error === 'object' && 'code' in error && error.code === 5) {
+                return null;
+            }
+
+            this.logger.error(`Failed to get user IPs for user ${userId}:`, error);
+            return null;
         }
     }
 }

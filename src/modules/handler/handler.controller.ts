@@ -8,6 +8,10 @@ import { HANDLER_CONTROLLER, HANDLER_ROUTES } from '@libs/contracts/api/controll
 import {
     AddUsersRequestDto,
     AddUsersResponseDto,
+    DropIpsRequestDto,
+    DropIpsResponseDto,
+    DropUsersConnectionsRequestDto,
+    DropUsersConnectionsResponseDto,
     RemoveUserRequestDto,
     RemoveUserResponseDto,
     RemoveUsersRequestDto,
@@ -87,6 +91,28 @@ export class HandlerController {
     @Post(HANDLER_ROUTES.REMOVE_USERS)
     public async removeUsers(@Body() body: RemoveUsersRequestDto): Promise<RemoveUsersResponseDto> {
         const response = await this.handlerService.removeUsers(body);
+        const data = errorHandler(response);
+
+        return {
+            response: data,
+        };
+    }
+
+    @Post(HANDLER_ROUTES.DROP_USERS_CONNECTIONS)
+    public async dropUsersConnections(
+        @Body() body: DropUsersConnectionsRequestDto,
+    ): Promise<DropUsersConnectionsResponseDto> {
+        const response = await this.handlerService.dropUsersConnections(body);
+        const data = errorHandler(response);
+
+        return {
+            response: data,
+        };
+    }
+
+    @Post(HANDLER_ROUTES.DROP_IPS)
+    public async dropIps(@Body() body: DropIpsRequestDto): Promise<DropIpsResponseDto> {
+        const response = await this.handlerService.dropIps(body);
         const data = errorHandler(response);
 
         return {

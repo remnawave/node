@@ -22,6 +22,7 @@ import {
     GetUsersStatsRequestDto,
     GetUsersStatsResponseDto,
 } from './dto';
+import { GetUserIpListRequestDto, GetUserIpListResponseDto } from './dto/get-user-ip-list.dto';
 import { StatsService } from './stats.service';
 
 @UseFilters(HttpExceptionFilter)
@@ -123,6 +124,19 @@ export class StatsController {
     ): Promise<GetCombinedStatsResponseDto> {
         const { reset } = body;
         const response = await this.statsService.getCombinedStats(reset);
+        const data = errorHandler(response);
+
+        return {
+            response: data,
+        };
+    }
+
+    @Post(STATS_ROUTES.GET_USER_IP_LIST)
+    public async getUserIpList(
+        @Body() body: GetUserIpListRequestDto,
+    ): Promise<GetUserIpListResponseDto> {
+        const { userId } = body;
+        const response = await this.statsService.getUserIpList(userId);
         const data = errorHandler(response);
 
         return {

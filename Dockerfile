@@ -1,6 +1,6 @@
 FROM node:24.13-alpine AS build
 
-ARG XRAY_CORE_VERSION=v25.2.6
+ARG XRAY_CORE_VERSION=v26.2.6
 ARG UPSTREAM_REPO=XTLS
 ARG XRAY_CORE_INSTALL_SCRIPT=https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-xray.sh
 

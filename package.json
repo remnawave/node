@@ -1,6 +1,6 @@
 {
   "name": "@remnawave/node",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "description": "Remnawave Node",
   "private": false,
   "type": "commonjs",
@@ -45,7 +45,7 @@
     "@peculiar/x509": "^1.14.3",
     "@remnawave/hashed-set": "^0.0.4",
     "@remnawave/supervisord-nestjs": "0.3.1",
-    "@remnawave/xtls-sdk": "0.10.0",
+    "@remnawave/xtls-sdk": "0.11.1",
     "@remnawave/xtls-sdk-nestjs": "0.6.1",
     "compression": "^1.8.1",
     "enhanced-ms": "^4.2.0",

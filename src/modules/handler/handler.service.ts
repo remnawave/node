@@ -35,6 +35,7 @@ import { InternalService } from '../internal/internal.service';
 @Injectable()
 export class HandlerService implements OnModuleInit {
     private readonly logger = new Logger(HandlerService.name);
+    private capNetAdminAvailable = false;
 
     constructor(
         @InjectXtls() private readonly xtlsApi: XtlsApi,
@@ -44,8 +45,10 @@ export class HandlerService implements OnModuleInit {
     public async onModuleInit(): Promise<void> {
         try {
             if (!hasCapNetAdmin()) {
+                this.capNetAdminAvailable = false;
                 this.logger.warn('CAP_NET_ADMIN is not available.');
             } else {
+                this.capNetAdminAvailable = true;
                 this.logger.log('[OK] CAP_NET_ADMIN is available');
             }
         } catch (error: unknown) {
@@ -176,7 +179,7 @@ export class HandlerService implements OnModuleInit {
                 };
             }
 
-            await this.destroyUserConnections(username);
+            const userIps = await this.getUserIps(username);
 
             for (const tag of inboundTags) {
                 this.logger.debug(`Removing user: ${username} from tag: ${tag}`);
@@ -186,6 +189,8 @@ export class HandlerService implements OnModuleInit {
                 await this.internalService.removeUserFromInbound(tag, hashData.vlessUuid);
                 response.push(tempRes);
             }
+
+            await this.destroyConnections(userIps);
 
             if (response.every((res) => !res.isOk)) {
                 this.logger.error(JSON.stringify(response, null, 2));
@@ -341,7 +346,7 @@ export class HandlerService implements OnModuleInit {
             for (const user of data.users) {
                 const { userId, hashUuid } = user;
 
-                await this.destroyUserConnections(userId);
+                const userIps = await this.getUserIps(userId);
 
                 for (const tag of inboundTags) {
                     this.logger.debug(`Removing user: ${userId} from tag: ${tag}`);
@@ -351,6 +356,8 @@ export class HandlerService implements OnModuleInit {
                     await this.internalService.removeUserFromInbound(tag, hashUuid);
                     removeUsersResponse.push(tempRes);
                 }
+
+                await this.destroyConnections(userIps);
             }
 
             if (removeUsersResponse.every((res) => !res.isOk)) {
@@ -447,42 +454,6 @@ export class HandlerService implements OnModuleInit {
         }
     }
 
-    private async destroyUserConnections(userId: string): Promise<void> {
-        try {
-            if (!hasCapNetAdmin()) {
-                return;
-            }
-
-            const userIps = await this.xtlsApi.stats.rawClient.getStatsOnlineIpList({
-                name: `user>>>${userId}>>>online`,
-                reset: true,
-            });
-
-            const ips = Object.keys(userIps.ips);
-
-            if (ips.length === 0) {
-                return;
-            }
-
-            for (const ip of ips) {
-                try {
-                    const result = await killSockets({ src: ip, dst: ip, mode: 'or' });
-                    this.logger.debug(
-                        `Destroyed connections for user: ${userId} with IP: ${ip} - ${JSON.stringify(result, null, 2)}`,
-                    );
-                } catch (error) {
-                    this.logger.error(error);
-                }
-            }
-        } catch (error) {
-            if (error && typeof error === 'object' && 'code' in error && error.code === 5) {
-                return;
-            }
-
-            this.logger.error(`Failed to destroy connections for user ${userId}:`, error);
-        }
-    }
-
     public async dropUsersConnections(
         data: DropUsersConnectionsRequestDto,
     ): Promise<ICommandResponse<GenericResponseModel>> {
@@ -490,7 +461,8 @@ export class HandlerService implements OnModuleInit {
             const { userIds } = data;
 
             for (const userId of userIds) {
-                await this.destroyUserConnections(userId);
+                const userIps = await this.getUserIps(userId);
+                await this.destroyConnections(userIps);
             }
 
             return {
@@ -510,17 +482,7 @@ export class HandlerService implements OnModuleInit {
         try {
             const { ips } = data;
 
-            for (const ip of ips) {
-                try {
-                    const result = await killSockets({ src: ip, dst: ip, mode: 'or' });
-
-                    this.logger.debug(
-                        `Destroyed connections for IP: ${ip} - ${JSON.stringify(result, null, 2)}`,
-                    );
-                } catch (error) {
-                    this.logger.error(error);
-                }
-            }
+            await this.destroyConnections(ips);
 
             return {
                 isOk: true,
@@ -532,6 +494,47 @@ export class HandlerService implements OnModuleInit {
                 isOk: true,
                 response: new GenericResponseModel(false),
             };
+        }
+    }
+
+    private async destroyConnections(ips: string[] | null): Promise<void> {
+        if (!this.capNetAdminAvailable || !ips || ips.length === 0) {
+            return;
+        }
+
+        for (const ip of ips) {
+            try {
+                const result = await killSockets({ src: ip, dst: ip, mode: 'or' });
+                this.logger.debug(
+                    `Destroyed connections for IP: ${ip} - ${JSON.stringify(result, null, 2)}`,
+                );
+            } catch (error) {
+                this.logger.error(error);
+            }
+        }
+    }
+
+    private async getUserIps(userId: string): Promise<string[] | null> {
+        try {
+            if (!this.capNetAdminAvailable) {
+                return null;
+            }
+
+            const userIps = await this.xtlsApi.stats.rawClient.getStatsOnlineIpList({
+                name: `user>>>${userId}>>>online`,
+                reset: true,
+            });
+
+            const ips = Object.keys(userIps.ips);
+
+            return ips;
+        } catch (error) {
+            if (error && typeof error === 'object' && 'code' in error && error.code === 5) {
+                return null;
+            }
+
+            this.logger.error(`Failed to get user IPs for user ${userId}:`, error);
+            return null;
         }
     }
 }

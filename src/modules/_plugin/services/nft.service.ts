@@ -4,7 +4,11 @@ import { NftManager } from 'nftables-napi';
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 
+import { ICommandResponse } from '@common/types/command-response.type';
+
+import { GenericResponseModel } from '../models/generic.response.model';
 import { NFT_TABLES_CONSTANTS } from '../constants/nfttables.contants';
+import { BlockIpsRequestDto, UnblockIpsRequestDto } from '../dtos';
 import { DropConnectionsEvent } from '../events/drop-connections';
 import { PluginStateService } from './plugin-state.service';
 
@@ -102,5 +106,94 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
                 this.logger.warn(`[PLUGIN] ${plugin.name}: not available`);
             }
         });
+    }
+
+    public async blockIpsController(
+        data: BlockIpsRequestDto,
+    ): Promise<ICommandResponse<GenericResponseModel>> {
+        try {
+            if (!this.nftManager) {
+                return {
+                    isOk: true,
+                    response: new GenericResponseModel(false),
+                };
+            }
+
+            const { ips } = data;
+            for (const ip of ips) {
+                await this.blockIp(ip.ip, ip.timeout);
+            }
+
+            return {
+                isOk: true,
+                response: new GenericResponseModel(true),
+            };
+        } catch (error) {
+            this.logger.error(error);
+            return {
+                isOk: true,
+                response: new GenericResponseModel(false),
+            };
+        }
+    }
+
+    public async unblockIpsController(
+        data: UnblockIpsRequestDto,
+    ): Promise<ICommandResponse<GenericResponseModel>> {
+        try {
+            if (!this.nftManager) {
+                return {
+                    isOk: true,
+                    response: new GenericResponseModel(false),
+                };
+            }
+
+            const { ips } = data;
+
+            await this.nftManager.removeAddresses({
+                ips,
+                set: NFT_TABLES_CONSTANTS.TORRENT_BLOCKER_SET_NAME,
+            });
+
+            await this.nftManager.removeAddresses({
+                ips,
+                set: NFT_TABLES_CONSTANTS.BLACKLIST_SET_NAME,
+            });
+
+            return {
+                isOk: true,
+                response: new GenericResponseModel(true),
+            };
+        } catch (error) {
+            this.logger.error(error);
+            return {
+                isOk: true,
+                response: new GenericResponseModel(false),
+            };
+        }
+    }
+
+    public async recreateTablesController(): Promise<ICommandResponse<GenericResponseModel>> {
+        try {
+            if (!this.nftManager) {
+                return {
+                    isOk: true,
+                    response: new GenericResponseModel(false),
+                };
+            }
+
+            await this.nftManager.createTable();
+
+            return {
+                isOk: true,
+                response: new GenericResponseModel(true),
+            };
+        } catch (error) {
+            this.logger.error(error);
+            return {
+                isOk: true,
+                response: new GenericResponseModel(false),
+            };
+        }
     }
 }

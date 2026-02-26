@@ -44,29 +44,31 @@ export class XrayWebhookHandler implements IEventHandler<XrayWebhookEvent> {
                 this.pluginState.torrentBlocker.isIpIgnored(ip) ||
                 this.pluginState.torrentBlocker.isUserIgnored(webhook.email);
 
+            if (whitelisted) {
+                return;
+            }
+
             const blockDuration = this.pluginState.torrentBlocker.duration!;
 
             let blocked = false;
 
-            if (!whitelisted) {
-                try {
-                    await this.nftService.blockIp(ip, blockDuration);
-                    blocked = true;
+            try {
+                await this.nftService.blockIp(ip, blockDuration);
+                blocked = true;
 
-                    this.logger.log(
-                        `[TORRENT-BLOCKER] IP: ${ip}, user: ${webhook.email}, blocked: ${blocked}, duration: ${blockDuration}s`,
-                    );
-                } catch (error) {
-                    this.logger.error(`Failed to block IP ${ip}:`, error);
-                }
+                this.logger.log(
+                    `[TORRENT-BLOCKER] IP: ${ip}, user: ${webhook.email}, blocked: ${blocked}, duration: ${blockDuration}s`,
+                );
+            } catch (error) {
+                this.logger.error(`Failed to block IP ${ip}:`, error);
             }
 
             const report: TorrentBlockerReportModel = {
                 actionReport: {
                     blocked,
-                    whitelisted,
                     ip,
                     blockDuration,
+                    willUnblockAt: new Date(Date.now() + blockDuration * 1000),
                     userId: webhook.email,
                     processedAt: new Date(),
                 },

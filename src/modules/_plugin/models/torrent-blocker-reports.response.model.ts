@@ -1,9 +1,9 @@
 interface ITorrentBlockerReport {
     actionReport: {
         blocked: boolean;
-        whitelisted: boolean;
         ip: string;
         blockDuration: number;
+        willUnblockAt: Date;
         userId: string;
         processedAt: Date;
     };

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { QueryBus } from '@nestjs/cqrs';
 
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { XtlsApi } from '@remnawave/xtls-sdk';
@@ -17,11 +18,15 @@ import {
     GetUserOnlineStatusResponseModel,
     GetUsersStatsResponseModel,
 } from './models';
+import { GetTorrentBlockerReportsCountQuery } from '../_plugin/queries/get-torrent-blocker-reports-count';
 import { IGetUserOnlineStatusRequest } from './interfaces';
 
 @Injectable()
 export class StatsService {
-    constructor(@InjectXtls() private readonly xtlsSdk: XtlsApi) {}
+    constructor(
+        @InjectXtls() private readonly xtlsSdk: XtlsApi,
+        private readonly queryBus: QueryBus,
+    ) {}
     private readonly logger = new Logger(StatsService.name);
 
     public async getUserOnlineStatus(
@@ -62,9 +67,16 @@ export class StatsService {
                 };
             }
 
+            const reportsCount = await this.queryBus.execute(
+                new GetTorrentBlockerReportsCountQuery(),
+            );
+
             return {
                 isOk: true,
-                response: new GetSystemStatsResponseModel(response.data),
+                response: new GetSystemStatsResponseModel({
+                    ...response.data,
+                    reportsCount,
+                }),
             };
         } catch (error) {
             this.logger.error(error);

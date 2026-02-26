@@ -16,6 +16,7 @@ export namespace GetSystemStatsCommand {
             liveObjects: z.number(),
             pauseTotalNs: z.number(),
             uptime: z.number(),
+            reportsCount: z.number().optional(),
         }),
     });
 

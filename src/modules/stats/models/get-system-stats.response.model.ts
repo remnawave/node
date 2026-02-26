@@ -9,6 +9,7 @@ export class GetSystemStatsResponseModel {
     public liveObjects: number;
     public pauseTotalNs: number;
     public uptime: number;
+    public reportsCount: number | undefined;
 
     constructor(data: GetSystemStatsResponseModel) {
         this.numGoroutine = data.numGoroutine;
@@ -21,5 +22,6 @@ export class GetSystemStatsResponseModel {
         this.liveObjects = data.liveObjects;
         this.pauseTotalNs = data.pauseTotalNs;
         this.uptime = data.uptime;
+        this.reportsCount = data.reportsCount;
     }
 }

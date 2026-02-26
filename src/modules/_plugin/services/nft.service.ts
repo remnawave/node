@@ -83,7 +83,7 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
         await this.nftManager.addAddress({
             ip,
             set: NFT_TABLES_CONSTANTS.TORRENT_BLOCKER_SET_NAME,
-            timeout: timeoutSeconds,
+            timeout: timeoutSeconds === 0 ? undefined : timeoutSeconds,
         });
         this.eventBus.publish(new DropConnectionsEvent([ip]));
     }

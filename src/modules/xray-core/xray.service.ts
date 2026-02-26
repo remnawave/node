@@ -8,6 +8,7 @@ import semver from 'semver';
 
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { QueryBus } from '@nestjs/cqrs';
 
 import { InjectSupervisord } from '@remnawave/supervisord-nestjs';
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
@@ -26,6 +27,7 @@ import {
     StartXrayResponseModel,
     StopXrayResponseModel,
 } from './models';
+import { GetTorrentBlockerStateQuery } from '../_plugin/queries/get-torrent-blocker-state';
 import { InternalService } from '../internal/internal.service';
 
 const XRAY_PROCESS_NAME = 'xray' as const;
@@ -34,6 +36,10 @@ const XRAY_PROCESS_NAME = 'xray' as const;
 export class XrayService implements OnApplicationBootstrap {
     private readonly logger = new Logger(XrayService.name);
     private readonly disableHashedSetCheck: boolean;
+    private readonly internal: {
+        socketPath: string;
+        token: string;
+    };
 
     private readonly xrayPath: string;
 
@@ -47,7 +53,13 @@ export class XrayService implements OnApplicationBootstrap {
         @InjectSupervisord() private readonly supervisordApi: SupervisordClient,
         private readonly internalService: InternalService,
         private readonly configService: ConfigService,
+        private readonly queryBus: QueryBus,
     ) {
+        this.internal = {
+            socketPath: this.configService.getOrThrow<string>('INTERNAL_SOCKET_PATH'),
+            token: this.configService.getOrThrow<string>('INTERNAL_REST_TOKEN'),
+        };
+
         this.xrayPath = '/usr/local/bin/xray';
         this.xrayVersion = null;
         this.systemStats = null;
@@ -142,7 +154,15 @@ export class XrayService implements OnApplicationBootstrap {
                 this.logger.warn('Force restart requested');
             }
 
-            const fullConfig = generateApiConfig(body.xrayConfig);
+            const isTorrentBlockerEnabled = await this.queryBus.execute(
+                new GetTorrentBlockerStateQuery(),
+            );
+
+            const fullConfig = generateApiConfig(
+                body.xrayConfig,
+                isTorrentBlockerEnabled,
+                this.internal,
+            );
 
             await this.internalService.extractUsersFromConfig(body.internals.hashes, fullConfig);
 

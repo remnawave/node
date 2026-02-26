@@ -6,13 +6,23 @@ import {
     XRAY_DEFAULT_POLICY_MODEL,
     XRAY_DEFAULT_STATS_MODEL,
     XRAY_ROUTING_RULES_MODEL,
+    XRAY_TORRENT_BLOCKER_OUTBOUND_MODEL,
+    XRAY_TORRENT_BLOCKER_ROUTING_RULES_MODEL,
 } from '@libs/contracts/constants/xray';
+import { XRAY_INTERNAL_FULL_WEBHOOK_PATH } from '@libs/contracts/constants';
 
 import { getServerCerts } from './generate-mtls-certs';
 import { getXtlsApiPort } from './get-initial-ports';
 import { IPolicyConfig } from './interfaces';
 
-export const generateApiConfig = (config: Record<string, unknown>): Record<string, unknown> => {
+export const generateApiConfig = (
+    config: Record<string, unknown>,
+    isTorrentBlockerEnabled: boolean,
+    internal: {
+        socketPath: string;
+        token: string;
+    },
+): Record<string, unknown> => {
     const policyConfig = config.policy as undefined | IPolicyConfig;
     const serverCerts = getServerCerts();
     const hasCapNetAdminResult = hasCapNetAdmin();
@@ -42,11 +52,22 @@ export const generateApiConfig = (config: Record<string, unknown>): Record<strin
             }),
             ...(Array.isArray(config.inbounds) ? config.inbounds : []),
         ],
+        outbounds: [
+            ...(Array.isArray(config.outbounds) ? config.outbounds : []),
+            ...(isTorrentBlockerEnabled ? [XRAY_TORRENT_BLOCKER_OUTBOUND_MODEL] : []),
+        ],
         policy: builtPolicy,
         routing: {
             ...(config.routing || {}),
             rules: [
                 XRAY_ROUTING_RULES_MODEL,
+                ...(isTorrentBlockerEnabled
+                    ? [
+                          XRAY_TORRENT_BLOCKER_ROUTING_RULES_MODEL({
+                              webhookUrl: `unix://${internal.socketPath}:${XRAY_INTERNAL_FULL_WEBHOOK_PATH}?token=${internal.token}`,
+                          }),
+                      ]
+                    : []),
                 ...((config.routing as { rules?: unknown[] })?.rules || []),
             ],
         },

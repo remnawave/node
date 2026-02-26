@@ -1,7 +1,8 @@
-import { killSockets, hasCapNetAdmin } from 'sockdestroy';
+import { hasCapNetAdmin } from 'sockdestroy';
 import ems from 'enhanced-ms';
 
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 
 import {
     RemoveUserResponseModel as RemoveUserResponseModelFromSdk,
@@ -30,6 +31,7 @@ import {
     RemoveUserResponseModel,
     GenericResponseModel,
 } from './models';
+import { DropConnectionsEvent } from '../_plugin/events/drop-connections';
 import { InternalService } from '../internal/internal.service';
 
 @Injectable()
@@ -40,6 +42,7 @@ export class HandlerService implements OnModuleInit {
     constructor(
         @InjectXtls() private readonly xtlsApi: XtlsApi,
         private readonly internalService: InternalService,
+        private readonly eventBus: EventBus,
     ) {}
 
     public async onModuleInit(): Promise<void> {
@@ -190,7 +193,7 @@ export class HandlerService implements OnModuleInit {
                 response.push(tempRes);
             }
 
-            await this.destroyConnections(userIps);
+            this.eventBus.publish(new DropConnectionsEvent(userIps));
 
             if (response.every((res) => !res.isOk)) {
                 this.logger.error(JSON.stringify(response, null, 2));
@@ -357,7 +360,7 @@ export class HandlerService implements OnModuleInit {
                     removeUsersResponse.push(tempRes);
                 }
 
-                await this.destroyConnections(userIps);
+                this.eventBus.publish(new DropConnectionsEvent(userIps));
             }
 
             if (removeUsersResponse.every((res) => !res.isOk)) {
@@ -462,7 +465,7 @@ export class HandlerService implements OnModuleInit {
 
             for (const userId of userIds) {
                 const userIps = await this.getUserIps(userId);
-                await this.destroyConnections(userIps);
+                this.eventBus.publish(new DropConnectionsEvent(userIps));
             }
 
             return {
@@ -482,7 +485,7 @@ export class HandlerService implements OnModuleInit {
         try {
             const { ips } = data;
 
-            await this.destroyConnections(ips);
+            this.eventBus.publish(new DropConnectionsEvent(ips));
 
             return {
                 isOk: true,
@@ -494,23 +497,6 @@ export class HandlerService implements OnModuleInit {
                 isOk: true,
                 response: new GenericResponseModel(false),
             };
-        }
-    }
-
-    private async destroyConnections(ips: string[] | null): Promise<void> {
-        if (!this.capNetAdminAvailable || !ips || ips.length === 0) {
-            return;
-        }
-
-        for (const ip of ips) {
-            try {
-                const result = await killSockets({ src: ip, dst: ip, mode: 'or' });
-                this.logger.debug(
-                    `Destroyed connections for IP: ${ip} - ${JSON.stringify(result, null, 2)}`,
-                );
-            } catch (error) {
-                this.logger.error(error);
-            }
         }
     }
 

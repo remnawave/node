@@ -1,0 +1,106 @@
+import { hasCapNetAdmin } from 'sockdestroy';
+import { NftManager } from 'nftables-napi';
+
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
+
+import { NFT_TABLES_CONSTANTS } from '../constants/nfttables.contants';
+import { DropConnectionsEvent } from '../events/drop-connections';
+import { PluginStateService } from './plugin-state.service';
+
+@Injectable()
+export class NftService implements OnModuleDestroy, OnModuleInit {
+    private readonly logger = new Logger(NftService.name);
+    private nftManager: NftManager | null = null;
+    private available = false;
+
+    constructor(
+        private readonly state: PluginStateService,
+        private readonly eventBus: EventBus,
+    ) {}
+
+    get isAvailable(): boolean {
+        return this.available;
+    }
+
+    public async onModuleInit(): Promise<void> {
+        const capNetAdmin = hasCapNetAdmin();
+
+        if (!capNetAdmin) return;
+
+        this.state.setPlugins({
+            connectionDrop: true,
+            blacklist: false,
+            torrentBlocker: false,
+        });
+
+        try {
+            this.nftManager = new NftManager({
+                tableName: NFT_TABLES_CONSTANTS.TABLE_NAME,
+                sets: [
+                    NFT_TABLES_CONSTANTS.BLACKLIST_SET_NAME,
+                    NFT_TABLES_CONSTANTS.TORRENT_BLOCKER_SET_NAME,
+                ],
+            });
+            await this.recreateTables();
+
+            this.available = true;
+
+            this.state.setPlugins({
+                connectionDrop: true,
+                blacklist: true,
+                torrentBlocker: true,
+            });
+        } catch (error) {
+            this.logger.error(error);
+            this.logger.warn('[PLUGIN] NftManager initialization failed.');
+        }
+
+        this.logAvailablePlugins();
+    }
+
+    public async onModuleDestroy(): Promise<void> {
+        try {
+            if (this.nftManager) {
+                await this.nftManager.deleteTable();
+            }
+        } catch (error) {
+            this.logger.error(error);
+        }
+    }
+
+    public async syncBlacklist(ips: string[]): Promise<void> {
+        if (!this.nftManager) return;
+        await this.nftManager.addAddresses({ ips, set: NFT_TABLES_CONSTANTS.BLACKLIST_SET_NAME });
+    }
+
+    public async blockIp(ip: string, timeoutSeconds: number): Promise<void> {
+        if (!this.nftManager) return;
+        await this.nftManager.addAddress({
+            ip,
+            set: NFT_TABLES_CONSTANTS.TORRENT_BLOCKER_SET_NAME,
+            timeout: timeoutSeconds,
+        });
+        this.eventBus.publish(new DropConnectionsEvent([ip]));
+    }
+
+    public async recreateTables(): Promise<void> {
+        if (!this.nftManager) return;
+        await this.nftManager.createTable();
+    }
+
+    private logAvailablePlugins(): void {
+        const plugins = this.state.plugins;
+        [
+            { name: 'Torrent-Blocker', enabled: plugins.torrentBlocker },
+            { name: 'Blacklist', enabled: plugins.blacklist },
+            { name: 'Connection-Drop', enabled: plugins.connectionDrop },
+        ].forEach((plugin) => {
+            if (plugin.enabled) {
+                this.logger.log(`[PLUGIN] ${plugin.name}: enabled`);
+            } else {
+                this.logger.warn(`[PLUGIN] ${plugin.name}: not available`);
+            }
+        });
+    }
+}

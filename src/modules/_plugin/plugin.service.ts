@@ -37,7 +37,9 @@ export class PluginService {
                 this.logger.log(
                     '[PLUGIN] Received empty plugins, but there is an active plugin. Cleaning up...',
                 );
-                await this.cleanupAndRestartXray();
+                await this.resetPlugins();
+                await this.commandBus.execute(new StopXrayCommand());
+
                 return { isOk: true, response: new GenericResponseModel(true) };
             }
 
@@ -52,7 +54,8 @@ export class PluginService {
 
             if (!parsed.success) {
                 this.logger.error(`[PLUGIN] Invalid config: ${JSON.stringify(parsed.error)}`);
-                await this.cleanupAndRestartXray();
+                await this.resetPlugins();
+                await this.commandBus.execute(new StopXrayCommand());
                 return { isOk: true, response: new GenericResponseModel(false) };
             }
 
@@ -86,12 +89,10 @@ export class PluginService {
             return { isOk: true, response: new GenericResponseModel(false) };
         }
     }
-
-    private async cleanupAndRestartXray(): Promise<void> {
+    public async resetPlugins(): Promise<void> {
         this.state.resetState();
         this.state.cleanUpActivePlugin();
         await this.nftService.recreateTables();
-        await this.commandBus.execute(new StopXrayCommand());
     }
 
     private syncConnectionDrop(pluginData: TNodePlugin, sharedMap: Map<string, string[]>): void {

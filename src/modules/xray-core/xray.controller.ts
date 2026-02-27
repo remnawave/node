@@ -39,7 +39,7 @@ export class XrayController {
     public async stopXray(): Promise<StopXrayResponseDto> {
         this.logger.log('Remnawave requested to stop Xray.');
 
-        const response = await this.xrayService.stopXray();
+        const response = await this.xrayService.stopXray(true);
         const data = errorHandler(response);
 
         return {

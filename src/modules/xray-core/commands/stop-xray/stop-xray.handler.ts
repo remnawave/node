@@ -12,7 +12,7 @@ export class StopXrayHandler implements ICommandHandler<StopXrayCommand> {
 
     async execute() {
         try {
-            await this.xrayService.stopXray();
+            await this.xrayService.stopXray(false);
 
             return;
         } catch (error) {

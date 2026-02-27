@@ -7,8 +7,8 @@ import pRetry from 'p-retry';
 import semver from 'semver';
 
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { ConfigService } from '@nestjs/config';
-import { QueryBus } from '@nestjs/cqrs';
 
 import { InjectSupervisord } from '@remnawave/supervisord-nestjs';
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
@@ -27,6 +27,7 @@ import {
     StartXrayResponseModel,
     StopXrayResponseModel,
 } from './models';
+import { ResetPluginsCommand } from '../_plugin/commands/reset-plugins/reset-plugins.command';
 import { GetTorrentBlockerStateQuery } from '../_plugin/queries/get-torrent-blocker-state';
 import { InternalService } from '../internal/internal.service';
 
@@ -54,6 +55,7 @@ export class XrayService implements OnApplicationBootstrap {
         private readonly internalService: InternalService,
         private readonly configService: ConfigService,
         private readonly queryBus: QueryBus,
+        private readonly commandBus: CommandBus,
     ) {
         this.internal = {
             socketPath: this.configService.getOrThrow<string>('INTERNAL_SOCKET_PATH'),
@@ -285,8 +287,14 @@ export class XrayService implements OnApplicationBootstrap {
         }
     }
 
-    public async stopXray(): Promise<ICommandResponse<StopXrayResponseModel>> {
+    public async stopXray(
+        withPluginCleanup: boolean = false,
+    ): Promise<ICommandResponse<StopXrayResponseModel>> {
         try {
+            if (withPluginCleanup) {
+                await this.commandBus.execute(new ResetPluginsCommand());
+            }
+
             await this.killAllXrayProcesses();
 
             this.isXrayOnline = false;

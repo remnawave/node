@@ -101,7 +101,7 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
             { name: 'Connection-Drop', enabled: plugins.connectionDrop },
         ].forEach((plugin) => {
             if (plugin.enabled) {
-                this.logger.log(`[PLUGIN] ${plugin.name}: enabled`);
+                this.logger.log(`[PLUGIN] ${plugin.name}: available`);
             } else {
                 this.logger.warn(`[PLUGIN] ${plugin.name}: not available`);
             }

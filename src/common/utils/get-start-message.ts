@@ -19,7 +19,7 @@ export async function getStartMessage(appPort: number, app: INestApplication) {
             [`API Port: ${appPort}\nInternal Ports: ${getXtlsApiPort()}`],
             [`XRay Core: v${xrayInfo.version || 'N/A'}\nXRay Path: ${xrayInfo.path}`],
             [
-                `SI: ${xrayInfo.systemInfo?.cpuCores}C, ${xrayInfo.systemInfo?.cpuModel}, ${xrayInfo.systemInfo?.memoryTotal}`,
+                `${xrayInfo.systemInfo?.cpuCores}C, ${xrayInfo.systemInfo?.cpuModel}, ${xrayInfo.systemInfo?.memoryTotal}`,
             ],
         ],
         {

@@ -6,8 +6,10 @@ import { CommandBus } from '@nestjs/cqrs';
 import { NodePluginSchema, type TNodePlugin } from '@remnawave/node-plugins';
 
 import { ICommandResponse } from '@common/types/command-response.type';
+import { XRAY_TORRENT_BLOCKER_OUTBOUND_TAG } from '@libs/contracts/constants';
 
 import { TorrentBlockerReportsResponseModel } from './models/torrent-blocker-reports.response.model';
+import { RemoveOutboundCommand } from '../handler/commands/remove-outbound/remove-outbound.command';
 import { PluginStateService } from './services/plugin-state.service';
 import { StopXrayCommand } from '../xray-core/commands/stop-xray';
 import { NftService } from './services/nft.service';
@@ -38,7 +40,12 @@ export class PluginService {
                     '[PLUGIN] Received empty plugins, but there is an active plugin. Cleaning up...',
                 );
                 await this.resetPlugins();
-                await this.commandBus.execute(new StopXrayCommand());
+                await this.commandBus.execute(
+                    new StopXrayCommand({
+                        withOnlineCheck: true,
+                        withPluginCleanup: false,
+                    }),
+                );
 
                 return { isOk: true, response: new GenericResponseModel(true) };
             }
@@ -55,10 +62,16 @@ export class PluginService {
             if (!parsed.success) {
                 this.logger.error(`[PLUGIN] Invalid config: ${JSON.stringify(parsed.error)}`);
                 await this.resetPlugins();
-                await this.commandBus.execute(new StopXrayCommand());
+                await this.commandBus.execute(
+                    new StopXrayCommand({
+                        withOnlineCheck: true,
+                        withPluginCleanup: false,
+                    }),
+                );
                 return { isOk: true, response: new GenericResponseModel(false) };
             }
 
+            const currentTorrentBlocker = this.state.torrentBlocker.isEnabled;
             const pluginData = parsed.data;
 
             const sharedMap = new Map(
@@ -79,9 +92,20 @@ export class PluginService {
             this.state.updateConfigHash(configHash);
             this.state.setPluginConfigDetails(plugin.uuid, plugin.name);
 
-            this.logger.log('[PLUGIN] Plugins changed... restarting Xray process...');
+            this.logger.log('[PLUGIN] Plugins changed...');
 
-            await this.commandBus.execute(new StopXrayCommand());
+            if (currentTorrentBlocker && !pluginData.torrentBlocker?.enabled) {
+                await this.commandBus.execute(
+                    new RemoveOutboundCommand(XRAY_TORRENT_BLOCKER_OUTBOUND_TAG),
+                );
+            } else if (!currentTorrentBlocker && pluginData.torrentBlocker?.enabled) {
+                await this.commandBus.execute(
+                    new StopXrayCommand({
+                        withOnlineCheck: true,
+                        withPluginCleanup: false,
+                    }),
+                );
+            }
 
             return { isOk: true, response: new GenericResponseModel(true) };
         } catch (error) {

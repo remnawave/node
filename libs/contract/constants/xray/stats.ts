@@ -98,3 +98,5 @@ export const XRAY_TORRENT_BLOCKER_OUTBOUND_MODEL = {
     tag: 'RW_TB_OUTBOUND_BLOCK',
     protocol: 'blackhole',
 } as const;
+
+export const XRAY_TORRENT_BLOCKER_OUTBOUND_TAG = 'RW_TB_OUTBOUND_BLOCK';

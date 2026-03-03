@@ -10,9 +10,9 @@ export class StopXrayHandler implements ICommandHandler<StopXrayCommand> {
 
     constructor(private readonly xrayService: XrayService) {}
 
-    async execute() {
+    async execute(command: StopXrayCommand) {
         try {
-            await this.xrayService.stopXray(false);
+            await this.xrayService.stopXray(command.args);
 
             return;
         } catch (error) {

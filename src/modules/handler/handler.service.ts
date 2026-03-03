@@ -523,4 +523,17 @@ export class HandlerService implements OnModuleInit {
             return null;
         }
     }
+
+    public async removeOutbound(tag: string): Promise<void> {
+        try {
+            await this.xtlsApi.handler.rawClient.removeOutbound({
+                tag,
+            });
+
+            return;
+        } catch (error) {
+            this.logger.error(error);
+            return;
+        }
+    }
 }

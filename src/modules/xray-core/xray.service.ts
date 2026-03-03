@@ -287,12 +287,21 @@ export class XrayService implements OnApplicationBootstrap {
         }
     }
 
-    public async stopXray(
-        withPluginCleanup: boolean = false,
-    ): Promise<ICommandResponse<StopXrayResponseModel>> {
+    public async stopXray(args: {
+        withPluginCleanup?: boolean;
+        withOnlineCheck?: boolean;
+    }): Promise<ICommandResponse<StopXrayResponseModel>> {
+        const { withPluginCleanup = false, withOnlineCheck = false } = args;
         try {
             if (withPluginCleanup) {
                 await this.commandBus.execute(new ResetPluginsCommand());
+            }
+
+            if (withOnlineCheck && !this.isXrayOnline) {
+                return {
+                    isOk: true,
+                    response: new StopXrayResponseModel(true),
+                };
             }
 
             await this.killAllXrayProcesses();

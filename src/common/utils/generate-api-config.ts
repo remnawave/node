@@ -64,7 +64,7 @@ export const generateApiConfig = (
                 ...(isTorrentBlockerEnabled
                     ? [
                           XRAY_TORRENT_BLOCKER_ROUTING_RULES_MODEL({
-                              webhookUrl: `unix://${internal.socketPath}:${XRAY_INTERNAL_FULL_WEBHOOK_PATH}?token=${internal.token}`,
+                              webhookUrl: `/${internal.socketPath}:${XRAY_INTERNAL_FULL_WEBHOOK_PATH}?token=${internal.token}`,
                           }),
                       ]
                     : []),

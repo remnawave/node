@@ -152,8 +152,8 @@ export class PluginService {
 
         const { blockDuration, ignoreLists } = pluginData.torrentBlocker;
 
-        const ips = this.resolveIpList(ignoreLists.ip, sharedMap);
-        const users = ignoreLists.userId.map(String);
+        const ips = this.resolveIpList(ignoreLists.ip ?? [], sharedMap);
+        const users = ignoreLists.userId?.map(String) ?? [];
 
         this.state.torrentBlocker.setIgnoredIps(ips);
         this.state.torrentBlocker.setIgnoredUsers(users);

@@ -37,9 +37,9 @@ sleep 1
 
 if [ -n "$CUSTOM_CORE_URL" ]; then
     echo "[Entrypoint] CUSTOM_CORE_URL is set, downloading custom core from: $CUSTOM_CORE_URL"
-    rm -f /usr/local/bin/xray
-    if wget -q -O /usr/local/bin/xray "$CUSTOM_CORE_URL"; then
-        chmod +x /usr/local/bin/xray
+    rm -f /usr/local/bin/rw-core
+    if wget -q -O /usr/local/bin/rw-core "$CUSTOM_CORE_URL"; then
+        chmod +x /usr/local/bin/rw-core
         echo "[Entrypoint] Custom core downloaded and installed successfully"
     else
         echo "[Entrypoint] ERROR: Failed to download custom core from: $CUSTOM_CORE_URL"

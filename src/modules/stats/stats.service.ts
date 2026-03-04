@@ -286,7 +286,7 @@ export class StatsService {
 
             const ips = Object.entries(userIps.ips).map(([ip, timestamp]) => ({
                 ip,
-                lastSeen: new Date(timestamp),
+                lastSeen: new Date(timestamp * 1000),
             }));
 
             return {

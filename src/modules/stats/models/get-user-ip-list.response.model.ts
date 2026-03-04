@@ -1,7 +1,12 @@
-export class GetUserIpListResponseModel {
-    public ips: string[];
+interface IDetailedIp {
+    ip: string;
+    lastSeen: Date;
+}
 
-    constructor(ips: string[]) {
+export class GetUserIpListResponseModel {
+    public ips: IDetailedIp[];
+
+    constructor(ips: IDetailedIp[]) {
         this.ips = ips;
     }
 }

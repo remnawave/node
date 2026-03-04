@@ -12,7 +12,15 @@ export namespace GetUserIpListCommand {
 
     export const ResponseSchema = z.object({
         response: z.object({
-            ips: z.array(z.string()),
+            ips: z.array(
+                z.object({
+                    ip: z.string(),
+                    lastSeen: z
+                        .string()
+                        .datetime({ local: true, offset: true, message: 'Invalid date format' })
+                        .transform((str) => new Date(str)),
+                }),
+            ),
         }),
     });
 

@@ -284,14 +284,10 @@ export class StatsService {
                 reset: true,
             });
 
-            const ips = Object.keys(userIps.ips);
-
-            if (ips.length === 0) {
-                return {
-                    isOk: true,
-                    response: new GetUserIpListResponseModel([]),
-                };
-            }
+            const ips = Object.entries(userIps.ips).map(([ip, timestamp]) => ({
+                ip,
+                lastSeen: new Date(timestamp),
+            }));
 
             return {
                 isOk: true,

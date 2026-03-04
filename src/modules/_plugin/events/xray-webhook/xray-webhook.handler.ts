@@ -1,7 +1,6 @@
 import { isIP } from 'node:net';
 
-import { IEventHandler } from '@nestjs/cqrs';
-import { EventsHandler } from '@nestjs/cqrs';
+import { IEventHandler, EventsHandler } from '@nestjs/cqrs';
 import { Logger } from '@nestjs/common';
 
 import { formatExecutionTime, getTime } from '@common/utils/get-elapsed-time';

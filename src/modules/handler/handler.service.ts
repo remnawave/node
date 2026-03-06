@@ -121,7 +121,7 @@ export class HandlerService implements OnModuleInit {
                             tag: item.tag,
                             username: item.username,
                             password: item.password,
-                            cipherType: 0,
+                            cipherType: item.cipherType,
                             ivCheck: false,
                             level: 0,
                         });

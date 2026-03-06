@@ -14,7 +14,6 @@ import { XtlsApi } from '@remnawave/xtls-sdk';
 
 import { ICommandResponse } from '@common/types/command-response.type';
 import { ERRORS } from '@libs/contracts/constants/errors';
-import { CipherType } from '@libs/contracts/commands';
 
 import {
     AddUserRequestDto,
@@ -122,8 +121,8 @@ export class HandlerService implements OnModuleInit {
                             tag: item.tag,
                             username: item.username,
                             password: item.password,
-                            cipherType: item.cipherType,
-                            ivCheck: item.ivCheck,
+                            cipherType: 0,
+                            ivCheck: false,
                             level: 0,
                         });
                         if (tempRes.isOk) {
@@ -285,7 +284,7 @@ export class HandlerService implements OnModuleInit {
                                 tag: item.tag,
                                 username: user.userData.userId,
                                 password: user.userData.ssPassword,
-                                cipherType: CipherType.CHACHA20_POLY1305,
+                                cipherType: 0,
                                 ivCheck: false,
                                 level: 0,
                             });

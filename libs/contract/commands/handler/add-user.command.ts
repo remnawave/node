@@ -39,9 +39,21 @@ export namespace AddUserCommand {
         ivCheck: z.boolean(),
     });
 
+    const BaseShadowsocks22User = z.object({
+        type: z.literal('shadowsocks22'),
+        tag: z.string(),
+        username: z.string(),
+        password: z.string(),
+    });
+
     export const RequestSchema = z.object({
         data: z.array(
-            z.discriminatedUnion('type', [BaseTrojanUser, BaseVlessUser, BaseShadowsocksUser]),
+            z.discriminatedUnion('type', [
+                BaseTrojanUser,
+                BaseVlessUser,
+                BaseShadowsocksUser,
+                BaseShadowsocks22User,
+            ]),
         ),
         hashData: z.object({
             vlessUuid: z.string().uuid(),

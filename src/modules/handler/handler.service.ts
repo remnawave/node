@@ -133,6 +133,22 @@ export class HandlerService implements OnModuleInit {
                         }
                         response.push(tempRes);
                         break;
+                    case 'shadowsocks22':
+                        tempRes = await this.xtlsApi.handler.addShadowsocks2022User({
+                            tag: item.tag,
+                            username: item.username,
+                            key: item.password,
+                            level: 0,
+                        });
+
+                        if (tempRes.isOk) {
+                            await this.internalService.addUserToInbound(
+                                item.tag,
+                                hashData.vlessUuid,
+                            );
+                        }
+                        response.push(tempRes);
+                        break;
                 }
             }
 
@@ -286,6 +302,20 @@ export class HandlerService implements OnModuleInit {
                                 password: user.userData.ssPassword,
                                 cipherType: 0,
                                 ivCheck: false,
+                                level: 0,
+                            });
+                            if (tempRes.isOk) {
+                                await this.internalService.addUserToInbound(
+                                    item.tag,
+                                    user.userData.vlessUuid,
+                                );
+                            }
+                            break;
+                        case 'shadowsocks22':
+                            tempRes = await this.xtlsApi.handler.addShadowsocks2022User({
+                                tag: item.tag,
+                                username: user.userData.userId,
+                                key: user.userData.ssPassword,
                                 level: 0,
                             });
                             if (tempRes.isOk) {

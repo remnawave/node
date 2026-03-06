@@ -315,7 +315,7 @@ export class HandlerService implements OnModuleInit {
                             tempRes = await this.xtlsApi.handler.addShadowsocks2022User({
                                 tag: item.tag,
                                 username: user.userData.userId,
-                                key: user.userData.ssPassword,
+                                key: Buffer.from(user.userData.ssPassword).toString('base64'),
                                 level: 0,
                             });
                             if (tempRes.isOk) {

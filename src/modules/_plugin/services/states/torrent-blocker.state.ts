@@ -1,3 +1,4 @@
+import { DEFAULT_IGNORED_IPS } from '@common/constants';
 import { TorrentBlockerReportModel } from '@libs/contracts/models';
 
 export class TorrentBlockerState {
@@ -30,7 +31,7 @@ export class TorrentBlockerState {
     }
 
     isIpIgnored(ip: string): boolean {
-        return this.ignoredIps.has(ip);
+        return this.ignoredIps.has(ip) || DEFAULT_IGNORED_IPS.has(ip);
     }
 
     isUserIgnored(userId: string): boolean {

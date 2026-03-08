@@ -1,3 +1,5 @@
+import { DEFAULT_IGNORED_IPS } from '@common/constants';
+
 export class ConnectionDropState {
     private whitelistIps = new Set<string>();
 
@@ -6,7 +8,7 @@ export class ConnectionDropState {
     }
 
     isWhitelisted(ip: string): boolean {
-        return this.whitelistIps.has(ip);
+        return this.whitelistIps.has(ip) || DEFAULT_IGNORED_IPS.has(ip);
     }
 
     getWhitelistIps(): string[] {

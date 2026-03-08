@@ -160,11 +160,11 @@ export class XrayService implements OnApplicationBootstrap {
                 new GetTorrentBlockerStateQuery(),
             );
 
-            const fullConfig = generateApiConfig(
-                body.xrayConfig,
-                isTorrentBlockerEnabled,
-                this.internal,
-            );
+            const fullConfig = generateApiConfig({
+                config: body.xrayConfig,
+                torrentBlockerState: isTorrentBlockerEnabled,
+                internal: this.internal,
+            });
 
             await this.internalService.extractUsersFromConfig(body.internals.hashes, fullConfig);
 

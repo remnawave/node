@@ -13,10 +13,16 @@ export class GetTorrentBlockerStateHandler implements IQueryHandler<GetTorrentBl
         try {
             const isEnabled = this.pluginState.torrentBlocker.isEnabled;
 
-            return isEnabled;
+            return {
+                enabled: isEnabled,
+                includeRuleTags: this.pluginState.torrentBlocker.includeRuleTagsSet,
+            };
         } catch (error) {
             this.logger.error(error);
-            return false;
+            return {
+                enabled: false,
+                includeRuleTags: new Set<string>(),
+            };
         }
     }
 }

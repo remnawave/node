@@ -5,6 +5,7 @@ export class TorrentBlockerState {
     private blockDuration: number | null = null;
     private ignoredIps = new Set<string>();
     private ignoredUsers = new Set<string>();
+    private includeRuleTags = new Set<string>();
     private reports: TorrentBlockerReportModel[] = [];
 
     get isEnabled(): boolean {
@@ -55,5 +56,15 @@ export class TorrentBlockerState {
         this.blockDuration = null;
         this.ignoredIps.clear();
         this.ignoredUsers.clear();
+        this.includeRuleTags.clear();
+    }
+
+    setIncludeRuleTags(tags: string[] | undefined): void {
+        if (!tags) return;
+        this.includeRuleTags = new Set(tags);
+    }
+
+    get includeRuleTagsSet(): Set<string> {
+        return this.includeRuleTags;
     }
 }

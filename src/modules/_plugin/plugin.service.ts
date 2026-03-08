@@ -95,9 +95,18 @@ export class PluginService {
             this.logger.log('[PLUGIN] Plugins changed...');
 
             if (currentTorrentBlocker && !pluginData.torrentBlocker?.enabled) {
-                await this.commandBus.execute(
-                    new RemoveOutboundCommand(XRAY_TORRENT_BLOCKER_OUTBOUND_TAG),
-                );
+                if (!pluginData.torrentBlocker?.includeRuleTags) {
+                    await this.commandBus.execute(
+                        new RemoveOutboundCommand(XRAY_TORRENT_BLOCKER_OUTBOUND_TAG),
+                    );
+                } else {
+                    await this.commandBus.execute(
+                        new StopXrayCommand({
+                            withOnlineCheck: true,
+                            withPluginCleanup: false,
+                        }),
+                    );
+                }
             } else if (!currentTorrentBlocker && pluginData.torrentBlocker?.enabled) {
                 await this.commandBus.execute(
                     new StopXrayCommand({
@@ -158,6 +167,7 @@ export class PluginService {
         this.state.torrentBlocker.setIgnoredIps(ips);
         this.state.torrentBlocker.setIgnoredUsers(users);
         this.state.torrentBlocker.configure(blockDuration);
+        this.state.torrentBlocker.setIncludeRuleTags(pluginData.torrentBlocker.includeRuleTags);
 
         this.logger.log(
             `[PLUGIN] Torrent-Blocker: blockDuration=${blockDuration}s, ${ips.length} ignored IPs, ${users.length} ignored users`,

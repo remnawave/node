@@ -72,6 +72,9 @@ export class PluginService {
             }
 
             const currentTorrentBlocker = this.state.torrentBlocker.isEnabled;
+            const currentTorrentBlockerIncludeRuleTags =
+                this.state.torrentBlocker.includeRuleTagsSet;
+
             const pluginData = parsed.data;
 
             const sharedMap = new Map(
@@ -114,6 +117,22 @@ export class PluginService {
                         withPluginCleanup: false,
                     }),
                 );
+            }
+
+            if (currentTorrentBlocker && pluginData.torrentBlocker?.enabled) {
+                const oldTagsHash = this.hashFn([...currentTorrentBlockerIncludeRuleTags].sort());
+                const newTagsHash = this.hashFn(
+                    [...(pluginData.torrentBlocker.includeRuleTags ?? [])].sort(),
+                );
+
+                if (oldTagsHash !== newTagsHash) {
+                    await this.commandBus.execute(
+                        new StopXrayCommand({
+                            withOnlineCheck: true,
+                            withPluginCleanup: false,
+                        }),
+                    );
+                }
             }
 
             return { isOk: true, response: new GenericResponseModel(true) };

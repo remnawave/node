@@ -314,42 +314,34 @@ export class StatsService {
 
     public async getUsersIpList(): Promise<ICommandResponse<GetUsersIpListResponseModel>> {
         try {
-            // TODO: debug only, replace with new gRPC method
-            const onlineUsers = new Set<string>();
-            const usersIps = new Map<string, { ip: string; lastSeen: number }[]>();
+            const { users } = await this.xtlsSdk.stats.rawClient.getAllOnlineUsers({});
 
-            const result = await this.xtlsSdk.stats.rawClient.getAllOnlineUsers({});
+            const onlineUsers = new Set(users.map((stat) => this.extractOnlineUserId(stat)));
 
-            for (const stat of result.users) {
-                onlineUsers.add(this.extractOnlineUserId(stat));
-            }
-
-            await pMap(
+            const usersIps = await pMap(
                 onlineUsers,
-                async (onlineUser) => {
-                    const userIps = await this.xtlsSdk.stats.rawClient.getStatsOnlineIpList({
-                        name: `user>>>${onlineUser}>>>online`,
-                        reset: true,
-                    });
+                async (email) => {
+                    try {
+                        const { ips } = await this.xtlsSdk.stats.rawClient.getStatsOnlineIpList({
+                            name: `user>>>${email}>>>online`,
+                            reset: true,
+                        });
 
-                    usersIps.set(
-                        onlineUser,
-                        Object.entries(userIps.ips).map(([ip, timestamp]) => ({
-                            ip,
-                            lastSeen: timestamp,
-                        })),
-                    );
+                        return {
+                            email,
+                            ips: Object.entries(ips).map(([ip, lastSeen]) => ({ ip, lastSeen })),
+                        };
+                    } catch {
+                        return { email, ips: [] };
+                    }
                 },
-                { concurrency: 20 },
+                { concurrency: 50 },
             );
 
             return {
                 isOk: true,
                 response: new GetUsersIpListResponseModel(
-                    Array.from(usersIps.entries()).map(([email, ips]) => ({
-                        email,
-                        ips,
-                    })),
+                    usersIps.filter((user) => user.ips.length > 0),
                 ),
             };
         } catch (error) {

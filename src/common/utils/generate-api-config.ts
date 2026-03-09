@@ -98,7 +98,7 @@ export const generateApiConfig = (args: IGenerateApiConfigParams): Record<string
                 ) {
                     rule.webhook = {
                         url: webhookUrl,
-                        deduplication: 30,
+                        deduplication: 5,
                     };
                 }
             }

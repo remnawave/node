@@ -90,7 +90,7 @@ export const XRAY_TORRENT_BLOCKER_ROUTING_RULES_MODEL = ({
     outboundTag: 'RW_TB_OUTBOUND_BLOCK',
     webhook: {
         url: webhookUrl,
-        deduplication: 30,
+        deduplication: 5,
     },
 });
 

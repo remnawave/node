@@ -1,3 +1,5 @@
+import pMap from 'p-map';
+
 import { Injectable, Logger } from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
 
@@ -16,6 +18,7 @@ import {
     GetSystemStatsResponseModel,
     GetUserIpListResponseModel,
     GetUserOnlineStatusResponseModel,
+    GetUsersIpListResponseModel,
     GetUsersStatsResponseModel,
 } from './models';
 import { GetTorrentBlockerReportsCountQuery } from '../_plugin/queries/get-torrent-blocker-reports-count';
@@ -307,5 +310,66 @@ export class StatsService {
                 response: new GetUserIpListResponseModel([]),
             };
         }
+    }
+
+    public async getUsersIpList(): Promise<ICommandResponse<GetUsersIpListResponseModel>> {
+        try {
+            // TODO: debug only, replace with new gRPC method
+            const onlineUsers = new Set<string>();
+            const usersIps = new Map<string, { ip: string; lastSeen: number }[]>();
+
+            const result = await this.xtlsSdk.stats.rawClient.getAllOnlineUsers({});
+
+            for (const stat of result.users) {
+                onlineUsers.add(this.extractOnlineUserId(stat));
+            }
+
+            await pMap(
+                onlineUsers,
+                async (onlineUser) => {
+                    const userIps = await this.xtlsSdk.stats.rawClient.getStatsOnlineIpList({
+                        name: `user>>>${onlineUser}>>>online`,
+                        reset: true,
+                    });
+
+                    usersIps.set(
+                        onlineUser,
+                        Object.entries(userIps.ips).map(([ip, timestamp]) => ({
+                            ip,
+                            lastSeen: timestamp,
+                        })),
+                    );
+                },
+                { concurrency: 20 },
+            );
+
+            return {
+                isOk: true,
+                response: new GetUsersIpListResponseModel(
+                    Array.from(usersIps.entries()).map(([email, ips]) => ({
+                        email,
+                        ips,
+                    })),
+                ),
+            };
+        } catch (error) {
+            if (error && typeof error === 'object' && 'code' in error && error.code === 5) {
+                return {
+                    isOk: true,
+                    response: new GetUsersIpListResponseModel([]),
+                };
+            }
+
+            this.logger.error(error);
+            return {
+                isOk: true,
+                response: new GetUsersIpListResponseModel([]),
+            };
+        }
+    }
+
+    private extractOnlineUserId(raw: string): string {
+        // user>>>123>>>online
+        return raw.split('>>>')[2];
     }
 }

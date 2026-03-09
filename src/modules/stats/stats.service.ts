@@ -370,6 +370,6 @@ export class StatsService {
 
     private extractOnlineUserId(raw: string): string {
         // user>>>123>>>online
-        return raw.split('>>>')[2];
+        return raw.split('>>>')[1];
     }
 }

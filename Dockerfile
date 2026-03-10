@@ -25,6 +25,14 @@ RUN echo '#!/bin/sh' > /usr/local/bin/xerrors \
 
 FROM node:24.13-alpine
 
+LABEL org.opencontainers.image.title="Remnawave Node"
+LABEL org.opencontainers.image.description="Remnawave Node with built-in XRay Core"
+LABEL org.opencontainers.image.url="https://github.com/remnawave/node"
+LABEL org.opencontainers.image.source="https://github.com/remnawave/node"
+LABEL org.opencontainers.image.vendor="Remnawave"
+LABEL org.opencontainers.image.licenses="AGPL-3.0"
+LABEL org.opencontainers.image.documentation="https://docs.rw"
+
 WORKDIR /opt/app
 
 COPY --from=build /opt/app/dist /opt/app/dist

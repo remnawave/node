@@ -1,4 +1,4 @@
-FROM node:24.13-alpine AS build
+FROM node:24.14-alpine AS build
 
 ARG XRAY_CORE_VERSION=v26.2.6
 ARG UPSTREAM_REPO=XTLS
@@ -23,7 +23,7 @@ RUN echo '#!/bin/sh' > /usr/local/bin/xerrors \
     && chmod +x /usr/local/bin/xerrors
 
 
-FROM node:24.13-alpine
+FROM node:24.14-alpine
 
 LABEL org.opencontainers.image.title="Remnawave Node"
 LABEL org.opencontainers.image.description="Remnawave Node with built-in XRay Core"

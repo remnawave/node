@@ -61,28 +61,20 @@ export class StatsService {
 
     public async getSystemStats(): Promise<ICommandResponse<GetSystemStatsResponseModel>> {
         try {
-            const hotHostInfo = getHotHostInfo();
-            const reportsCount = await this.queryBus.execute(
-                new GetTorrentBlockerReportsCountQuery(),
-            );
-
             const response = await this.xtlsSdk.stats.getSysStats();
 
             if (!response.isOk || !response.data) {
                 this.logger.warn(response);
                 return {
-                    isOk: true,
-                    response: new GetSystemStatsResponseModel(
-                        null,
-                        {
-                            torrentBlocker: {
-                                reportsCount,
-                            },
-                        },
-                        hotHostInfo,
-                    ),
+                    isOk: false,
+                    ...ERRORS.FAILED_TO_GET_SYSTEM_STATS,
                 };
             }
+
+            const hotHostInfo = getHotHostInfo();
+            const reportsCount = await this.queryBus.execute(
+                new GetTorrentBlockerReportsCountQuery(),
+            );
 
             return {
                 isOk: true,

@@ -6,7 +6,7 @@ import { INestApplication } from '@nestjs/common';
 
 import { XrayService } from '../../modules/xray-core/xray.service';
 import { getXtlsApiPort } from './get-initial-ports';
-import { getHostInfo } from './get-system-stats';
+import { getSystemInfo } from './get-system-stats';
 
 export async function getStartMessage(appPort: number, app: INestApplication) {
     const pkg = await readPackageJSON();
@@ -14,16 +14,16 @@ export async function getStartMessage(appPort: number, app: INestApplication) {
     const xrayService = app.get(XrayService);
 
     const xrayInfo = xrayService.getXrayInfo();
-    const hostInfo = getHostInfo();
+    const systemInfo = getSystemInfo();
 
     return table(
         [
             ['Docs → https://docs.rw\nCommunity → https://t.me/remnawave'],
             [`API Port: ${appPort}\nInternal Ports: ${getXtlsApiPort()}`],
             [`XRay Core: v${xrayInfo.version || 'N/A'}\nXRay Path: ${xrayInfo.path}`],
-            [`${hostInfo.cpus}C, ${hostInfo.cpuModel}, ${prettyBytes(hostInfo.memoryTotal)}`],
-            [`Kernel: ${hostInfo.release} ${hostInfo.type} ${hostInfo.platform}`],
-            [`Network Interfaces: ${hostInfo.networkInterfaces.join(', ')}`],
+            [`${systemInfo.cpus}C, ${systemInfo.cpuModel}, ${prettyBytes(systemInfo.memoryTotal)}`],
+            [`Kernel: ${systemInfo.release} ${systemInfo.type} ${systemInfo.platform}`],
+            [`Network Interfaces: ${systemInfo.networkInterfaces.join(', ')}`],
         ],
         {
             header: {

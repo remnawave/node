@@ -1,8 +1,8 @@
 import os from 'node:os';
 
-import { THostInfo, THotHostInfo } from '@libs/contracts/models';
+import { TNodeSystemInfo, TNodeSystemStats } from '@libs/contracts/models';
 
-export function getHostInfo(): THostInfo {
+export function getSystemInfo(): TNodeSystemInfo {
     const cpus = os.cpus();
     return {
         arch: os.arch(),
@@ -18,7 +18,7 @@ export function getHostInfo(): THostInfo {
     };
 }
 
-export function getHotHostInfo(): THotHostInfo {
+export function getSystemStats(): TNodeSystemStats {
     return {
         memoryFree: os.freemem(),
         uptime: os.uptime(),

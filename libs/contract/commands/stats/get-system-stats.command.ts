@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { HotHostInfoSchema } from '../../models';
+import { NodeSystemStatsSchema } from '../../models';
 import { REST_API } from '../../api';
 export namespace GetSystemStatsCommand {
     export const url = REST_API.STATS.GET_SYSTEM_STATS;
@@ -26,7 +26,9 @@ export namespace GetSystemStatsCommand {
                     reportsCount: z.number(),
                 }),
             }),
-            hotHostInfo: HotHostInfoSchema,
+            system: z.object({
+                stats: NodeSystemStatsSchema,
+            }),
         }),
     });
 

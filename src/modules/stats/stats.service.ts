@@ -7,7 +7,7 @@ import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { XtlsApi } from '@remnawave/xtls-sdk';
 
 import { ICommandResponse } from '@common/types/command-response.type';
-import { getHotHostInfo } from '@common/utils/get-system-stats';
+import { getSystemStats } from '@common/utils/get-system-stats';
 import { ERRORS } from '@libs/contracts/constants';
 
 import {
@@ -71,7 +71,7 @@ export class StatsService {
                 };
             }
 
-            const hotHostInfo = getHotHostInfo();
+            const systemStats = getSystemStats();
             const reportsCount = await this.queryBus.execute(
                 new GetTorrentBlockerReportsCountQuery(),
             );
@@ -85,7 +85,7 @@ export class StatsService {
                             reportsCount,
                         },
                     },
-                    hotHostInfo,
+                    systemStats,
                 ),
             };
         } catch (error) {

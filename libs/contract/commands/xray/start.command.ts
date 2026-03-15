@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { HostInfoSchema, HotHostInfoSchema } from '../../models';
+import { NodeSystemSchema } from '../../models';
 import { REST_API } from '../../api';
 
 export namespace StartXrayCommand {
@@ -31,9 +31,8 @@ export namespace StartXrayCommand {
             error: z.string().nullable(),
             nodeInformation: z.object({
                 version: z.string().nullable(),
-                hostInfo: HostInfoSchema,
-                hotHostInfo: HotHostInfoSchema,
             }),
+            system: NodeSystemSchema,
         }),
     });
 

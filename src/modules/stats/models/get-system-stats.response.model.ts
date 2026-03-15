@@ -1,3 +1,5 @@
+import { TNodeSystemStats } from '@libs/contracts/models';
+
 interface IXrayStats {
     numGoroutine: number;
     numGC: number;
@@ -17,19 +19,18 @@ interface IPluginStats {
     };
 }
 
-interface IHotHostInfo {
-    memoryFree: number;
-    uptime: number;
-}
-
 export class GetSystemStatsResponseModel {
     public xrayInfo: IXrayStats | null;
     public plugins: IPluginStats;
-    public hotHostInfo: IHotHostInfo;
+    public system: {
+        stats: TNodeSystemStats;
+    };
 
-    constructor(xrayInfo: IXrayStats | null, plugins: IPluginStats, hotHostInfo: IHotHostInfo) {
+    constructor(xrayInfo: IXrayStats | null, plugins: IPluginStats, systemStats: TNodeSystemStats) {
         this.xrayInfo = xrayInfo;
         this.plugins = plugins;
-        this.hotHostInfo = hotHostInfo;
+        this.system = {
+            stats: systemStats,
+        };
     }
 }

@@ -14,7 +14,7 @@ import { InjectSupervisord } from '@remnawave/supervisord-nestjs';
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { XtlsApi } from '@remnawave/xtls-sdk';
 
-import { getHostInfo, getHotHostInfo } from '@common/utils/get-system-stats';
+import { getSystemInfo, getSystemStats } from '@common/utils/get-system-stats';
 import { ICommandResponse } from '@common/types/command-response.type';
 import { generateApiConfig } from '@common/utils/generate-api-config';
 import { KNOWN_ERRORS, REMNAWAVE_NODE_KNOWN_ERROR } from '@libs/contracts/constants';
@@ -98,8 +98,10 @@ export class XrayService implements OnApplicationBootstrap {
         ip: string,
     ): Promise<ICommandResponse<StartXrayResponseModel>> {
         const tm = performance.now();
-        const hostInfo = getHostInfo();
-        const hotHostInfo = getHotHostInfo();
+        const system = {
+            info: getSystemInfo(),
+            stats: getSystemStats(),
+        };
 
         try {
             if (this.isXrayStartedProccesing) {
@@ -112,9 +114,8 @@ export class XrayService implements OnApplicationBootstrap {
                         'Request already in progress',
                         {
                             version: this.nodeVersion,
-                            hostInfo,
-                            hotHostInfo,
                         },
+                        system,
                     ),
                 };
             }
@@ -138,11 +139,15 @@ export class XrayService implements OnApplicationBootstrap {
                 if (!shouldRestart) {
                     return {
                         isOk: true,
-                        response: new StartXrayResponseModel(true, this.xrayVersion, null, {
-                            version: this.nodeVersion,
-                            hostInfo,
-                            hotHostInfo,
-                        }),
+                        response: new StartXrayResponseModel(
+                            true,
+                            this.xrayVersion,
+                            null,
+                            {
+                                version: this.nodeVersion,
+                            },
+                            system,
+                        ),
                     };
                 }
             }
@@ -178,11 +183,15 @@ export class XrayService implements OnApplicationBootstrap {
 
                 return {
                     isOk: true,
-                    response: new StartXrayResponseModel(false, null, xrayProcess.error, {
-                        hostInfo,
-                        hotHostInfo,
-                        version: this.nodeVersion,
-                    }),
+                    response: new StartXrayResponseModel(
+                        false,
+                        null,
+                        xrayProcess.error,
+                        {
+                            version: this.nodeVersion,
+                        },
+                        system,
+                    ),
                 };
             }
 
@@ -220,10 +229,9 @@ export class XrayService implements OnApplicationBootstrap {
                         this.xrayVersion,
                         xrayProcess.error,
                         {
-                            hostInfo,
-                            hotHostInfo,
                             version: this.nodeVersion,
                         },
+                        system,
                     ),
                 };
             }
@@ -248,11 +256,15 @@ export class XrayService implements OnApplicationBootstrap {
 
             return {
                 isOk: true,
-                response: new StartXrayResponseModel(isStarted, this.xrayVersion, null, {
-                    hostInfo,
-                    hotHostInfo,
-                    version: this.nodeVersion,
-                }),
+                response: new StartXrayResponseModel(
+                    isStarted,
+                    this.xrayVersion,
+                    null,
+                    {
+                        version: this.nodeVersion,
+                    },
+                    system,
+                ),
             };
         } catch (error) {
             let errorMessage = null;
@@ -264,11 +276,15 @@ export class XrayService implements OnApplicationBootstrap {
 
             return {
                 isOk: true,
-                response: new StartXrayResponseModel(false, null, errorMessage, {
-                    hostInfo,
-                    hotHostInfo,
-                    version: this.nodeVersion,
-                }),
+                response: new StartXrayResponseModel(
+                    false,
+                    null,
+                    errorMessage,
+                    {
+                        version: this.nodeVersion,
+                    },
+                    system,
+                ),
             };
         } finally {
             this.logger.log(

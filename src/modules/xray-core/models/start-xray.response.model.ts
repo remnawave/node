@@ -1,25 +1,7 @@
-interface IHostInfo {
-    arch: string;
-    cpus: number;
-    cpuModel: string;
-    memoryTotal: number;
-    hostname: string;
-    platform: string;
-    release: string;
-    type: string;
-    version: string;
-    networkInterfaces: string[];
-}
-
-interface IHotHostInfo {
-    memoryFree: number;
-    uptime: number;
-}
+import { TNodeSystem } from '@libs/contracts/models';
 
 interface INodeInformation {
     version: string | null;
-    hostInfo: IHostInfo;
-    hotHostInfo: IHotHostInfo;
 }
 
 export class StartXrayResponseModel {
@@ -27,16 +9,19 @@ export class StartXrayResponseModel {
     public version: null | string;
     public error: null | string;
     public nodeInformation: INodeInformation;
+    public system: TNodeSystem;
 
     constructor(
         isStarted: boolean,
         version: null | string,
         error: null | string,
         nodeInformation: INodeInformation,
+        system: TNodeSystem,
     ) {
         this.isStarted = isStarted;
         this.version = version;
         this.error = error;
         this.nodeInformation = nodeInformation;
+        this.system = system;
     }
 }

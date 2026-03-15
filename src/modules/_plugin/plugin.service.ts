@@ -72,8 +72,9 @@ export class PluginService {
             }
 
             const currentTorrentBlocker = this.state.torrentBlocker.isEnabled;
-            const currentTorrentBlockerIncludeRuleTags =
-                this.state.torrentBlocker.includeRuleTagsSet;
+            const currentTorrentBlockerIncludeRuleTags = new Set(
+                this.state.torrentBlocker.includeRuleTagsSet,
+            );
 
             const pluginData = parsed.data;
 

@@ -13,7 +13,7 @@ export class PluginStateService {
 
     private availablePlugins: IPlugins = {
         connectionDrop: false,
-        blacklist: false,
+        ingressFilter: false,
         torrentBlocker: false,
         egressFilter: false,
     };

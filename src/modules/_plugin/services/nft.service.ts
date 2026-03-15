@@ -34,7 +34,7 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
 
         this.state.setPlugins({
             connectionDrop: true,
-            blacklist: false,
+            ingressFilter: false,
             torrentBlocker: false,
             egressFilter: false,
         });
@@ -43,7 +43,7 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
             this.nftManager = new NftManager({
                 tableName: NFT_TABLES_CONSTANTS.TABLE_NAME,
                 sets: [
-                    NFT_TABLES_CONSTANTS.BLACKLIST_SET_NAME,
+                    NFT_TABLES_CONSTANTS.INGRESS_FILTER_IP_SET_NAME,
                     NFT_TABLES_CONSTANTS.TORRENT_BLOCKER_SET_NAME,
                 ],
                 outSets: [NFT_TABLES_CONSTANTS.EGRESS_FILTER_IP_SET_NAME],
@@ -55,7 +55,7 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
 
             this.state.setPlugins({
                 connectionDrop: true,
-                blacklist: true,
+                ingressFilter: true,
                 torrentBlocker: true,
                 egressFilter: true,
             });
@@ -77,9 +77,14 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
         }
     }
 
-    public async syncBlacklist(ips: string[]): Promise<void> {
+    public async syncIngressFilter(ips: string[]): Promise<void> {
         if (!this.nftManager) return;
-        await this.nftManager.addAddresses({ ips, set: NFT_TABLES_CONSTANTS.BLACKLIST_SET_NAME });
+        if (ips.length > 0) {
+            await this.nftManager.addAddresses({
+                ips,
+                set: NFT_TABLES_CONSTANTS.INGRESS_FILTER_IP_SET_NAME,
+            });
+        }
     }
 
     public async syncEgressFilter({
@@ -122,9 +127,10 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
     private logAvailablePlugins(): void {
         const plugins = this.state.plugins;
         [
-            { name: 'Torrent-Blocker', enabled: plugins.torrentBlocker },
-            { name: 'Blacklist', enabled: plugins.blacklist },
-            { name: 'Connection-Drop', enabled: plugins.connectionDrop },
+            { name: 'Ingress Filter', enabled: plugins.ingressFilter },
+            { name: 'Egress Filter', enabled: plugins.egressFilter },
+            { name: 'Torrent Blocker', enabled: plugins.torrentBlocker },
+            { name: 'Connection Drop', enabled: plugins.connectionDrop },
         ].forEach((plugin) => {
             if (plugin.enabled) {
                 this.logger.log(`[PLUGIN] ${plugin.name}: available`);
@@ -183,7 +189,7 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
 
             await this.nftManager.removeAddresses({
                 ips,
-                set: NFT_TABLES_CONSTANTS.BLACKLIST_SET_NAME,
+                set: NFT_TABLES_CONSTANTS.INGRESS_FILTER_IP_SET_NAME,
             });
 
             return {

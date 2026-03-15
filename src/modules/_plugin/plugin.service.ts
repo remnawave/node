@@ -91,7 +91,7 @@ export class PluginService {
             this.syncConnectionDrop(pluginData, sharedMap);
             this.syncTorrentBlocker(pluginData, sharedMap);
 
-            await this.syncBlacklist(pluginData, sharedMap);
+            await this.syncIngressFilter(pluginData, sharedMap);
             await this.syncEgressFilter(pluginData, sharedMap);
 
             this.state.updateConfigHash(configHash);
@@ -147,19 +147,19 @@ export class PluginService {
         this.logger.log(`[PLUGIN] Connection-Drop: ${ips.length} whitelisted IPs synced.`);
     }
 
-    private async syncBlacklist(
+    private async syncIngressFilter(
         pluginData: TNodePlugin,
         sharedMap: Map<string, string[]>,
     ): Promise<void> {
-        if (!pluginData.blacklist) return;
-        if (!pluginData.blacklist.enabled) return;
+        if (!pluginData.ingressFilter) return;
+        if (!pluginData.ingressFilter.enabled) return;
         if (!this.nftService.isAvailable) return;
 
-        const ips = this.resolveIpList(pluginData.blacklist.ip, sharedMap);
+        const ips = this.resolveIpList(pluginData.ingressFilter.blockedIps ?? [], sharedMap);
 
-        await this.nftService.syncBlacklist(ips);
+        await this.nftService.syncIngressFilter(ips);
 
-        this.logger.log(`[PLUGIN] Blacklist: ${ips.length} IPs synced.`);
+        this.logger.log(`[PLUGIN] Ingress Filter: ${ips.length} IPs synced.`);
     }
 
     private async syncEgressFilter(

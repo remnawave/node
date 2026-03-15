@@ -1,6 +1,6 @@
 export interface IPlugins {
-    connectionDrop: boolean;
-    blacklist: boolean;
-    torrentBlocker: boolean;
+    ingressFilter: boolean;
     egressFilter: boolean;
+    torrentBlocker: boolean;
+    connectionDrop: boolean;
 }

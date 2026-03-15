@@ -14,16 +14,14 @@ import { InjectSupervisord } from '@remnawave/supervisord-nestjs';
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { XtlsApi } from '@remnawave/xtls-sdk';
 
-import { ISystemStats } from '@common/utils/get-system-stats/get-system-stats.interface';
+import { getHostInfo, getHotHostInfo } from '@common/utils/get-system-stats';
 import { ICommandResponse } from '@common/types/command-response.type';
 import { generateApiConfig } from '@common/utils/generate-api-config';
-import { getSystemStats } from '@common/utils/get-system-stats';
 import { KNOWN_ERRORS, REMNAWAVE_NODE_KNOWN_ERROR } from '@libs/contracts/constants';
 import { StartXrayCommand } from '@libs/contracts/commands';
 
 import {
     GetNodeHealthCheckResponseModel,
-    GetXrayStatusAndVersionResponseModel,
     StartXrayResponseModel,
     StopXrayResponseModel,
 } from './models';
@@ -46,7 +44,6 @@ export class XrayService implements OnApplicationBootstrap {
 
     private xrayVersion: null | string = null;
     private isXrayOnline: boolean = false;
-    private systemStats: ISystemStats | null = null;
     private isXrayStartedProccesing: boolean = false;
     private nodeVersion: string = '0.0.0';
     constructor(
@@ -64,7 +61,7 @@ export class XrayService implements OnApplicationBootstrap {
 
         this.xrayPath = '/usr/local/bin/xray';
         this.xrayVersion = null;
-        this.systemStats = null;
+
         this.isXrayStartedProccesing = false;
         this.disableHashedSetCheck = this.configService.getOrThrow<boolean>(
             'DISABLE_HASHED_SET_CHECK',
@@ -76,7 +73,6 @@ export class XrayService implements OnApplicationBootstrap {
             const pkg = await readPackageJSON();
 
             this.xrayVersion = this.getXrayVersionFromEnv();
-            this.systemStats = await getSystemStats();
             this.nodeVersion = pkg.version ?? '0.0.0';
 
             await this.supervisordApi.getState();
@@ -102,6 +98,8 @@ export class XrayService implements OnApplicationBootstrap {
         ip: string,
     ): Promise<ICommandResponse<StartXrayResponseModel>> {
         const tm = performance.now();
+        const hostInfo = getHostInfo();
+        const hotHostInfo = getHotHostInfo();
 
         try {
             if (this.isXrayStartedProccesing) {
@@ -112,9 +110,10 @@ export class XrayService implements OnApplicationBootstrap {
                         false,
                         this.xrayVersion,
                         'Request already in progress',
-                        null,
                         {
                             version: this.nodeVersion,
+                            hostInfo,
+                            hotHostInfo,
                         },
                     ),
                 };
@@ -139,15 +138,11 @@ export class XrayService implements OnApplicationBootstrap {
                 if (!shouldRestart) {
                     return {
                         isOk: true,
-                        response: new StartXrayResponseModel(
-                            true,
-                            this.xrayVersion,
-                            null,
-                            this.systemStats,
-                            {
-                                version: this.nodeVersion,
-                            },
-                        ),
+                        response: new StartXrayResponseModel(true, this.xrayVersion, null, {
+                            version: this.nodeVersion,
+                            hostInfo,
+                            hotHostInfo,
+                        }),
                     };
                 }
             }
@@ -183,7 +178,9 @@ export class XrayService implements OnApplicationBootstrap {
 
                 return {
                     isOk: true,
-                    response: new StartXrayResponseModel(false, null, xrayProcess.error, null, {
+                    response: new StartXrayResponseModel(false, null, xrayProcess.error, {
+                        hostInfo,
+                        hotHostInfo,
                         version: this.nodeVersion,
                     }),
                 };
@@ -222,8 +219,9 @@ export class XrayService implements OnApplicationBootstrap {
                         isStarted,
                         this.xrayVersion,
                         xrayProcess.error,
-                        this.systemStats,
                         {
+                            hostInfo,
+                            hotHostInfo,
                             version: this.nodeVersion,
                         },
                     ),
@@ -250,15 +248,11 @@ export class XrayService implements OnApplicationBootstrap {
 
             return {
                 isOk: true,
-                response: new StartXrayResponseModel(
-                    isStarted,
-                    this.xrayVersion,
-                    null,
-                    this.systemStats,
-                    {
-                        version: this.nodeVersion,
-                    },
-                ),
+                response: new StartXrayResponseModel(isStarted, this.xrayVersion, null, {
+                    hostInfo,
+                    hotHostInfo,
+                    version: this.nodeVersion,
+                }),
             };
         } catch (error) {
             let errorMessage = null;
@@ -270,7 +264,9 @@ export class XrayService implements OnApplicationBootstrap {
 
             return {
                 isOk: true,
-                response: new StartXrayResponseModel(false, null, errorMessage, null, {
+                response: new StartXrayResponseModel(false, null, errorMessage, {
+                    hostInfo,
+                    hotHostInfo,
                     version: this.nodeVersion,
                 }),
             };
@@ -322,27 +318,6 @@ export class XrayService implements OnApplicationBootstrap {
         }
     }
 
-    public async getXrayStatusAndVersion(): Promise<
-        ICommandResponse<GetXrayStatusAndVersionResponseModel>
-    > {
-        try {
-            const version = this.xrayVersion;
-            const status = await this.getXrayInternalStatus();
-
-            return {
-                isOk: true,
-                response: new GetXrayStatusAndVersionResponseModel(status, version),
-            };
-        } catch (error) {
-            this.logger.error(`Failed to get Xray status and version ${error}`);
-
-            return {
-                isOk: true,
-                response: new GetXrayStatusAndVersionResponseModel(false, null),
-            };
-        }
-    }
-
     public async getNodeHealthCheck(): Promise<ICommandResponse<GetNodeHealthCheckResponseModel>> {
         try {
             return {
@@ -387,7 +362,6 @@ export class XrayService implements OnApplicationBootstrap {
     public getXrayInfo(): {
         version: string | null;
         path: string;
-        systemInfo: ISystemStats | null;
     } {
         const version = this.getXrayVersionFromEnv();
 
@@ -398,7 +372,6 @@ export class XrayService implements OnApplicationBootstrap {
         return {
             version: version,
             path: this.xrayPath,
-            systemInfo: this.systemStats,
         };
     }
 

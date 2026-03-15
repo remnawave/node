@@ -7,7 +7,6 @@ import { XRAY_CONTROLLER, XRAY_ROUTES } from '@libs/contracts/api';
 
 import {
     GetNodeHealthCheckResponseDto,
-    GetXrayStatusAndVersionResponseDto,
     StartXrayRequestDto,
     StartXrayResponseDto,
     StopXrayResponseDto,
@@ -43,16 +42,6 @@ export class XrayController {
             withOnlineCheck: false,
             withPluginCleanup: true,
         });
-        const data = errorHandler(response);
-
-        return {
-            response: data,
-        };
-    }
-
-    @Get(XRAY_ROUTES.STATUS)
-    public async getXrayStatusAndVersion(): Promise<GetXrayStatusAndVersionResponseDto> {
-        const response = await this.xrayService.getXrayStatusAndVersion();
         const data = errorHandler(response);
 
         return {

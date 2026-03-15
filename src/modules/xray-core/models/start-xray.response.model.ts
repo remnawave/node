@@ -1,27 +1,42 @@
-import { ISystemStats } from '@common/utils/get-system-stats/get-system-stats.interface';
+interface IHostInfo {
+    arch: string;
+    cpus: number;
+    cpuModel: string;
+    memoryTotal: number;
+    hostname: string;
+    platform: string;
+    release: string;
+    type: string;
+    version: string;
+    networkInterfaces: string[];
+}
+
+interface IHotHostInfo {
+    memoryFree: number;
+    uptime: number;
+}
+
+interface INodeInformation {
+    version: string | null;
+    hostInfo: IHostInfo;
+    hotHostInfo: IHotHostInfo;
+}
 
 export class StartXrayResponseModel {
     public isStarted: boolean;
     public version: null | string;
     public error: null | string;
-    public systemInformation: ISystemStats | null;
-    public nodeInformation: {
-        version: string | null;
-    };
+    public nodeInformation: INodeInformation;
 
     constructor(
         isStarted: boolean,
         version: null | string,
         error: null | string,
-        systemInformation: ISystemStats | null,
-        nodeInformation: {
-            version: string | null;
-        },
+        nodeInformation: INodeInformation,
     ) {
         this.isStarted = isStarted;
         this.version = version;
         this.error = error;
-        this.systemInformation = systemInformation;
         this.nodeInformation = nodeInformation;
     }
 }

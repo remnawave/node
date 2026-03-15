@@ -7,6 +7,7 @@ import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { XtlsApi } from '@remnawave/xtls-sdk';
 
 import { ICommandResponse } from '@common/types/command-response.type';
+import { getHotHostInfo } from '@common/utils/get-system-stats';
 import { ERRORS } from '@libs/contracts/constants';
 
 import {
@@ -60,26 +61,40 @@ export class StatsService {
 
     public async getSystemStats(): Promise<ICommandResponse<GetSystemStatsResponseModel>> {
         try {
+            const hotHostInfo = getHotHostInfo();
+            const reportsCount = await this.queryBus.execute(
+                new GetTorrentBlockerReportsCountQuery(),
+            );
+
             const response = await this.xtlsSdk.stats.getSysStats();
 
             if (!response.isOk || !response.data) {
                 this.logger.warn(response);
                 return {
-                    isOk: false,
-                    ...ERRORS.FAILED_TO_GET_SYSTEM_STATS,
+                    isOk: true,
+                    response: new GetSystemStatsResponseModel(
+                        null,
+                        {
+                            torrentBlocker: {
+                                reportsCount,
+                            },
+                        },
+                        hotHostInfo,
+                    ),
                 };
             }
 
-            const reportsCount = await this.queryBus.execute(
-                new GetTorrentBlockerReportsCountQuery(),
-            );
-
             return {
                 isOk: true,
-                response: new GetSystemStatsResponseModel({
-                    ...response.data,
-                    reportsCount,
-                }),
+                response: new GetSystemStatsResponseModel(
+                    response.data,
+                    {
+                        torrentBlocker: {
+                            reportsCount,
+                        },
+                    },
+                    hotHostInfo,
+                ),
             };
         } catch (error) {
             this.logger.error(error);

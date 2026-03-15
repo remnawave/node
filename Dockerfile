@@ -58,6 +58,7 @@ RUN npm ci --omit=dev --legacy-peer-deps \
 
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-http-header-size=65536"
+ENV UV_THREADPOOL_SIZE=24
 
 ENV XTLS_API_PORT=61000
 

@@ -99,44 +99,27 @@ export class PluginService {
 
             this.logger.log('[PLUGIN] Plugins changed...');
 
-            if (currentTorrentBlocker && !pluginData.torrentBlocker?.enabled) {
-                if (!pluginData.torrentBlocker?.includeRuleTags) {
-                    await this.commandBus.execute(
-                        new RemoveOutboundCommand(XRAY_TORRENT_BLOCKER_OUTBOUND_TAG),
-                    );
-                } else {
-                    await this.commandBus.execute(
-                        new StopXrayCommand({
-                            withOnlineCheck: true,
-                            withPluginCleanup: false,
-                        }),
-                    );
-                }
-            } else if (!currentTorrentBlocker && pluginData.torrentBlocker?.enabled) {
+            const wasEnabled = !!currentTorrentBlocker;
+            const nowEnabled = !!pluginData.torrentBlocker?.enabled;
+
+            if (wasEnabled && !nowEnabled && !pluginData.torrentBlocker?.includeRuleTags) {
                 await this.commandBus.execute(
-                    new StopXrayCommand({
-                        withOnlineCheck: true,
-                        withPluginCleanup: false,
-                    }),
+                    new RemoveOutboundCommand(XRAY_TORRENT_BLOCKER_OUTBOUND_TAG),
                 );
-            }
+            } else {
+                const needsRestart =
+                    (wasEnabled && !nowEnabled) ||
+                    (!wasEnabled && nowEnabled) ||
+                    (wasEnabled &&
+                        nowEnabled &&
+                        this.hashFn([...currentTorrentBlockerIncludeRuleTags].sort()) !==
+                            this.hashFn(
+                                [...(pluginData.torrentBlocker?.includeRuleTags ?? [])].sort(),
+                            ));
 
-            if (currentTorrentBlocker && pluginData.torrentBlocker?.enabled) {
-                const oldTagsHash = this.hashFn([...currentTorrentBlockerIncludeRuleTags].sort());
-                const newTagsHash = this.hashFn(
-                    [...(pluginData.torrentBlocker.includeRuleTags ?? [])].sort(),
-                );
-
-                this.logger.log(
-                    `[PLUGIN] Torrent-Blocker: oldTagsHash=${oldTagsHash}, newTagsHash=${newTagsHash}`,
-                );
-
-                if (oldTagsHash !== newTagsHash) {
+                if (needsRestart) {
                     await this.commandBus.execute(
-                        new StopXrayCommand({
-                            withOnlineCheck: true,
-                            withPluginCleanup: false,
-                        }),
+                        new StopXrayCommand({ withOnlineCheck: true, withPluginCleanup: false }),
                     );
                 }
             }

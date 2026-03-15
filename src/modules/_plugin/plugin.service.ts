@@ -126,6 +126,10 @@ export class PluginService {
                     [...(pluginData.torrentBlocker.includeRuleTags ?? [])].sort(),
                 );
 
+                this.logger.log(
+                    `[PLUGIN] Torrent-Blocker: oldTagsHash=${oldTagsHash}, newTagsHash=${newTagsHash}`,
+                );
+
                 if (oldTagsHash !== newTagsHash) {
                     await this.commandBus.execute(
                         new StopXrayCommand({

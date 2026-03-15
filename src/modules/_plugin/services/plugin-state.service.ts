@@ -15,6 +15,7 @@ export class PluginStateService {
         connectionDrop: false,
         blacklist: false,
         torrentBlocker: false,
+        egressFilter: false,
     };
 
     private pluginConfigDetails: { uuid: string; name: string } | null = null;

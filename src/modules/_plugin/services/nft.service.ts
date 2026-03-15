@@ -36,6 +36,7 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
             connectionDrop: true,
             blacklist: false,
             torrentBlocker: false,
+            egressFilter: false,
         });
 
         try {
@@ -45,6 +46,8 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
                     NFT_TABLES_CONSTANTS.BLACKLIST_SET_NAME,
                     NFT_TABLES_CONSTANTS.TORRENT_BLOCKER_SET_NAME,
                 ],
+                outSets: [NFT_TABLES_CONSTANTS.EGRESS_FILTER_IP_SET_NAME],
+                outPortSets: [NFT_TABLES_CONSTANTS.EGRESS_FILTER_PORT_SET_NAME],
             });
             await this.recreateTables();
 
@@ -54,6 +57,7 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
                 connectionDrop: true,
                 blacklist: true,
                 torrentBlocker: true,
+                egressFilter: true,
             });
         } catch (error) {
             this.logger.error(error);
@@ -76,6 +80,28 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
     public async syncBlacklist(ips: string[]): Promise<void> {
         if (!this.nftManager) return;
         await this.nftManager.addAddresses({ ips, set: NFT_TABLES_CONSTANTS.BLACKLIST_SET_NAME });
+    }
+
+    public async syncEgressFilter({
+        ips,
+        ports,
+    }: {
+        ips: string[];
+        ports: number[];
+    }): Promise<void> {
+        if (!this.nftManager) return;
+        if (ips.length > 0) {
+            await this.nftManager.addAddresses({
+                ips,
+                set: NFT_TABLES_CONSTANTS.EGRESS_FILTER_IP_SET_NAME,
+            });
+        }
+        if (ports.length > 0) {
+            await this.nftManager.addPorts({
+                ports,
+                set: NFT_TABLES_CONSTANTS.EGRESS_FILTER_PORT_SET_NAME,
+            });
+        }
     }
 
     public async blockIp(ip: string, timeoutSeconds: number): Promise<void> {

@@ -21,6 +21,7 @@ export function getSystemInfo(): TNodeSystemInfo {
 export function getSystemStats(): TNodeSystemStats {
     return {
         memoryFree: os.freemem(),
+        memoryUsed: os.totalmem() - os.freemem(),
         uptime: os.uptime(),
         loadAvg: os.loadavg(),
         interface: null,

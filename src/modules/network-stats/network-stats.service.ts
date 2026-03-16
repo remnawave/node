@@ -76,13 +76,12 @@ export class NetworkStatsService implements OnModuleDestroy, OnModuleInit {
     private tick(): void {
         try {
             const now = this.readProcNetDev();
-            const timestamp = Date.now();
 
             for (const [iface, current] of now) {
                 const prev = this.previousStats.get(iface);
                 if (!prev) continue;
 
-                const elapsed = (timestamp - prev.timestamp) / 1_000;
+                const elapsed = (current.timestamp - prev.timestamp) / 1_000;
                 if (elapsed <= 0) continue;
 
                 this.currentRates.set(iface, {

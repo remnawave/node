@@ -22,5 +22,6 @@ export function getSystemStats(): TNodeSystemStats {
     return {
         memoryFree: os.freemem(),
         uptime: os.uptime(),
+        interface: null,
     };
 }

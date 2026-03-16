@@ -42,12 +42,12 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
         try {
             this.nftManager = new NftManager({
                 tableName: NFT_TABLES_CONSTANTS.TABLE_NAME,
-                sets: [
+                ingressAddrSets: [
                     NFT_TABLES_CONSTANTS.INGRESS_FILTER_IP_SET_NAME,
                     NFT_TABLES_CONSTANTS.TORRENT_BLOCKER_SET_NAME,
                 ],
-                outSets: [NFT_TABLES_CONSTANTS.EGRESS_FILTER_IP_SET_NAME],
-                outPortSets: [NFT_TABLES_CONSTANTS.EGRESS_FILTER_PORT_SET_NAME],
+                egressAddrSets: [NFT_TABLES_CONSTANTS.EGRESS_FILTER_IP_SET_NAME],
+                egressPortSets: [NFT_TABLES_CONSTANTS.EGRESS_FILTER_PORT_SET_NAME],
             });
             await this.recreateTables();
 

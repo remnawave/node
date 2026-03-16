@@ -25,6 +25,7 @@ import {
     StartXrayResponseModel,
     StopXrayResponseModel,
 } from './models';
+import { GetInterfaceStatsQuery } from '../network-stats/queries/get-interface-stats/get-interface-stats.query';
 import { ResetPluginsCommand } from '../_plugin/commands/reset-plugins/reset-plugins.command';
 import { GetTorrentBlockerStateQuery } from '../_plugin/queries/get-torrent-blocker-state';
 import { InternalService } from '../internal/internal.service';
@@ -97,10 +98,12 @@ export class XrayService implements OnApplicationBootstrap {
         body: StartXrayCommand.Request,
         ip: string,
     ): Promise<ICommandResponse<StartXrayResponseModel>> {
+        const interfaceStats = await this.queryBus.execute(new GetInterfaceStatsQuery());
         const tm = performance.now();
         const system = {
             info: getSystemInfo(),
             stats: getSystemStats(),
+            interface: interfaceStats,
         };
 
         try {

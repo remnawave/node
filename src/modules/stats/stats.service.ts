@@ -22,6 +22,7 @@ import {
     GetUsersIpListResponseModel,
     GetUsersStatsResponseModel,
 } from './models';
+import { GetInterfaceStatsQuery } from '../network-stats/queries/get-interface-stats/get-interface-stats.query';
 import { GetTorrentBlockerReportsCountQuery } from '../_plugin/queries/get-torrent-blocker-reports-count';
 import { IGetUserOnlineStatusRequest } from './interfaces';
 
@@ -71,6 +72,7 @@ export class StatsService {
                 };
             }
 
+            const interfaceStats = await this.queryBus.execute(new GetInterfaceStatsQuery());
             const systemStats = getSystemStats();
             const reportsCount = await this.queryBus.execute(
                 new GetTorrentBlockerReportsCountQuery(),
@@ -85,7 +87,10 @@ export class StatsService {
                             reportsCount,
                         },
                     },
-                    systemStats,
+                    {
+                        ...systemStats,
+                        interface: interfaceStats,
+                    },
                 ),
             };
         } catch (error) {

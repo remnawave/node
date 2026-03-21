@@ -26,6 +26,13 @@ export namespace AddUsersCommand {
         tag: z.string(),
     });
 
+    const BaseHysteriaUser = z.object({
+        type: z.literal('hysteria'),
+        tag: z.string(),
+        username: z.string(),
+        password: z.string(),
+    });
+
     export const RequestSchema = z.object({
         affectedInboundTags: z.array(z.string()),
         users: z.array(
@@ -36,6 +43,7 @@ export namespace AddUsersCommand {
                         BaseVlessUser,
                         BaseShadowsocksUser,
                         BaseShadowsocks22User,
+                        BaseHysteriaUser,
                     ]),
                 ),
 

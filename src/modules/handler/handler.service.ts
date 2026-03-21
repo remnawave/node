@@ -149,6 +149,23 @@ export class HandlerService implements OnModuleInit {
                         }
                         response.push(tempRes);
                         break;
+                    case 'hysteria':
+                        tempRes = await this.xtlsApi.handler.addHysteriaUser({
+                            tag: item.tag,
+                            username: item.username,
+                            uuid: item.password,
+                            level: 0,
+                        });
+
+                        if (tempRes.isOk) {
+                            await this.internalService.addUserToInbound(
+                                item.tag,
+                                hashData.vlessUuid,
+                            );
+                        }
+                        response.push(tempRes);
+
+                        break;
                 }
             }
 
@@ -324,6 +341,14 @@ export class HandlerService implements OnModuleInit {
                                     user.userData.vlessUuid,
                                 );
                             }
+                            break;
+                        case 'hysteria':
+                            tempRes = await this.xtlsApi.handler.addHysteriaUser({
+                                tag: item.tag,
+                                username: user.userData.userId,
+                                uuid: user.userData.vlessUuid,
+                                level: 0,
+                            });
                             break;
                     }
                 }

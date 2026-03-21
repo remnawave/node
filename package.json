@@ -47,7 +47,7 @@
     "@nestjs/cqrs": "11.0.3",
     "@remnawave/node-plugins": "0.4.4",
     "@remnawave/supervisord-nestjs": "0.3.1",
-    "@remnawave/xtls-sdk": "0.11.1",
+    "@remnawave/xtls-sdk": "0.12.1",
     "@remnawave/xtls-sdk-nestjs": "0.6.1",
     "compression": "^1.8.1",
     "enhanced-ms": "^4.2.0",

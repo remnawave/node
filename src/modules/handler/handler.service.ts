@@ -349,6 +349,14 @@ export class HandlerService implements OnModuleInit {
                                 uuid: user.userData.vlessUuid,
                                 level: 0,
                             });
+                            if (tempRes.isOk) {
+                                await this.internalService.addUserToInbound(
+                                    item.tag,
+                                    user.userData.vlessUuid,
+                                );
+                            }
+                            break;
+                        default:
                             break;
                     }
                 }

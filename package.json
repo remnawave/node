@@ -45,7 +45,7 @@
     "@peculiar/x509": "^1.14.3",
     "@remnawave/hashed-set": "^0.0.4",
     "@nestjs/cqrs": "11.0.3",
-    "@remnawave/node-plugins": "0.4.0",
+    "@remnawave/node-plugins": "0.4.3",
     "@remnawave/supervisord-nestjs": "0.3.1",
     "@remnawave/xtls-sdk": "0.11.1",
     "@remnawave/xtls-sdk-nestjs": "0.6.1",

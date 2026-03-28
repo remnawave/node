@@ -1,9 +1,13 @@
+import pMap from 'p-map';
+
 import { Injectable, Logger } from '@nestjs/common';
+import { QueryBus } from '@nestjs/cqrs';
 
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { XtlsApi } from '@remnawave/xtls-sdk';
 
 import { ICommandResponse } from '@common/types/command-response.type';
+import { getSystemStats } from '@common/utils/get-system-stats';
 import { ERRORS } from '@libs/contracts/constants';
 
 import {
@@ -15,13 +19,19 @@ import {
     GetSystemStatsResponseModel,
     GetUserIpListResponseModel,
     GetUserOnlineStatusResponseModel,
+    GetUsersIpListResponseModel,
     GetUsersStatsResponseModel,
 } from './models';
+import { GetInterfaceStatsQuery } from '../network-stats/queries/get-interface-stats/get-interface-stats.query';
+import { GetTorrentBlockerReportsCountQuery } from '../_plugin/queries/get-torrent-blocker-reports-count';
 import { IGetUserOnlineStatusRequest } from './interfaces';
 
 @Injectable()
 export class StatsService {
-    constructor(@InjectXtls() private readonly xtlsSdk: XtlsApi) {}
+    constructor(
+        @InjectXtls() private readonly xtlsSdk: XtlsApi,
+        private readonly queryBus: QueryBus,
+    ) {}
     private readonly logger = new Logger(StatsService.name);
 
     public async getUserOnlineStatus(
@@ -62,9 +72,26 @@ export class StatsService {
                 };
             }
 
+            const interfaceStats = await this.queryBus.execute(new GetInterfaceStatsQuery());
+            const systemStats = getSystemStats();
+            const reportsCount = await this.queryBus.execute(
+                new GetTorrentBlockerReportsCountQuery(),
+            );
+
             return {
                 isOk: true,
-                response: new GetSystemStatsResponseModel(response.data),
+                response: new GetSystemStatsResponseModel(
+                    response.data,
+                    {
+                        torrentBlocker: {
+                            reportsCount,
+                        },
+                    },
+                    {
+                        ...systemStats,
+                        interface: interfaceStats,
+                    },
+                ),
             };
         } catch (error) {
             this.logger.error(error);
@@ -272,14 +299,10 @@ export class StatsService {
                 reset: true,
             });
 
-            const ips = Object.keys(userIps.ips);
-
-            if (ips.length === 0) {
-                return {
-                    isOk: true,
-                    response: new GetUserIpListResponseModel([]),
-                };
-            }
+            const ips = Object.entries(userIps.ips).map(([ip, timestamp]) => ({
+                ip,
+                lastSeen: new Date(timestamp * 1000),
+            }));
 
             return {
                 isOk: true,
@@ -299,5 +322,58 @@ export class StatsService {
                 response: new GetUserIpListResponseModel([]),
             };
         }
+    }
+
+    public async getUsersIpList(): Promise<ICommandResponse<GetUsersIpListResponseModel>> {
+        try {
+            const { users } = await this.xtlsSdk.stats.rawClient.getAllOnlineUsers({});
+
+            const onlineUsers = new Set(users.map((stat) => this.extractOnlineUserId(stat)));
+
+            const usersIps = await pMap(
+                onlineUsers,
+                async (email) => {
+                    try {
+                        const { ips } = await this.xtlsSdk.stats.rawClient.getStatsOnlineIpList({
+                            name: `user>>>${email}>>>online`,
+                            reset: true,
+                        });
+
+                        return {
+                            email,
+                            ips: Object.entries(ips).map(([ip, lastSeen]) => ({ ip, lastSeen })),
+                        };
+                    } catch {
+                        return { email, ips: [] };
+                    }
+                },
+                { concurrency: 50 },
+            );
+
+            return {
+                isOk: true,
+                response: new GetUsersIpListResponseModel(
+                    usersIps.filter((user) => user.ips.length > 0),
+                ),
+            };
+        } catch (error) {
+            if (error && typeof error === 'object' && 'code' in error && error.code === 5) {
+                return {
+                    isOk: true,
+                    response: new GetUsersIpListResponseModel([]),
+                };
+            }
+
+            this.logger.error(error);
+            return {
+                isOk: true,
+                response: new GetUsersIpListResponseModel([]),
+            };
+        }
+    }
+
+    private extractOnlineUserId(raw: string): string {
+        // user>>>123>>>online
+        return raw.split('>>>')[1];
     }
 }

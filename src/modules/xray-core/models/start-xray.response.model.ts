@@ -1,27 +1,27 @@
-import { ISystemStats } from '@common/utils/get-system-stats/get-system-stats.interface';
+import { TNodeSystem } from '@libs/contracts/models';
+
+interface INodeInformation {
+    version: string | null;
+}
 
 export class StartXrayResponseModel {
     public isStarted: boolean;
     public version: null | string;
     public error: null | string;
-    public systemInformation: ISystemStats | null;
-    public nodeInformation: {
-        version: string | null;
-    };
+    public nodeInformation: INodeInformation;
+    public system: TNodeSystem;
 
     constructor(
         isStarted: boolean,
         version: null | string,
         error: null | string,
-        systemInformation: ISystemStats | null,
-        nodeInformation: {
-            version: string | null;
-        },
+        nodeInformation: INodeInformation,
+        system: TNodeSystem,
     ) {
         this.isStarted = isStarted;
         this.version = version;
         this.error = error;
-        this.systemInformation = systemInformation;
         this.nodeInformation = nodeInformation;
+        this.system = system;
     }
 }

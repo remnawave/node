@@ -1,6 +1,6 @@
 {
   "name": "@remnawave/node-contract",
-  "version": "2.6.1",
+  "version": "2.7.0",
   "description": "A node-contract library for Remnawave Panel",
   "main": "build/index.js",
   "types": "build/index.d.ts",
@@ -24,5 +24,8 @@
   "license": "AGPL-3.0-only",
   "dependencies": {
     "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
   }
 }

@@ -19,6 +19,7 @@ import {
     GetSystemStatsResponseDto,
     GetUserOnlineStatusRequestDto,
     GetUserOnlineStatusResponseDto,
+    GetUsersIpListResponseDto,
     GetUsersStatsRequestDto,
     GetUsersStatsResponseDto,
 } from './dto';
@@ -137,6 +138,16 @@ export class StatsController {
     ): Promise<GetUserIpListResponseDto> {
         const { userId } = body;
         const response = await this.statsService.getUserIpList(userId);
+        const data = errorHandler(response);
+
+        return {
+            response: data,
+        };
+    }
+
+    @Get(STATS_ROUTES.GET_USERS_IP_LIST)
+    public async getUsersIpList(): Promise<GetUsersIpListResponseDto> {
+        const response = await this.statsService.getUsersIpList();
         const data = errorHandler(response);
 
         return {

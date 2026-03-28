@@ -35,6 +35,18 @@ echo "[Entrypoint] Supervisord started successfully"
 sleep 1
 
 
+if [ -n "$CUSTOM_CORE_URL" ]; then
+    echo "[Entrypoint] CUSTOM_CORE_URL is set, downloading custom core from: $CUSTOM_CORE_URL"
+    rm -f /usr/local/bin/xray
+    if wget -q -O /usr/local/bin/xray "$CUSTOM_CORE_URL"; then
+        chmod +x /usr/local/bin/xray
+        echo "[Entrypoint] Custom core downloaded and installed successfully"
+    else
+        echo "[Entrypoint] ERROR: Failed to download custom core from: $CUSTOM_CORE_URL"
+        exit 1
+    fi
+fi
+
 echo "[Entrypoint] Getting Xray version..."
 
 XRAY_CORE_VERSION=$(/usr/local/bin/rw-core version | head -n 1)

@@ -6,6 +6,7 @@ import {
     NestModule,
     OnApplicationShutdown,
 } from '@nestjs/common';
+import { CqrsModule } from '@nestjs/cqrs';
 
 import { TokenAuthMiddleware } from '@common/middlewares';
 
@@ -14,7 +15,7 @@ import { InternalService } from './internal.service';
 
 @Global()
 @Module({
-    imports: [],
+    imports: [CqrsModule],
     providers: [InternalService],
     controllers: [InternalController],
     exports: [InternalService],

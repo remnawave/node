@@ -1,7 +1,8 @@
-import { killSockets, hasCapNetAdmin } from 'sockdestroy';
+import { hasCapNetAdmin } from 'sockdestroy';
 import ems from 'enhanced-ms';
 
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 
 import {
     RemoveUserResponseModel as RemoveUserResponseModelFromSdk,
@@ -13,7 +14,6 @@ import { XtlsApi } from '@remnawave/xtls-sdk';
 
 import { ICommandResponse } from '@common/types/command-response.type';
 import { ERRORS } from '@libs/contracts/constants/errors';
-import { CipherType } from '@libs/contracts/commands';
 
 import {
     AddUserRequestDto,
@@ -30,6 +30,7 @@ import {
     RemoveUserResponseModel,
     GenericResponseModel,
 } from './models';
+import { DropConnectionsEvent } from '../_plugin/events/drop-connections';
 import { InternalService } from '../internal/internal.service';
 
 @Injectable()
@@ -40,6 +41,7 @@ export class HandlerService implements OnModuleInit {
     constructor(
         @InjectXtls() private readonly xtlsApi: XtlsApi,
         private readonly internalService: InternalService,
+        private readonly eventBus: EventBus,
     ) {}
 
     public async onModuleInit(): Promise<void> {
@@ -120,7 +122,7 @@ export class HandlerService implements OnModuleInit {
                             username: item.username,
                             password: item.password,
                             cipherType: item.cipherType,
-                            ivCheck: item.ivCheck,
+                            ivCheck: false,
                             level: 0,
                         });
                         if (tempRes.isOk) {
@@ -130,6 +132,39 @@ export class HandlerService implements OnModuleInit {
                             );
                         }
                         response.push(tempRes);
+                        break;
+                    case 'shadowsocks22':
+                        tempRes = await this.xtlsApi.handler.addShadowsocks2022User({
+                            tag: item.tag,
+                            username: item.username,
+                            key: item.password,
+                            level: 0,
+                        });
+
+                        if (tempRes.isOk) {
+                            await this.internalService.addUserToInbound(
+                                item.tag,
+                                hashData.vlessUuid,
+                            );
+                        }
+                        response.push(tempRes);
+                        break;
+                    case 'hysteria':
+                        tempRes = await this.xtlsApi.handler.addHysteriaUser({
+                            tag: item.tag,
+                            username: item.username,
+                            uuid: item.password,
+                            level: 0,
+                        });
+
+                        if (tempRes.isOk) {
+                            await this.internalService.addUserToInbound(
+                                item.tag,
+                                hashData.vlessUuid,
+                            );
+                        }
+                        response.push(tempRes);
+
                         break;
                 }
             }
@@ -190,7 +225,7 @@ export class HandlerService implements OnModuleInit {
                 response.push(tempRes);
             }
 
-            await this.destroyConnections(userIps);
+            this.eventBus.publish(new DropConnectionsEvent(userIps));
 
             if (response.every((res) => !res.isOk)) {
                 this.logger.error(JSON.stringify(response, null, 2));
@@ -282,7 +317,7 @@ export class HandlerService implements OnModuleInit {
                                 tag: item.tag,
                                 username: user.userData.userId,
                                 password: user.userData.ssPassword,
-                                cipherType: CipherType.CHACHA20_POLY1305,
+                                cipherType: 0,
                                 ivCheck: false,
                                 level: 0,
                             });
@@ -292,6 +327,36 @@ export class HandlerService implements OnModuleInit {
                                     user.userData.vlessUuid,
                                 );
                             }
+                            break;
+                        case 'shadowsocks22':
+                            tempRes = await this.xtlsApi.handler.addShadowsocks2022User({
+                                tag: item.tag,
+                                username: user.userData.userId,
+                                key: Buffer.from(user.userData.ssPassword).toString('base64'),
+                                level: 0,
+                            });
+                            if (tempRes.isOk) {
+                                await this.internalService.addUserToInbound(
+                                    item.tag,
+                                    user.userData.vlessUuid,
+                                );
+                            }
+                            break;
+                        case 'hysteria':
+                            tempRes = await this.xtlsApi.handler.addHysteriaUser({
+                                tag: item.tag,
+                                username: user.userData.userId,
+                                uuid: user.userData.vlessUuid,
+                                level: 0,
+                            });
+                            if (tempRes.isOk) {
+                                await this.internalService.addUserToInbound(
+                                    item.tag,
+                                    user.userData.vlessUuid,
+                                );
+                            }
+                            break;
+                        default:
                             break;
                     }
                 }
@@ -357,7 +422,7 @@ export class HandlerService implements OnModuleInit {
                     removeUsersResponse.push(tempRes);
                 }
 
-                await this.destroyConnections(userIps);
+                this.eventBus.publish(new DropConnectionsEvent(userIps));
             }
 
             if (removeUsersResponse.every((res) => !res.isOk)) {
@@ -462,7 +527,7 @@ export class HandlerService implements OnModuleInit {
 
             for (const userId of userIds) {
                 const userIps = await this.getUserIps(userId);
-                await this.destroyConnections(userIps);
+                this.eventBus.publish(new DropConnectionsEvent(userIps));
             }
 
             return {
@@ -482,7 +547,7 @@ export class HandlerService implements OnModuleInit {
         try {
             const { ips } = data;
 
-            await this.destroyConnections(ips);
+            this.eventBus.publish(new DropConnectionsEvent(ips));
 
             return {
                 isOk: true,
@@ -494,23 +559,6 @@ export class HandlerService implements OnModuleInit {
                 isOk: true,
                 response: new GenericResponseModel(false),
             };
-        }
-    }
-
-    private async destroyConnections(ips: string[] | null): Promise<void> {
-        if (!this.capNetAdminAvailable || !ips || ips.length === 0) {
-            return;
-        }
-
-        for (const ip of ips) {
-            try {
-                const result = await killSockets({ src: ip, dst: ip, mode: 'or' });
-                this.logger.debug(
-                    `Destroyed connections for IP: ${ip} - ${JSON.stringify(result, null, 2)}`,
-                );
-            } catch (error) {
-                this.logger.error(error);
-            }
         }
     }
 
@@ -535,6 +583,19 @@ export class HandlerService implements OnModuleInit {
 
             this.logger.error(`Failed to get user IPs for user ${userId}:`, error);
             return null;
+        }
+    }
+
+    public async removeOutbound(tag: string): Promise<void> {
+        try {
+            await this.xtlsApi.handler.rawClient.removeOutbound({
+                tag,
+            });
+
+            return;
+        } catch (error) {
+            this.logger.error(error);
+            return;
         }
     }
 }

@@ -7,25 +7,27 @@ import pRetry from 'p-retry';
 import semver from 'semver';
 
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { ConfigService } from '@nestjs/config';
 
 import { InjectSupervisord } from '@remnawave/supervisord-nestjs';
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { XtlsApi } from '@remnawave/xtls-sdk';
 
-import { ISystemStats } from '@common/utils/get-system-stats/get-system-stats.interface';
+import { getSystemInfo, getSystemStats } from '@common/utils/get-system-stats';
 import { ICommandResponse } from '@common/types/command-response.type';
 import { generateApiConfig } from '@common/utils/generate-api-config';
-import { getSystemStats } from '@common/utils/get-system-stats';
 import { KNOWN_ERRORS, REMNAWAVE_NODE_KNOWN_ERROR } from '@libs/contracts/constants';
 import { StartXrayCommand } from '@libs/contracts/commands';
 
 import {
     GetNodeHealthCheckResponseModel,
-    GetXrayStatusAndVersionResponseModel,
     StartXrayResponseModel,
     StopXrayResponseModel,
 } from './models';
+import { GetInterfaceStatsQuery } from '../network-stats/queries/get-interface-stats/get-interface-stats.query';
+import { ResetPluginsCommand } from '../_plugin/commands/reset-plugins/reset-plugins.command';
+import { GetTorrentBlockerStateQuery } from '../_plugin/queries/get-torrent-blocker-state';
 import { InternalService } from '../internal/internal.service';
 
 const XRAY_PROCESS_NAME = 'xray' as const;
@@ -34,12 +36,15 @@ const XRAY_PROCESS_NAME = 'xray' as const;
 export class XrayService implements OnApplicationBootstrap {
     private readonly logger = new Logger(XrayService.name);
     private readonly disableHashedSetCheck: boolean;
+    private readonly internal: {
+        socketPath: string;
+        token: string;
+    };
 
     private readonly xrayPath: string;
 
     private xrayVersion: null | string = null;
     private isXrayOnline: boolean = false;
-    private systemStats: ISystemStats | null = null;
     private isXrayStartedProccesing: boolean = false;
     private nodeVersion: string = '0.0.0';
     constructor(
@@ -47,10 +52,17 @@ export class XrayService implements OnApplicationBootstrap {
         @InjectSupervisord() private readonly supervisordApi: SupervisordClient,
         private readonly internalService: InternalService,
         private readonly configService: ConfigService,
+        private readonly queryBus: QueryBus,
+        private readonly commandBus: CommandBus,
     ) {
+        this.internal = {
+            socketPath: this.configService.getOrThrow<string>('INTERNAL_SOCKET_PATH'),
+            token: this.configService.getOrThrow<string>('INTERNAL_REST_TOKEN'),
+        };
+
         this.xrayPath = '/usr/local/bin/xray';
         this.xrayVersion = null;
-        this.systemStats = null;
+
         this.isXrayStartedProccesing = false;
         this.disableHashedSetCheck = this.configService.getOrThrow<boolean>(
             'DISABLE_HASHED_SET_CHECK',
@@ -62,7 +74,6 @@ export class XrayService implements OnApplicationBootstrap {
             const pkg = await readPackageJSON();
 
             this.xrayVersion = this.getXrayVersionFromEnv();
-            this.systemStats = await getSystemStats();
             this.nodeVersion = pkg.version ?? '0.0.0';
 
             await this.supervisordApi.getState();
@@ -87,7 +98,13 @@ export class XrayService implements OnApplicationBootstrap {
         body: StartXrayCommand.Request,
         ip: string,
     ): Promise<ICommandResponse<StartXrayResponseModel>> {
+        const interfaceStats = await this.queryBus.execute(new GetInterfaceStatsQuery());
         const tm = performance.now();
+        const system = {
+            info: getSystemInfo(),
+            stats: getSystemStats(),
+            interface: interfaceStats,
+        };
 
         try {
             if (this.isXrayStartedProccesing) {
@@ -98,10 +115,10 @@ export class XrayService implements OnApplicationBootstrap {
                         false,
                         this.xrayVersion,
                         'Request already in progress',
-                        null,
                         {
                             version: this.nodeVersion,
                         },
+                        system,
                     ),
                 };
             }
@@ -129,10 +146,10 @@ export class XrayService implements OnApplicationBootstrap {
                             true,
                             this.xrayVersion,
                             null,
-                            this.systemStats,
                             {
                                 version: this.nodeVersion,
                             },
+                            system,
                         ),
                     };
                 }
@@ -142,7 +159,15 @@ export class XrayService implements OnApplicationBootstrap {
                 this.logger.warn('Force restart requested');
             }
 
-            const fullConfig = generateApiConfig(body.xrayConfig);
+            const isTorrentBlockerEnabled = await this.queryBus.execute(
+                new GetTorrentBlockerStateQuery(),
+            );
+
+            const fullConfig = generateApiConfig({
+                config: body.xrayConfig,
+                torrentBlockerState: isTorrentBlockerEnabled,
+                internal: this.internal,
+            });
 
             await this.internalService.extractUsersFromConfig(body.internals.hashes, fullConfig);
 
@@ -161,9 +186,15 @@ export class XrayService implements OnApplicationBootstrap {
 
                 return {
                     isOk: true,
-                    response: new StartXrayResponseModel(false, null, xrayProcess.error, null, {
-                        version: this.nodeVersion,
-                    }),
+                    response: new StartXrayResponseModel(
+                        false,
+                        null,
+                        xrayProcess.error,
+                        {
+                            version: this.nodeVersion,
+                        },
+                        system,
+                    ),
                 };
             }
 
@@ -200,10 +231,10 @@ export class XrayService implements OnApplicationBootstrap {
                         isStarted,
                         this.xrayVersion,
                         xrayProcess.error,
-                        this.systemStats,
                         {
                             version: this.nodeVersion,
                         },
+                        system,
                     ),
                 };
             }
@@ -232,10 +263,10 @@ export class XrayService implements OnApplicationBootstrap {
                     isStarted,
                     this.xrayVersion,
                     null,
-                    this.systemStats,
                     {
                         version: this.nodeVersion,
                     },
+                    system,
                 ),
             };
         } catch (error) {
@@ -248,9 +279,15 @@ export class XrayService implements OnApplicationBootstrap {
 
             return {
                 isOk: true,
-                response: new StartXrayResponseModel(false, null, errorMessage, null, {
-                    version: this.nodeVersion,
-                }),
+                response: new StartXrayResponseModel(
+                    false,
+                    null,
+                    errorMessage,
+                    {
+                        version: this.nodeVersion,
+                    },
+                    system,
+                ),
             };
         } finally {
             this.logger.log(
@@ -265,8 +302,23 @@ export class XrayService implements OnApplicationBootstrap {
         }
     }
 
-    public async stopXray(): Promise<ICommandResponse<StopXrayResponseModel>> {
+    public async stopXray(args: {
+        withPluginCleanup?: boolean;
+        withOnlineCheck?: boolean;
+    }): Promise<ICommandResponse<StopXrayResponseModel>> {
+        const { withPluginCleanup = false, withOnlineCheck = false } = args;
         try {
+            if (withPluginCleanup) {
+                await this.commandBus.execute(new ResetPluginsCommand());
+            }
+
+            if (withOnlineCheck && !this.isXrayOnline) {
+                return {
+                    isOk: true,
+                    response: new StopXrayResponseModel(true),
+                };
+            }
+
             await this.killAllXrayProcesses();
 
             this.isXrayOnline = false;
@@ -281,27 +333,6 @@ export class XrayService implements OnApplicationBootstrap {
             return {
                 isOk: true,
                 response: new StopXrayResponseModel(false),
-            };
-        }
-    }
-
-    public async getXrayStatusAndVersion(): Promise<
-        ICommandResponse<GetXrayStatusAndVersionResponseModel>
-    > {
-        try {
-            const version = this.xrayVersion;
-            const status = await this.getXrayInternalStatus();
-
-            return {
-                isOk: true,
-                response: new GetXrayStatusAndVersionResponseModel(status, version),
-            };
-        } catch (error) {
-            this.logger.error(`Failed to get Xray status and version ${error}`);
-
-            return {
-                isOk: true,
-                response: new GetXrayStatusAndVersionResponseModel(false, null),
             };
         }
     }
@@ -350,7 +381,6 @@ export class XrayService implements OnApplicationBootstrap {
     public getXrayInfo(): {
         version: string | null;
         path: string;
-        systemInfo: ISystemStats | null;
     } {
         const version = this.getXrayVersionFromEnv();
 
@@ -361,7 +391,6 @@ export class XrayService implements OnApplicationBootstrap {
         return {
             version: version,
             path: this.xrayPath,
-            systemInfo: this.systemStats,
         };
     }
 

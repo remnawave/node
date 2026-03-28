@@ -6,4 +6,5 @@ export * from './get-outbound-stats.command';
 export * from './get-system-stats.command';
 export * from './get-user-ip-list.command';
 export * from './get-user-online-status.command';
+export * from './get-users-ip-list.command';
 export * from './get-users-stats.command';

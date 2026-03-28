@@ -1,6 +1,6 @@
-FROM node:24.13-alpine AS build
+FROM node:24.14-alpine AS build
 
-ARG XRAY_CORE_VERSION=v26.2.6
+ARG XRAY_CORE_VERSION=v26.3.27
 ARG UPSTREAM_REPO=XTLS
 ARG XRAY_CORE_INSTALL_SCRIPT=https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-xray.sh
 
@@ -23,7 +23,15 @@ RUN echo '#!/bin/sh' > /usr/local/bin/xerrors \
     && chmod +x /usr/local/bin/xerrors
 
 
-FROM node:24.13-alpine
+FROM node:24.14-alpine
+
+LABEL org.opencontainers.image.title="Remnawave Node"
+LABEL org.opencontainers.image.description="Remnawave Node with built-in XRay Core"
+LABEL org.opencontainers.image.url="https://github.com/remnawave/node"
+LABEL org.opencontainers.image.source="https://github.com/remnawave/node"
+LABEL org.opencontainers.image.vendor="Remnawave"
+LABEL org.opencontainers.image.licenses="AGPL-3.0"
+LABEL org.opencontainers.image.documentation="https://docs.rw"
 
 WORKDIR /opt/app
 
@@ -39,8 +47,7 @@ COPY docker-entrypoint.sh /usr/local/bin/
 COPY package*.json ./
 COPY ./libs ./libs
 
-
-RUN apk add --no-cache supervisor && \
+RUN apk add --no-cache supervisor libnftnl libmnl && \
     mkdir -p /var/log/supervisor && \
     chmod +x /usr/local/bin/docker-entrypoint.sh && \
     ln -s /usr/local/bin/xray /usr/local/bin/rw-core
@@ -51,6 +58,7 @@ RUN npm ci --omit=dev --legacy-peer-deps \
 
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-http-header-size=65536"
+ENV UV_THREADPOOL_SIZE=24
 
 ENV XTLS_API_PORT=61000
 

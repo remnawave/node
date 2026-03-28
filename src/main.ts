@@ -19,7 +19,10 @@ import { getStartMessage } from '@common/utils/get-start-message';
 import { isDevelopment } from '@common/utils/is-development';
 import { NotFoundExceptionFilter } from '@common/exception';
 import { customLogFilter } from '@common/utils/filter-logs';
-import { XRAY_INTERNAL_FULL_PATH } from '@libs/contracts/constants';
+import {
+    XRAY_INTERNAL_FULL_PATH,
+    XRAY_INTERNAL_FULL_WEBHOOK_PATH,
+} from '@libs/contracts/constants';
 import { REST_API, ROOT } from '@libs/contracts/api';
 
 import { AppModule } from './app.module';
@@ -95,6 +98,7 @@ async function bootstrap(): Promise<void> {
     app.setGlobalPrefix(ROOT, {
         exclude: [
             XRAY_INTERNAL_FULL_PATH,
+            XRAY_INTERNAL_FULL_WEBHOOK_PATH,
             '/' + REST_API.VISION.BLOCK_IP,
             '/' + REST_API.VISION.UNBLOCK_IP,
         ],
@@ -111,11 +115,14 @@ async function bootstrap(): Promise<void> {
     internalApp.use(json({ limit: '1000mb' }));
 
     // '/' + REST_API.VISION.BLOCK_IP, '/' + REST_API.VISION.UNBLOCK_IP
-    internalApp.use([XRAY_INTERNAL_FULL_PATH], (req, res, next) => {
-        req.url = req.originalUrl;
+    internalApp.use(
+        [XRAY_INTERNAL_FULL_PATH, XRAY_INTERNAL_FULL_WEBHOOK_PATH],
+        (req, res, next) => {
+            req.url = req.originalUrl;
 
-        httpServer.handle(req, res, next);
-    });
+            httpServer.handle(req, res, next);
+        },
+    );
 
     const internalServer = internalApp.listen(internalSocketPath);
 

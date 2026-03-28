@@ -80,3 +80,23 @@ export const XRAY_ROUTING_RULES_MODEL = {
     inboundTag: ['REMNAWAVE_API_INBOUND'],
     outboundTag: 'REMNAWAVE_API',
 } as const;
+
+export const XRAY_TORRENT_BLOCKER_ROUTING_RULES_MODEL = ({
+    webhookUrl,
+}: {
+    webhookUrl: string;
+}) => ({
+    protocol: ['bittorrent'],
+    outboundTag: 'RW_TB_OUTBOUND_BLOCK',
+    webhook: {
+        url: webhookUrl,
+        deduplication: 5,
+    },
+});
+
+export const XRAY_TORRENT_BLOCKER_OUTBOUND_MODEL = {
+    tag: 'RW_TB_OUTBOUND_BLOCK',
+    protocol: 'blackhole',
+} as const;
+
+export const XRAY_TORRENT_BLOCKER_OUTBOUND_TAG = 'RW_TB_OUTBOUND_BLOCK';

@@ -17,11 +17,16 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | b
 
 ENV PATH="/root/.nvm/versions/node/v24.12.0/bin:${PATH}"
 
-RUN curl -L https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-latest-xray.sh | bash -s -- v25.12.8
+RUN curl -L https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-latest-xray.sh | bash -s -- v26.3.27
 
 
-RUN mkdir -p /var/log/supervisor /var/lib/rnode/xray /app \
-    && echo '{}' > /var/lib/rnode/xray/xray-config.json
+ARG ASN_LMDB_URL=https://github.com/remnawave/asn-index/releases/latest/download/asn-prefixes-lmdb.tar.gz
+
+RUN mkdir -p /var/log/supervisor /var/lib/rnode/xray /app /usr/local/share/asn \
+    && echo '{}' > /var/lib/rnode/xray/xray-config.json \
+    && curl -L ${ASN_LMDB_URL} -o /tmp/asn-prefixes-lmdb.tar.gz \
+    && tar -xzf /tmp/asn-prefixes-lmdb.tar.gz -C /usr/local/share/asn \
+    && rm -f /tmp/asn-prefixes-lmdb.tar.gz
 
 WORKDIR /app
 

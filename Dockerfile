@@ -3,6 +3,7 @@ FROM node:24.14-alpine AS build
 ARG XRAY_CORE_VERSION=v26.3.27
 ARG UPSTREAM_REPO=XTLS
 ARG XRAY_CORE_INSTALL_SCRIPT=https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-xray.sh
+ARG ASN_LMDB_URL=https://github.com/remnawave/asn-index/releases/latest/download/asn-prefixes-lmdb.tar.gz
 
 WORKDIR /opt/app
 
@@ -12,7 +13,12 @@ RUN npm ci --legacy-peer-deps
 RUN npm run build --omit=dev
 
 RUN apk add --no-cache curl unzip \
-    && curl -L ${XRAY_CORE_INSTALL_SCRIPT} | sh -s -- ${XRAY_CORE_VERSION} ${UPSTREAM_REPO}
+    && curl -L ${XRAY_CORE_INSTALL_SCRIPT} | sh -s -- ${XRAY_CORE_VERSION} ${UPSTREAM_REPO} \
+    && mkdir -p /usr/local/share/asn \
+    && curl -L ${ASN_LMDB_URL} \
+       -o /tmp/asn-prefixes-lmdb.tar.gz \
+    && tar -xzf /tmp/asn-prefixes-lmdb.tar.gz -C /usr/local/share/asn \
+    && rm -f /tmp/asn-prefixes-lmdb.tar.gz
 
 RUN echo '#!/bin/sh' > /usr/local/bin/xlogs \
     && echo 'tail -n +1 -f /var/log/supervisor/xray.out.log' >> /usr/local/bin/xlogs \
@@ -41,6 +47,7 @@ COPY --from=build /usr/local/share/xray/geoip.dat /usr/local/share/xray/geoip.da
 COPY --from=build /usr/local/share/xray/geosite.dat /usr/local/share/xray/geosite.dat
 COPY --from=build /usr/local/bin/xlogs /usr/local/bin/xlogs
 COPY --from=build /usr/local/bin/xerrors /usr/local/bin/xerrors
+COPY --from=build /usr/local/share/asn /usr/local/share/asn
 
 COPY supervisord.conf /etc/supervisord.conf
 COPY docker-entrypoint.sh /usr/local/bin/

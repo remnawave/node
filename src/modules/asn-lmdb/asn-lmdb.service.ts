@@ -5,24 +5,24 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 
 import { IAsnPrefixes } from './interfaces';
 
+const ASN_LMDB_PATH = '/usr/local/share/asn/asn-prefixes.lmdb';
+
 @Injectable()
 export class AsnLmdbService implements OnModuleDestroy, OnModuleInit {
     private readonly logger = new Logger(AsnLmdbService.name);
-
-    private static readonly DB_PATH = '/usr/local/share/asn/asn-prefixes.lmdb';
 
     private db: Database<IAsnPrefixes, number> | null = null;
     private isAvailable: boolean = false;
 
     onModuleInit(): void {
-        if (!existsSync(AsnLmdbService.DB_PATH)) {
-            this.logger.warn(`${AsnLmdbService.DB_PATH} not found — ASN lookup disabled`);
+        if (!existsSync(ASN_LMDB_PATH)) {
+            this.logger.warn(`${ASN_LMDB_PATH} not found — ASN lookup disabled`);
             return;
         }
 
         try {
             this.db = open({
-                path: AsnLmdbService.DB_PATH,
+                path: ASN_LMDB_PATH,
                 encoding: 'msgpack',
                 readOnly: true,
             });

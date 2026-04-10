@@ -1,3 +1,5 @@
+process.title = 'rw-node';
+
 import { utilities as nestWinstonModuleUtilities, WinstonModule } from 'nest-winston';
 import * as bodyParser from '@kastov/body-parser-with-zstd';
 import { ZodValidationPipe } from 'nestjs-zod';

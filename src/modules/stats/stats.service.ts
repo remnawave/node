@@ -1,5 +1,3 @@
-import pMap from 'p-map';
-
 import { Injectable, Logger } from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
 
@@ -326,54 +324,26 @@ export class StatsService {
 
     public async getUsersIpList(): Promise<ICommandResponse<GetUsersIpListResponseModel>> {
         try {
-            const { users } = await this.xtlsSdk.stats.rawClient.getAllOnlineUsers({});
+            const response = await this.xtlsSdk.stats.getUsersStats(false, false);
 
-            const onlineUsers = new Set(users.map((stat) => this.extractOnlineUserId(stat)));
-
-            const usersIps = await pMap(
-                onlineUsers,
-                async (email) => {
-                    try {
-                        const { ips } = await this.xtlsSdk.stats.rawClient.getStatsOnlineIpList({
-                            name: `user>>>${email}>>>online`,
-                            reset: true,
-                        });
-
-                        return {
-                            email,
-                            ips: Object.entries(ips).map(([ip, lastSeen]) => ({ ip, lastSeen })),
-                        };
-                    } catch {
-                        return { email, ips: [] };
-                    }
-                },
-                { concurrency: 50 },
-            );
-
-            return {
-                isOk: true,
-                response: new GetUsersIpListResponseModel(
-                    usersIps.filter((user) => user.ips.length > 0),
-                ),
-            };
-        } catch (error) {
-            if (error && typeof error === 'object' && 'code' in error && error.code === 5) {
+            if (!response.isOk || !response.data || !response.data.users) {
+                this.logger.error(response);
                 return {
                     isOk: true,
                     response: new GetUsersIpListResponseModel([]),
                 };
             }
 
+            return {
+                isOk: true,
+                response: new GetUsersIpListResponseModel(response.data.users),
+            };
+        } catch (error) {
             this.logger.error(error);
             return {
                 isOk: true,
                 response: new GetUsersIpListResponseModel([]),
             };
         }
-    }
-
-    private extractOnlineUserId(raw: string): string {
-        // user>>>123>>>online
-        return raw.split('>>>')[1];
     }
 }

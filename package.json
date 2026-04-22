@@ -1,6 +1,6 @@
 {
   "name": "@remnawave/node",
-  "version": "2.7.0",
+  "version": "2.8.0",
   "description": "Remnawave Node",
   "private": false,
   "type": "commonjs",

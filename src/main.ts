@@ -25,7 +25,7 @@ import {
     XRAY_INTERNAL_FULL_PATH,
     XRAY_INTERNAL_FULL_WEBHOOK_PATH,
 } from '@libs/contracts/constants';
-import { REST_API, ROOT } from '@libs/contracts/api';
+import { ROOT } from '@libs/contracts/api';
 
 import { AppModule } from './app.module';
 
@@ -98,12 +98,7 @@ async function bootstrap(): Promise<void> {
     app.useGlobalFilters(new NotFoundExceptionFilter());
 
     app.setGlobalPrefix(ROOT, {
-        exclude: [
-            XRAY_INTERNAL_FULL_PATH,
-            XRAY_INTERNAL_FULL_WEBHOOK_PATH,
-            '/' + REST_API.VISION.BLOCK_IP,
-            '/' + REST_API.VISION.UNBLOCK_IP,
-        ],
+        exclude: [XRAY_INTERNAL_FULL_PATH, XRAY_INTERNAL_FULL_WEBHOOK_PATH],
     });
 
     app.useGlobalPipes(new ZodValidationPipe());

@@ -15,7 +15,7 @@
     "url": "https://github.com/remnawave/node/issues"
   },
   "bin": {
-    "cli": "dist/src/bin/cli/cli.js"
+    "cli": "dist/cli.js"
   },
   "scripts": {
     "build": "nest build",
@@ -23,8 +23,8 @@
     "start": "nest start",
     "start:dev": "NODE_ENV=development nest start --watch",
     "start:debug": "NODE_ENV=development nest start --debug --watch",
-    "start:prod": "NODE_ENV=production node --max-http-header-size=65536 dist/src/main",
-    "start:bun": "NODE_ENV=production bun run dist/src/main",
+    "start:prod": "NODE_ENV=production node --max-http-header-size=65536 dist/main",
+    "start:bun": "NODE_ENV=production bun run dist/main",
     "prepare": "husky",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
@@ -56,7 +56,6 @@
     "json-colorizer": "^3.0.1",
     "lmdb": "^3.5.4",
     "morgan": "^1.10.1",
-    "nanoid": "^5.1.9",
     "nest-winston": "^1.10.2",
     "nestjs-zod": "4.3.1",
     "nftables-napi": "0.4.2",

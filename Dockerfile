@@ -71,7 +71,6 @@ ENV NODE_OPTIONS="--max-http-header-size=65536"
 ENV UV_THREADPOOL_SIZE=24
 
 ENV XRAY_JSON_STRICT=true
-ENV XTLS_API_PORT=61000
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 

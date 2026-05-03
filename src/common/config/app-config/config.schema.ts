@@ -14,9 +14,6 @@ export const configSchema = z
             .string()
             .default('false')
             .transform((val) => val === 'true'),
-        XTLS_API_PORT: z.string().transform((port) => {
-            return parseInt(port, 10);
-        }),
         INTERNAL_REST_TOKEN: z.string(),
         SUPERVISORD_USER: z.string(),
         SUPERVISORD_PASSWORD: z.string(),

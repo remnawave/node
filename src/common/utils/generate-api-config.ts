@@ -12,7 +12,6 @@ import {
 import { XRAY_INTERNAL_FULL_WEBHOOK_PATH } from '@libs/contracts/constants';
 
 import { getServerCerts } from './generate-mtls-certs';
-import { getXtlsApiPort } from './get-initial-ports';
 import { IPolicyConfig } from './interfaces';
 
 interface IRoutingXrayConfig {
@@ -63,7 +62,6 @@ export const generateApiConfig = (args: IGenerateApiConfigParams): Record<string
         ...XRAY_DEFAULT_API_MODEL,
         inbounds: [
             XRAY_API_INBOUND_MODEL({
-                port: getXtlsApiPort(),
                 caCertPem: serverCerts.caCertPem,
                 serverCertPem: serverCerts.serverCertPem,
                 serverKeyPem: serverCerts.serverKeyPem,

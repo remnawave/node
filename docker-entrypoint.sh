@@ -53,9 +53,6 @@ XRAY_CORE_VERSION=$(/usr/local/bin/rw-core version | head -n 1)
 export XRAY_CORE_VERSION
 
 echo "[Entrypoint] Xray version: $XRAY_CORE_VERSION"
-echo "[Ports] XTLS_API_PORT: $XTLS_API_PORT"
-
-
 
 echo "[Entrypoint] Executing command: $@"
 exec "$@"

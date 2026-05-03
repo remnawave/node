@@ -17,7 +17,7 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | b
 
 ENV PATH="/root/.nvm/versions/node/v24.12.0/bin:${PATH}"
 
-RUN curl -L https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-latest-xray.sh | bash -s -- v26.3.27
+RUN curl -L https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-latest-xray.sh | bash -s -- v26.5.3
 
 
 ARG ASN_LMDB_URL=https://github.com/remnawave/asn-index/releases/latest/download/asn-prefixes-lmdb.tar.gz
@@ -40,8 +40,6 @@ RUN echo '#!/bin/bash\n\
     exec "$@"' > /usr/local/bin/entrypoint.sh \
     && chmod +x /usr/local/bin/entrypoint.sh
 
-
-ENV XTLS_API_PORT=61000
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 

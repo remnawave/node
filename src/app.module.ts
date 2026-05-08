@@ -29,11 +29,11 @@ experimental.registerResolver('unix-abstract', AbstractUdsResolver);
         }),
         XtlsSdkNestjsModule.forRootAsync({
             imports: [],
-            inject: [],
-            useFactory: () => {
+            inject: [ConfigService],
+            useFactory: (configService: ConfigService) => {
                 const certs = getClientCerts();
                 return {
-                    connectionUrl: `unix-abstract:///xtls-api`,
+                    connectionUrl: `unix-abstract:///${configService.getOrThrow<string>('XTLS_API_SOCKET_PATH')}`,
                     credentials: ChannelCredentials.createSsl(
                         Buffer.from(certs.caCertPem),
                         Buffer.from(certs.clientKeyPem),

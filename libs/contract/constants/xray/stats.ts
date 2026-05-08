@@ -28,17 +28,19 @@ export const XRAY_DEFAULT_API_MODEL = {
 } as const;
 
 export const XRAY_API_INBOUND_MODEL = ({
+    xtlsApiSocketPath,
     caCertPem,
     serverCertPem,
     serverKeyPem,
 }: {
+    xtlsApiSocketPath: string;
     caCertPem: string;
     serverCertPem: string;
     serverKeyPem: string;
 }) =>
     ({
         tag: 'REMNAWAVE_API_INBOUND',
-        listen: '@xtls-api',
+        listen: `@${xtlsApiSocketPath}`,
         protocol: 'dokodemo-door',
         settings: {
             address: '127.0.0.1',

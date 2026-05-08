@@ -19,6 +19,7 @@ INTERNAL_REST_TOKEN=$(generate_random 64)
 INTERNAL_SOCKET_PATH=/run/remnawave-internal-${RNDSTR}.sock
 SUPERVISORD_SOCKET_PATH=/run/supervisord-${RNDSTR}.sock
 SUPERVISORD_PID_PATH=/run/supervisord-${RNDSTR}.pid
+XTLS_API_SOCKET_PATH=xtls-api-${RNDSTR}
 
 export SUPERVISORD_USER
 export SUPERVISORD_PASSWORD
@@ -26,6 +27,7 @@ export INTERNAL_REST_TOKEN
 export INTERNAL_SOCKET_PATH
 export SUPERVISORD_SOCKET_PATH
 export SUPERVISORD_PID_PATH
+export XTLS_API_SOCKET_PATH
 
 echo "[Entrypoint] Getting Supervisord version..."
 echo "[Entrypoint] Supervisord version: $(supervisord --version | head -n 1)"

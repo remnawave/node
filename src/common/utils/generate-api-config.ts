@@ -34,6 +34,7 @@ interface IGenerateApiConfigParams {
     internal: {
         socketPath: string;
         token: string;
+        xtlsApiSocketPath: string;
     };
 }
 
@@ -62,6 +63,7 @@ export const generateApiConfig = (args: IGenerateApiConfigParams): Record<string
         ...XRAY_DEFAULT_API_MODEL,
         inbounds: [
             XRAY_API_INBOUND_MODEL({
+                xtlsApiSocketPath: internal.xtlsApiSocketPath,
                 caCertPem: serverCerts.caCertPem,
                 serverCertPem: serverCerts.serverCertPem,
                 serverKeyPem: serverCerts.serverKeyPem,

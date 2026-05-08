@@ -20,6 +20,7 @@ export const configSchema = z
         INTERNAL_SOCKET_PATH: z.string(),
         SUPERVISORD_SOCKET_PATH: z.string(),
         SUPERVISORD_PID_PATH: z.string(),
+        XTLS_API_SOCKET_PATH: z.string(),
     })
     .superRefine((data, ctx) => {
         if (data.SECRET_KEY) {

@@ -39,6 +39,7 @@ export class XrayService implements OnApplicationBootstrap {
     private readonly internal: {
         socketPath: string;
         token: string;
+        xtlsApiSocketPath: string;
     };
 
     private readonly xrayPath: string;
@@ -58,6 +59,7 @@ export class XrayService implements OnApplicationBootstrap {
         this.internal = {
             socketPath: this.configService.getOrThrow<string>('INTERNAL_SOCKET_PATH'),
             token: this.configService.getOrThrow<string>('INTERNAL_REST_TOKEN'),
+            xtlsApiSocketPath: this.configService.getOrThrow<string>('XTLS_API_SOCKET_PATH'),
         };
 
         this.xrayPath = '/usr/local/bin/xray';

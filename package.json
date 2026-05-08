@@ -57,7 +57,7 @@
     "morgan": "^1.10.1",
     "nest-winston": "^1.10.2",
     "nestjs-zod": "4.3.1",
-    "nftables-napi": "0.4.3",
+    "nftables-napi": "0.4.4",
     "nice-grpc": "^2.1.16",
     "node-object-hash": "^3.1.1",
     "object-hash": "^3.0.0",

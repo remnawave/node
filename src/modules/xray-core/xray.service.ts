@@ -1,5 +1,7 @@
 import { ProcessInfo } from '@kastov/node-supervisord/dist/interfaces';
 import { SupervisordClient } from '@kastov/node-supervisord';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import ems from 'enhanced-ms';
 import pRetry from 'p-retry';
 import semver from 'semver';
@@ -29,6 +31,7 @@ import { GetTorrentBlockerStateQuery } from '../_plugin/queries/get-torrent-bloc
 import { InternalService } from '../internal/internal.service';
 
 const XRAY_PROCESS_NAME = 'xray' as const;
+const execFileAsync = promisify(execFile);
 
 @Injectable()
 export class XrayService implements OnApplicationBootstrap {
@@ -171,6 +174,8 @@ export class XrayService implements OnApplicationBootstrap {
             const xrayProcess = await this.restartXrayProcess();
 
             if (xrayProcess.error) {
+                this.logger.error(`Xray Core v${this.xrayVersion} failed to start.`);
+
                 if (xrayProcess.error.includes('XML-RPC fault: SPAWN_ERROR: xray')) {
                     this.logger.error(REMNAWAVE_NODE_KNOWN_ERROR, {
                         timestamp: new Date().toISOString(),
@@ -180,6 +185,14 @@ export class XrayService implements OnApplicationBootstrap {
                 } else {
                     this.logger.error(xrayProcess.error);
                 }
+
+                const [outTail, errTail] = await Promise.all([
+                    this.tailLogLines('/var/log/supervisor/xray.out.log'),
+                    this.tailLogLines('/var/log/supervisor/xray.err.log'),
+                ]);
+
+                this.logger.error(`${outTail.join('\n')}`);
+                this.logger.error(`${errTail.join('\n')}`);
 
                 return {
                     isOk: true,
@@ -417,6 +430,16 @@ export class XrayService implements OnApplicationBootstrap {
                 processInfo: null,
                 error: error instanceof Error ? error.message : 'Unknown error',
             };
+        }
+    }
+
+    public async tailLogLines(path: string, n = 10): Promise<string[]> {
+        try {
+            this.logger.log(`▸ Tailing ${n} lines from ${path}...`);
+            const { stdout } = await execFileAsync('tail', ['-n', String(n), path]);
+            return stdout.split('\n').filter(Boolean);
+        } catch {
+            return [];
         }
     }
 }

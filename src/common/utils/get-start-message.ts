@@ -1,5 +1,4 @@
 import { getBorderCharacters, table } from 'table';
-import { readPackageJSON } from 'pkg-types';
 import prettyBytes from 'pretty-bytes';
 
 import { INestApplication } from '@nestjs/common';
@@ -8,8 +7,6 @@ import { XrayService } from '../../modules/xray-core/xray.service';
 import { getSystemInfo } from './get-system-stats';
 
 export async function getStartMessage(appPort: number, app: INestApplication) {
-    const pkg = await readPackageJSON();
-
     const xrayService = app.get(XrayService);
 
     const xrayInfo = xrayService.getXrayInfo();
@@ -26,7 +23,7 @@ export async function getStartMessage(appPort: number, app: INestApplication) {
         ],
         {
             header: {
-                content: `Remnawave Node v${pkg.version}`,
+                content: `Remnawave Node v${__RWNODE_VERSION__}`,
                 alignment: 'center',
             },
             columnDefault: {

@@ -1,6 +1,5 @@
 import { ProcessInfo } from '@kastov/node-supervisord/dist/interfaces';
 import { SupervisordClient } from '@kastov/node-supervisord';
-import { readPackageJSON } from 'pkg-types';
 import { table } from 'table';
 import ems from 'enhanced-ms';
 import pRetry from 'p-retry';
@@ -73,10 +72,8 @@ export class XrayService implements OnApplicationBootstrap {
 
     async onApplicationBootstrap() {
         try {
-            const pkg = await readPackageJSON();
-
             this.xrayVersion = this.getXrayVersionFromEnv();
-            this.nodeVersion = pkg.version ?? '0.0.0';
+            this.nodeVersion = __RWNODE_VERSION__ ?? '0.0.0';
 
             await this.supervisordApi.getState();
         } catch (error: unknown) {

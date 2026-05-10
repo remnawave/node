@@ -24,6 +24,9 @@
         "./src/xray-protos/*"
       ]
     },
+    "typeRoots": [
+      "./@types"
+    ],
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,

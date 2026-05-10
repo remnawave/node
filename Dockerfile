@@ -1,24 +1,17 @@
-FROM node:24.15-alpine AS deps
-
-WORKDIR /opt/app
-
-COPY package*.json ./
-RUN npm ci
-
-
 FROM node:24.15-alpine AS build
 
 WORKDIR /opt/app
 
-COPY --from=deps /opt/app/node_modules ./node_modules
+COPY package*.json ./
+RUN npm ci --prefer-offline --no-audit --no-fund
+
 COPY . .
 
 RUN npm run build \
-    && npm prune --omit=dev \
-    && npm cache clean --force
+    && npm run trace
 
 
-FROM node:24.15-alpine AS xray
+FROM alpine:3.21 AS xray
 
 ARG XRAY_CORE_VERSION=v26.5.9
 ARG UPSTREAM_REPO=XTLS
@@ -46,8 +39,6 @@ LABEL org.opencontainers.image.documentation="https://docs.rw"
 WORKDIR /opt/app
 
 COPY --from=build /opt/app/dist ./dist
-COPY --from=build /opt/app/node_modules ./node_modules
-COPY --from=build /opt/app/package.json ./package.json
 
 COPY --from=xray /usr/local/bin/xray /usr/local/bin/xray
 COPY --from=xray /usr/local/share/xray/geoip.dat /usr/local/share/xray/geoip.dat

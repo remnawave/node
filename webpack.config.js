@@ -1,5 +1,6 @@
 const webpack = require('webpack');
 const TerserPlugin = require('terser-webpack-plugin');
+const pkg = require('./package.json');
 
 module.exports = function (options) {
     return {
@@ -28,6 +29,9 @@ module.exports = function (options) {
         },
         plugins: [
             ...(options.plugins ?? []),
+            new webpack.DefinePlugin({
+                __RWNODE_VERSION__: JSON.stringify(pkg.version),
+            }),
             new webpack.BannerPlugin({
                 banner: '#!/usr/bin/env node',
                 raw: true,

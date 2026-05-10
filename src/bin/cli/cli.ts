@@ -2,12 +2,13 @@
 
 import { colorize } from 'json-colorizer';
 import { killSockets } from 'sockdestroy';
-import { Agent, request } from 'undici';
 import consola from 'consola';
+import http from 'node:http';
 import fs from 'fs';
 
 const enum CLI_ACTIONS {
     DUMP_CONFIG = 'dump-config',
+    DUMP_CONFIG_RAW = 'dump-config-raw',
     EXIT = 'exit',
     KILL_SOCKETS = 'kill-sockets',
 }
@@ -33,52 +34,88 @@ function loadEnvFromMainProcess(): { socketPath?: string; token?: string } {
     }
 }
 
-async function dumpConfig() {
-    try {
-        const mainProcessEnv = loadEnvFromMainProcess();
-        const socketPath = mainProcessEnv.socketPath;
-        const token = mainProcessEnv.token;
-
-        if (!socketPath || !token) {
-            consola.error('Missing environment variables.');
-            process.exit(1);
-        }
-
-        consola.start('Dumping cold XRay configuration...');
-
-        const agent = new Agent({
-            connect: {
-                socketPath: socketPath,
+function requestOverSocket(
+    socketPath: string,
+    path: string,
+    timeoutMs = 5000,
+): Promise<{ statusCode: number; body: string }> {
+    return new Promise((resolve, reject) => {
+        const req = http.request(
+            {
+                socketPath,
+                path,
+                method: 'GET',
+                timeout: timeoutMs,
+                headers: { accept: 'application/json' },
             },
-        });
-
-        const { body, statusCode } = await request(
-            `http://localhost/internal/get-config?token=${token}`,
-            { dispatcher: agent },
+            (res) => {
+                let data = '';
+                res.setEncoding('utf8');
+                res.on('data', (chunk) => (data += chunk));
+                res.on('end', () => resolve({ statusCode: res.statusCode ?? 0, body: data }));
+                res.on('error', reject);
+            },
         );
 
-        if (statusCode !== 200) {
-            consola.fail(`Failed to fetch configuration with status ${statusCode}`);
-            process.exit(1);
-        }
+        req.on('timeout', () => req.destroy(new Error(`Request timed out after ${timeoutMs}ms`)));
+        req.on('error', reject);
+        req.end();
+    });
+}
 
-        const config = (await body.json()) as Record<string, unknown>;
-
-        if (!config || Object.keys(config).length === 0) {
-            consola.warn('Configuration is empty.');
-            return;
-        }
-
-        consola.success('Configuration retrieved successfully!\n');
-        consola.log(colorize(JSON.stringify(config, null, 2)));
-        consola.success('Configuration dumped successfully!');
-    } catch (error) {
-        consola.fail('Failed to fetch configuration');
-        if (error instanceof Error) {
-            consola.error(error.message);
+async function dumpConfig({ raw = false }: { raw?: boolean } = {}) {
+    const fail = (message: string): never => {
+        if (raw) {
+            process.stderr.write(`${message}\n`);
+        } else {
+            consola.fail(message);
         }
         process.exit(1);
+    };
+
+    const { socketPath, token } = loadEnvFromMainProcess();
+
+    if (!socketPath || !token) {
+        fail('Missing environment variables.');
     }
+
+    if (!raw) {
+        consola.start('Dumping cold XRay configuration...');
+    }
+
+    let response: { statusCode: number; body: string };
+    try {
+        response = await requestOverSocket(
+            socketPath!,
+            `/internal/get-config?token=${encodeURIComponent(token!)}`,
+        );
+    } catch (error) {
+        fail(error instanceof Error ? error.message : 'Failed to fetch configuration');
+        return;
+    }
+
+    if (response.statusCode !== 200) {
+        fail(`Failed to fetch configuration with status ${response.statusCode}`);
+    }
+
+    if (raw) {
+        process.stdout.write(response.body);
+        if (!response.body.endsWith('\n')) {
+            process.stdout.write('\n');
+        }
+        return;
+    }
+
+    const config = JSON.parse(response.body) as Record<string, unknown>;
+
+    if (!config || Object.keys(config).length === 0) {
+        consola.warn('Configuration is empty.');
+        return;
+    }
+
+    consola.success('Configuration retrieved successfully!\n');
+    consola.log(colorize(JSON.stringify(config, null, 2)));
+    consola.success('Configuration dumped successfully!');
 }
 
 async function killSocketsByIP() {
@@ -151,6 +188,9 @@ function parseArgs(): CLI_ACTIONS | null {
         case '--dump-config':
         case '-d':
             return CLI_ACTIONS.DUMP_CONFIG;
+        case '--dump-config-raw':
+        case '-D':
+            return CLI_ACTIONS.DUMP_CONFIG_RAW;
         case '--kill-sockets':
         case '-k':
             return CLI_ACTIONS.KILL_SOCKETS;
@@ -160,9 +200,10 @@ function parseArgs(): CLI_ACTIONS | null {
 Usage: cli [command]
 
 Commands:
-  --dump-config, -d    Dump current XRay configuration
-  --kill-sockets, -k   Kill sockets by IP address
-  --help, -h           Show this help message
+  --dump-config, -d         Dump current XRay configuration (pretty, colored)
+  --dump-config-raw, -D     Dump raw XRay configuration to stdout (machine-readable, pipeable)
+  --kill-sockets, -k        Kill sockets by IP address
+  --help, -h                Show this help message
 `);
             process.exit(0);
         default:
@@ -175,6 +216,11 @@ const cliAction = parseArgs();
 if (cliAction === CLI_ACTIONS.DUMP_CONFIG) {
     dumpConfig().catch((e) => {
         consola.error('❌ An error occurred:', e);
+        process.exit(1);
+    });
+} else if (cliAction === CLI_ACTIONS.DUMP_CONFIG_RAW) {
+    dumpConfig({ raw: true }).catch((e) => {
+        process.stderr.write(`${e instanceof Error ? e.message : String(e)}\n`);
         process.exit(1);
     });
 } else if (cliAction === CLI_ACTIONS.KILL_SOCKETS) {

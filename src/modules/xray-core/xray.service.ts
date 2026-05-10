@@ -1,6 +1,5 @@
 import { ProcessInfo } from '@kastov/node-supervisord/dist/interfaces';
 import { SupervisordClient } from '@kastov/node-supervisord';
-import { table } from 'table';
 import ems from 'enhanced-ms';
 import pRetry from 'p-retry';
 import semver from 'semver';
@@ -95,7 +94,6 @@ export class XrayService implements OnApplicationBootstrap {
 
     public async startXray(
         body: StartXrayCommand.Request,
-        ip: string,
     ): Promise<ICommandResponse<StartXrayResponseModel>> {
         const interfaceStats = await this.queryBus.execute(new GetInterfaceStatsQuery());
         const tm = performance.now();
@@ -203,21 +201,7 @@ export class XrayService implements OnApplicationBootstrap {
                 this.isXrayOnline = false;
 
                 this.logger.error(
-                    '\n' +
-                        table(
-                            [
-                                ['Version', this.xrayVersion],
-                                ['Master IP', ip],
-                                ['Internal Status', isStarted],
-                                ['Error', xrayProcess.error],
-                            ],
-                            {
-                                header: {
-                                    content: 'Xray failed to start',
-                                    alignment: 'center',
-                                },
-                            },
-                        ),
+                    `Xray Core v${this.xrayVersion} failed to start. Error: ${xrayProcess.error}`,
                 );
 
                 return {
@@ -236,21 +220,7 @@ export class XrayService implements OnApplicationBootstrap {
 
             this.isXrayOnline = true;
 
-            this.logger.log(
-                '\n' +
-                    table(
-                        [
-                            ['Version', this.xrayVersion],
-                            ['Master IP', ip],
-                        ],
-                        {
-                            header: {
-                                content: 'Xray started',
-                                alignment: 'center',
-                            },
-                        },
-                    ),
-            );
+            this.logger.log(`✔ XRay Core v${this.xrayVersion} is up and running.`);
 
             return {
                 isOk: true,

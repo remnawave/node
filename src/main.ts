@@ -15,7 +15,6 @@ import morgan from 'morgan';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 
-import { initializeMTLSCerts } from '@common/utils/generate-mtls-certs';
 import { parseNodePayload } from '@common/utils/decode-node-payload';
 import { getStartMessage } from '@common/utils/get-start-message';
 import { isDevelopment } from '@common/utils/is-development';
@@ -54,8 +53,6 @@ async function bootstrap(): Promise<void> {
     if (fs.existsSync(internalSocketPath)) {
         fs.unlinkSync(internalSocketPath);
     }
-
-    await initializeMTLSCerts();
 
     const nodePayload = parseNodePayload();
 

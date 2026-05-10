@@ -11,7 +11,6 @@ import { XtlsSdkNestjsModule } from '@remnawave/xtls-sdk-nestjs';
 import { JwtStrategy } from '@common/guards/jwt-guards/strategies/validate-token';
 import { AbstractUdsResolver } from '@common/utils/unix-abstract.resolver';
 import { validateEnvConfig } from '@common/utils/validate-env-config';
-import { getClientCerts } from '@common/utils/generate-mtls-certs';
 import { configSchema, Env } from '@common/config/app-config';
 import { getJWTConfig } from '@common/config/jwt/jwt.config';
 
@@ -31,20 +30,11 @@ experimental.registerResolver('unix-abstract', AbstractUdsResolver);
             imports: [],
             inject: [ConfigService],
             useFactory: (configService: ConfigService) => {
-                const certs = getClientCerts();
                 return {
                     connectionUrl: `unix-abstract:///${configService.getOrThrow<string>('XTLS_API_SOCKET_PATH')}`,
-                    credentials: ChannelCredentials.createSsl(
-                        Buffer.from(certs.caCertPem),
-                        Buffer.from(certs.clientKeyPem),
-                        Buffer.from(certs.clientCertPem),
-                        {
-                            rejectUnauthorized: true,
-                        },
-                    ),
+                    credentials: ChannelCredentials.createInsecure(),
                     options: {
                         'grpc.max_receive_message_length': 100_000_000, // 100MB
-                        'grpc.ssl_target_name_override': 'internal.remnawave.local',
                     },
                 };
             },

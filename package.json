@@ -41,8 +41,6 @@
     "@nestjs/jwt": "11.0.2",
     "@nestjs/passport": "11.0.5",
     "@nestjs/platform-express": "11.1.19",
-    "@peculiar/webcrypto": "^1.5.0",
-    "@peculiar/x509": "^1.14.3",
     "@remnawave/hashed-set": "^0.0.4",
     "@remnawave/node-plugins": "0.4.5",
     "@remnawave/supervisord-nestjs": "0.3.1",

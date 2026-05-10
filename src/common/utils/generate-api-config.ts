@@ -11,7 +11,6 @@ import {
 } from '@libs/contracts/constants/xray';
 import { XRAY_INTERNAL_FULL_WEBHOOK_PATH } from '@libs/contracts/constants';
 
-import { getServerCerts } from './generate-mtls-certs';
 import { IPolicyConfig } from './interfaces';
 
 interface IRoutingXrayConfig {
@@ -42,7 +41,6 @@ export const generateApiConfig = (args: IGenerateApiConfigParams): Record<string
     const { config, torrentBlockerState, internal } = args;
 
     const policyConfig = config.policy as undefined | IPolicyConfig;
-    const serverCerts = getServerCerts();
     const hasCapNetAdminResult = hasCapNetAdmin();
 
     const builtPolicy: IPolicyConfig = {
@@ -64,9 +62,6 @@ export const generateApiConfig = (args: IGenerateApiConfigParams): Record<string
         inbounds: [
             XRAY_API_INBOUND_MODEL({
                 xtlsApiSocketPath: internal.xtlsApiSocketPath,
-                caCertPem: serverCerts.caCertPem,
-                serverCertPem: serverCerts.serverCertPem,
-                serverKeyPem: serverCerts.serverKeyPem,
             }),
             ...(Array.isArray(config.inbounds) ? config.inbounds : []),
         ],
@@ -76,7 +71,9 @@ export const generateApiConfig = (args: IGenerateApiConfigParams): Record<string
             ...(config.routing || {}),
             rules: [
                 XRAY_ROUTING_RULES_MODEL,
-                ...((config.routing as { rules?: unknown[] })?.rules || []),
+                ...((config.routing as unknown as IRoutingXrayConfig)?.rules ?? []).filter(
+                    (rule) => rule.outboundTag !== 'REMNAWAVE_API',
+                ),
             ],
         },
     };

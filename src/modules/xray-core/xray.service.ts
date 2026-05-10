@@ -390,6 +390,7 @@ export class XrayService implements OnApplicationBootstrap {
     }
 
     private async getXrayInternalStatus(): Promise<boolean> {
+        const tm = performance.now();
         try {
             return await pRetry(
                 async () => {
@@ -405,8 +406,14 @@ export class XrayService implements OnApplicationBootstrap {
                     maxTimeout: 2000,
                     factor: 1.5,
                     onFailedAttempt: (error) => {
-                        this.logger.debug(
-                            `Get Xray internal status attempt ${error.attemptNumber} failed. ${error.retriesLeft} retries left.`,
+                        this.logger.warn(
+                            `↻ XRay Core status check, ${error.attemptNumber}/${error.attemptNumber + error.retriesLeft} · elapsed ${ems(
+                                performance.now() - tm,
+                                {
+                                    extends: 'short',
+                                    includeMs: true,
+                                },
+                            )}`,
                         );
                     },
                 },

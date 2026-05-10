@@ -17,8 +17,8 @@ import { XtlsApi } from '@remnawave/xtls-sdk';
 import { getSystemInfo, getSystemStats } from '@common/utils/get-system-stats';
 import { ICommandResponse } from '@common/types/command-response.type';
 import { generateApiConfig } from '@common/utils/generate-api-config';
-import { KNOWN_ERRORS, REMNAWAVE_NODE_KNOWN_ERROR } from '@libs/contracts/constants';
 import { StartXrayCommand } from '@libs/contracts/commands';
+import { KNOWN_ERRORS } from '@libs/contracts/constants';
 
 import {
     GetNodeHealthCheckResponseModel,
@@ -174,25 +174,17 @@ export class XrayService implements OnApplicationBootstrap {
             const xrayProcess = await this.restartXrayProcess();
 
             if (xrayProcess.error) {
-                this.logger.error(`Xray Core v${this.xrayVersion} failed to start.`);
-
                 if (xrayProcess.error.includes('XML-RPC fault: SPAWN_ERROR: xray')) {
-                    this.logger.error(REMNAWAVE_NODE_KNOWN_ERROR, {
+                    this.logger.error(`Xray Core v${this.xrayVersion} failed to start.`, {
                         timestamp: new Date().toISOString(),
                         rawError: xrayProcess.error,
                         ...KNOWN_ERRORS.XRAY_FAILED_TO_START,
                     });
+
+                    await this.dumpTailBlock('/var/log/supervisor/xray.out.log', 5);
                 } else {
                     this.logger.error(xrayProcess.error);
                 }
-
-                const [outTail, errTail] = await Promise.all([
-                    this.tailLogLines('/var/log/supervisor/xray.out.log'),
-                    this.tailLogLines('/var/log/supervisor/xray.err.log'),
-                ]);
-
-                this.logger.error(`${outTail.join('\n')}`);
-                this.logger.error(`${errTail.join('\n')}`);
 
                 return {
                     isOk: true,
@@ -200,9 +192,7 @@ export class XrayService implements OnApplicationBootstrap {
                         false,
                         null,
                         xrayProcess.error,
-                        {
-                            version: this.nodeVersion,
-                        },
+                        { version: this.nodeVersion },
                         system,
                     ),
                 };
@@ -435,11 +425,23 @@ export class XrayService implements OnApplicationBootstrap {
 
     public async tailLogLines(path: string, n = 10): Promise<string[]> {
         try {
-            this.logger.log(`▸ Tailing ${n} lines from ${path}...`);
             const { stdout } = await execFileAsync('tail', ['-n', String(n), path]);
             return stdout.split('\n').filter(Boolean);
         } catch {
             return [];
         }
+    }
+
+    private async dumpTailBlock(path: string, lines: number): Promise<void> {
+        const tail = await this.tailLogLines(path, lines);
+        if (tail.length === 0) return;
+
+        this.logger.error(
+            [
+                'Xray Core Log Tail',
+                `${'─'.repeat(8)} ${path} (${tail.length} lines) ${'─'.repeat(8)}`,
+                ...tail.map((l) => `│ ${l}`),
+            ].join('\n'),
+        );
     }
 }

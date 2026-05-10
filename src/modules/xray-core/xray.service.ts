@@ -405,15 +405,15 @@ export class XrayService implements OnApplicationBootstrap {
                     minTimeout: 100,
                     maxTimeout: 2000,
                     factor: 1.5,
-                    onFailedAttempt: (error) => {
+                    onFailedAttempt: (context) => {
                         this.logger.warn(
-                            `↻ XRay Core status check, ${error.attemptNumber}/${error.attemptNumber + error.retriesLeft} · elapsed ${ems(
+                            `▸ XRay Core status check, ${context.attemptNumber}/${context.attemptNumber + context.retriesLeft} · elapsed ${ems(
                                 performance.now() - tm,
                                 {
                                     extends: 'short',
                                     includeMs: true,
                                 },
-                            )}`,
+                            )} · retrying in ${context.retryDelay}ms`,
                         );
                     },
                 },

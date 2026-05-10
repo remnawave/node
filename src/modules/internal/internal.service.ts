@@ -41,13 +41,15 @@ export class InternalService {
         this.emptyConfigHash = hashes.emptyConfig;
         this.xrayConfig = newConfig;
 
-        this.logger.log(
-            `Starting user extraction from inbounds... Hash payload: ${JSON.stringify(hashes)}`,
-        );
+        this.logger.debug(JSON.stringify(hashes));
+
+        this.logger.log(`Starting user extraction from inbounds...`);
+        this.logger.log(`▸ Empty Config Hash: ${this.emptyConfigHash}`);
 
         const start = performance.now();
         if (newConfig.inbounds && Array.isArray(newConfig.inbounds)) {
             const validTags = new Set(hashes.inbounds.map((item) => item.tag));
+            const remoteHashByTag = new Map(hashes.inbounds.map((i) => [i.tag, i.hash]));
 
             await pMap(
                 newConfig.inbounds,
@@ -79,7 +81,10 @@ export class InternalService {
 
             for (const [inboundTag, usersSet] of this.inboundsHashMap) {
                 this.xtlsConfigInbounds.add(inboundTag);
-                this.logger.log(`${inboundTag} has ${usersSet.size} users`);
+
+                this.logger.log(
+                    `▸ ${inboundTag} · ${String(usersSet.size)} users · ${usersSet.hash64String} (${remoteHashByTag.get(inboundTag) ?? 'N/A'})`,
+                );
             }
         }
 

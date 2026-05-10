@@ -42,7 +42,7 @@ function requestOverSocket(
     return new Promise((resolve, reject) => {
         const req = http.request(
             {
-                socketPath,
+                socketPath: `\0${socketPath}`,
                 path,
                 method: 'GET',
                 timeout: timeoutMs,

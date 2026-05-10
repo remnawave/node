@@ -106,5 +106,5 @@ export const generateApiConfig = (args: IGenerateApiConfigParams): Record<string
 };
 
 const buildWebhookUrl = (internal: { socketPath: string; token: string }): string => {
-    return `/${internal.socketPath}:${XRAY_INTERNAL_FULL_WEBHOOK_PATH}?token=${internal.token}`;
+    return `@${internal.socketPath}:${XRAY_INTERNAL_FULL_WEBHOOK_PATH}?token=${internal.token}`;
 };

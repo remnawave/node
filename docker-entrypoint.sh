@@ -16,10 +16,11 @@ SUPERVISORD_USER=$(generate_random 64)
 SUPERVISORD_PASSWORD=$(generate_random 64)
 INTERNAL_REST_TOKEN=$(generate_random 64)
 
-INTERNAL_SOCKET_PATH=/run/remnawave-internal-${RNDSTR}.sock
+
 SUPERVISORD_SOCKET_PATH=/run/supervisord-${RNDSTR}.sock
 SUPERVISORD_PID_PATH=/run/supervisord-${RNDSTR}.pid
 XTLS_API_SOCKET_PATH=xtls-api-${RNDSTR}
+INTERNAL_SOCKET_PATH=rwint-${RNDSTR}
 
 export SUPERVISORD_USER
 export SUPERVISORD_PASSWORD

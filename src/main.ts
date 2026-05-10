@@ -8,7 +8,6 @@ import { createLogger } from 'winston';
 import compression from 'compression';
 import * as winston from 'winston';
 import { Server } from 'https';
-import * as fs from 'node:fs';
 import helmet from 'helmet';
 import morgan from 'morgan';
 
@@ -49,10 +48,6 @@ const logger = createLogger({
 
 async function bootstrap(): Promise<void> {
     const internalSocketPath = process.env.INTERNAL_SOCKET_PATH!;
-
-    if (fs.existsSync(internalSocketPath)) {
-        fs.unlinkSync(internalSocketPath);
-    }
 
     const nodePayload = parseNodePayload();
 
@@ -118,7 +113,7 @@ async function bootstrap(): Promise<void> {
         },
     );
 
-    const internalServer = internalApp.listen(internalSocketPath);
+    const internalServer = internalApp.listen('\0' + internalSocketPath);
 
     let internalServerClosed = false;
 
@@ -127,10 +122,6 @@ async function bootstrap(): Promise<void> {
         internalServerClosed = true;
 
         internalServer.close(() => {
-            if (fs.existsSync(internalSocketPath)) {
-                fs.unlinkSync(internalSocketPath);
-            }
-
             logger.info('Shutting down...');
         });
     };

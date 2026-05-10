@@ -197,11 +197,7 @@ export class XrayService implements OnApplicationBootstrap {
                 };
             }
 
-            let isStarted = await this.getXrayInternalStatus();
-
-            if (!isStarted && xrayProcess.processInfo!.state === 20) {
-                isStarted = await this.getXrayInternalStatus();
-            }
+            const isStarted = await this.getXrayInternalStatus();
 
             if (!isStarted) {
                 this.isXrayOnline = false;
@@ -398,17 +394,16 @@ export class XrayService implements OnApplicationBootstrap {
             return await pRetry(
                 async () => {
                     const { isOk, message } = await this.xtlsSdk.stats.getSysStats();
-
                     if (!isOk) {
                         throw new Error(message);
                     }
-
                     return true;
                 },
                 {
-                    retries: 10,
-                    minTimeout: 2000,
+                    retries: 30,
+                    minTimeout: 100,
                     maxTimeout: 2000,
+                    factor: 1.5,
                     onFailedAttempt: (error) => {
                         this.logger.debug(
                             `Get Xray internal status attempt ${error.attemptNumber} failed. ${error.retriesLeft} retries left.`,

@@ -166,6 +166,25 @@ export class HandlerService implements OnModuleInit {
                         response.push(tempRes);
 
                         break;
+                    case 'fedarisha':
+                        // Fedarisha's xray-core proxy ignores Account contents and
+                        // gates only on Email == username == tId. Reuse Trojan's
+                        // Account proto as a no-op carrier so we don't have to
+                        // extend xtls-sdk with a fedarisha-specific Account type.
+                        tempRes = await this.xtlsApi.handler.addTrojanUser({
+                            tag: item.tag,
+                            username: item.username,
+                            password: '',
+                            level: 0,
+                        });
+                        if (tempRes.isOk) {
+                            await this.internalService.addUserToInbound(
+                                item.tag,
+                                hashData.vlessUuid,
+                            );
+                        }
+                        response.push(tempRes);
+                        break;
                 }
             }
 
@@ -347,6 +366,21 @@ export class HandlerService implements OnModuleInit {
                                 tag: item.tag,
                                 username: user.userData.userId,
                                 uuid: user.userData.vlessUuid,
+                                level: 0,
+                            });
+                            if (tempRes.isOk) {
+                                await this.internalService.addUserToInbound(
+                                    item.tag,
+                                    user.userData.vlessUuid,
+                                );
+                            }
+                            break;
+                        case 'fedarisha':
+                            // See addUser — fedarisha ignores Account, gates on Email.
+                            tempRes = await this.xtlsApi.handler.addTrojanUser({
+                                tag: item.tag,
+                                username: user.userData.userId,
+                                password: '',
                                 level: 0,
                             });
                             if (tempRes.isOk) {

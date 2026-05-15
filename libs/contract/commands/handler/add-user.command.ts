@@ -53,6 +53,12 @@ export namespace AddUserCommand {
         password: z.string(),
     });
 
+    const BaseFedarishaUser = z.object({
+        type: z.literal('fedarisha'),
+        tag: z.string(),
+        username: z.string(),
+    });
+
     export const RequestSchema = z.object({
         data: z.array(
             z.discriminatedUnion('type', [
@@ -61,6 +67,7 @@ export namespace AddUserCommand {
                 BaseShadowsocksUser,
                 BaseShadowsocks22User,
                 BaseHysteriaUser,
+                BaseFedarishaUser,
             ]),
         ),
         hashData: z.object({

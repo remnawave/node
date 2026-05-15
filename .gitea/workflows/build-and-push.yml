@@ -1,0 +1,71 @@
+name: Build & Push Node
+
+on:
+  push:
+    tags:
+      - '*-fed.*'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to private registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.REGISTRY_URL }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Resolve image tag
+        run: |
+          IMAGE_TAG="${{ github.ref_name }}"
+          if [ -z "$IMAGE_TAG" ] || [ "$IMAGE_TAG" = "main" ]; then
+            IMAGE_TAG="${{ github.event.inputs.tag }}"
+          fi
+          if [ -z "$IMAGE_TAG" ]; then
+            IMAGE_TAG="manual"
+          fi
+          if [ -f .xray-core-version ]; then
+            XRAY_TAG=$(tr -d '[:space:]' < .xray-core-version)
+          else
+            XRAY_TAG="$IMAGE_TAG"
+          fi
+          if [ -z "$XRAY_TAG" ]; then
+            echo "XRAY_TAG is empty" >&2
+            exit 1
+          fi
+          echo "IMAGE_TAG=$IMAGE_TAG" >> "$GITHUB_ENV"
+          echo "XRAY_IMAGE=${{ secrets.REGISTRY_URL }}/fedarisha/xray-core:${XRAY_TAG}" >> "$GITHUB_ENV"
+
+      - name: Wait for Xray image
+        run: |
+          for i in $(seq 1 60); do
+            if docker buildx imagetools inspect "${XRAY_IMAGE}" >/dev/null 2>&1; then
+              echo "Found ${XRAY_IMAGE}"
+              exit 0
+            fi
+
+            echo "Waiting for ${XRAY_IMAGE} ($i/60)"
+            sleep 20
+          done
+
+          echo "Timed out waiting for ${XRAY_IMAGE}" >&2
+          exit 1
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          build-args: |
+            XRAY_IMAGE=${{ env.XRAY_IMAGE }}
+          tags: |
+            ${{ secrets.REGISTRY_URL }}/fedarisha/node:latest
+            ${{ secrets.REGISTRY_URL }}/fedarisha/node:${{ env.IMAGE_TAG }}

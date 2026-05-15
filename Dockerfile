@@ -1,8 +1,8 @@
-FROM node:24.14-alpine AS build
+ARG XRAY_IMAGE=ghcr.io/fedarisha/xray-core:latest
 
-ARG XRAY_CORE_VERSION=v26.3.27
-ARG UPSTREAM_REPO=XTLS
-ARG XRAY_CORE_INSTALL_SCRIPT=https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-xray.sh
+FROM ${XRAY_IMAGE} AS xray-source
+
+FROM node:24.14-alpine AS build
 
 WORKDIR /opt/app
 
@@ -10,9 +10,6 @@ ADD . .
 
 RUN npm ci --legacy-peer-deps
 RUN npm run build --omit=dev
-
-RUN apk add --no-cache curl unzip \
-    && curl -L ${XRAY_CORE_INSTALL_SCRIPT} | sh -s -- ${XRAY_CORE_VERSION} ${UPSTREAM_REPO}
 
 RUN echo '#!/bin/sh' > /usr/local/bin/xlogs \
     && echo 'tail -n +1 -f /var/log/supervisor/xray.out.log' >> /usr/local/bin/xlogs \
@@ -25,20 +22,16 @@ RUN echo '#!/bin/sh' > /usr/local/bin/xerrors \
 
 FROM node:24.14-alpine
 
-LABEL org.opencontainers.image.title="Remnawave Node"
-LABEL org.opencontainers.image.description="Remnawave Node with built-in XRay Core"
-LABEL org.opencontainers.image.url="https://github.com/remnawave/node"
-LABEL org.opencontainers.image.source="https://github.com/remnawave/node"
-LABEL org.opencontainers.image.vendor="Remnawave"
+LABEL org.opencontainers.image.title="Fedarisha Node"
+LABEL org.opencontainers.image.description="Remnawave Node with Fedarisha-enabled Xray Core"
 LABEL org.opencontainers.image.licenses="AGPL-3.0"
-LABEL org.opencontainers.image.documentation="https://docs.rw"
 
 WORKDIR /opt/app
 
 COPY --from=build /opt/app/dist /opt/app/dist
-COPY --from=build /usr/local/bin/xray /usr/local/bin/xray
-COPY --from=build /usr/local/share/xray/geoip.dat /usr/local/share/xray/geoip.dat
-COPY --from=build /usr/local/share/xray/geosite.dat /usr/local/share/xray/geosite.dat
+COPY --from=xray-source /usr/local/bin/xray /usr/local/bin/xray
+COPY --from=xray-source /usr/local/share/xray/geoip.dat /usr/local/share/xray/geoip.dat
+COPY --from=xray-source /usr/local/share/xray/geosite.dat /usr/local/share/xray/geosite.dat
 COPY --from=build /usr/local/bin/xlogs /usr/local/bin/xlogs
 COPY --from=build /usr/local/bin/xerrors /usr/local/bin/xerrors
 

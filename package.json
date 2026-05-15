@@ -49,6 +49,7 @@
     "@remnawave/supervisord-nestjs": "0.3.1",
     "@remnawave/xtls-sdk": "0.12.1",
     "@remnawave/xtls-sdk-nestjs": "0.6.1",
+    "aws4": "^1.13.2",
     "compression": "^1.8.1",
     "enhanced-ms": "^4.2.0",
     "helmet": "^8.1.0",
@@ -80,6 +81,7 @@
   "devDependencies": {
     "@nestjs/cli": "11.0.16",
     "@nestjs/schematics": "11.0.9",
+    "@types/aws4": "^1.11.6",
     "@types/compression": "^1.8.1",
     "@types/express": "^5.0.6",
     "@types/morgan": "^1.9.10",

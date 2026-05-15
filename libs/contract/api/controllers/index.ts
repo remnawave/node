@@ -1,3 +1,4 @@
+export * from './fedarisha';
 export * from './handler';
 export * from './plugin';
 export * from './stats';

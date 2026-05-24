@@ -32,10 +32,10 @@ jobs:
         image:
           - name: 'Core Latest'
             tags: |
-              remnawave/node:latest
-              remnawave/node:${{github.ref_name}}
-              ghcr.io/remnawave/node:latest
-              ghcr.io/remnawave/node:${{github.ref_name}}
+              voltara13/node:latest
+              voltara13/node:${{github.ref_name}}
+              ghcr.io/fedarisha/node:latest
+              ghcr.io/fedarisha/node:${{github.ref_name}}
             build_args: ''
 
     steps:
@@ -101,12 +101,12 @@ jobs:
             📝 Compare changes: [${{ steps.tag.outputs.previousTag }}...${{ steps.tag.outputs.latestTag }}](https://github.com/${{ github.repository }}/compare/${{ steps.tag.outputs.previousTag }}...${{ steps.tag.outputs.latestTag }})
 
             Latest Docker image:
-            - `remnawave/node:latest`
-            - `ghcr.io/remnawave/node:latest`
+            - `voltara13/node:latest`
+            - `ghcr.io/fedarisha/node:latest`
 
             Docker images:
-            - `remnawave/node:${{github.ref_name}}`
-            - `ghcr.io/remnawave/node:${{github.ref_name}}`
+            - `voltara13/node:${{github.ref_name}}`
+            - `ghcr.io/fedarisha/node:${{github.ref_name}}`
 
   send-telegram-message:
     name: Send Telegram message

@@ -30,7 +30,7 @@ jobs:
       matrix:
         image:
           - name: 'Dev Image'
-            tag: 'remnawave/node:dev'
+            tag: 'voltara13/node:dev'
             dockerfile: 'Dockerfile'
             build_args: ''
     steps:

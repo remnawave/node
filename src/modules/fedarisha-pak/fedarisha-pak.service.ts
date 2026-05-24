@@ -9,24 +9,46 @@ import {
     RevokeFedarishaUserCommand,
 } from '@libs/contracts/commands';
 
-import { InternalService } from '../internal/internal.service';
 import { IPakStorage, PakService, PakUserAlreadyExistsError } from './pak.service';
+import { ISelectelPakStorage, SelectelPakService } from './selectel-pak.service';
+import { PakProviderConflictError } from './pak-provider.interface';
+import { InternalService } from '../internal/internal.service';
+
+type ProviderKind = 'vkcloud-pak' | 'selectel-iam';
+
+interface IRawStorageSettings {
+    type?: string;
+    bucket?: string;
+    endpoint?: string;
+    region?: string;
+    prefix?: string;
+    accessKey?: string;
+    secretKey?: string;
+    iam?: {
+        accountId?: string;
+        projectName?: string;
+        projectId?: string;
+        username?: string;
+        password?: string;
+        identityUrl?: string;
+        apiUrl?: string;
+    };
+}
 
 interface IFedarishaInboundSettings {
-    storage?: {
-        type?: string;
-        bucket?: string;
-        endpoint?: string;
-        region?: string;
-        accessKey?: string;
-        secretKey?: string;
-    };
+    storage?: IRawStorageSettings;
 }
 
 interface IXrayInbound {
     tag?: string;
     protocol?: string;
     settings?: IFedarishaInboundSettings;
+}
+
+interface IResolvedStorage {
+    kind: ProviderKind;
+    vkcloud?: IPakStorage;
+    selectel?: ISelectelPakStorage;
 }
 
 @Injectable()
@@ -36,6 +58,7 @@ export class FedarishaPakService {
     constructor(
         private readonly internalService: InternalService,
         private readonly pakService: PakService,
+        private readonly selectelPakService: SelectelPakService,
     ) {}
 
     public async provisionUser(
@@ -43,7 +66,9 @@ export class FedarishaPakService {
     ): Promise<ICommandResponse<ProvisionFedarishaUserCommand.Response['response']>> {
         const storage = await this.resolveStorage(body.inboundTag);
         if (!storage) {
-            return this.failProvision(`fedarisha inbound ${body.inboundTag} not found in xray config`);
+            return this.failProvision(
+                `fedarisha inbound ${body.inboundTag} not found in xray config`,
+            );
         }
 
         try {
@@ -65,26 +90,29 @@ export class FedarishaPakService {
         }
     }
 
-    // Recovers from a stale orphan PAK on VK Cloud: when createKey returns
-    // UserAlreadyExists, the panel forgot the secret (DB wipe / meta reset)
-    // but the PAK is still bound to the user prefix on the bucket. Deleting
-    // it and retrying create is safe — the same panel-side userUuid scopes
-    // it to the same prefix, so we never overwrite another user's data.
-    private async createWithReclaim(
-        storage: IPakStorage,
-        userName: string,
-        prefix: string,
-    ) {
+    // Recovers from a stale orphan PAK / IAM credential: when createKey
+    // reports a conflict the panel forgot the secret (DB wipe / meta reset)
+    // but the credential is still bound to the user prefix. Deleting it and
+    // retrying is safe — the same (userUuid, inboundTag) handle scopes
+    // the new credential to the same prefix, so we never overwrite another
+    // user's data.
+    private async createWithReclaim(storage: IResolvedStorage, userName: string, prefix: string) {
         try {
-            return await this.pakService.createKey(storage, userName, prefix);
+            return await this.dispatchCreate(storage, userName, prefix);
         } catch (error) {
-            if (!(error instanceof PakUserAlreadyExistsError)) throw error;
+            if (!this.isReclaimable(error)) throw error;
             this.logger.warn(
-                `Reclaiming orphan PAK for user ${userName} on prefix ${prefix}`,
+                `Reclaiming orphan credential for user ${userName} on prefix ${prefix}`,
             );
-            await this.pakService.deleteKey(storage, userName, prefix);
-            return await this.pakService.createKey(storage, userName, prefix);
+            await this.dispatchDelete(storage, userName, prefix);
+            return await this.dispatchCreate(storage, userName, prefix);
         }
+    }
+
+    private isReclaimable(error: unknown): boolean {
+        return (
+            error instanceof PakUserAlreadyExistsError || error instanceof PakProviderConflictError
+        );
     }
 
     public async revokeUser(
@@ -97,7 +125,7 @@ export class FedarishaPakService {
 
         try {
             const pakUserName = this.buildPakUserName(body.userUuid, body.inboundTag);
-            await this.pakService.deleteKey(storage, pakUserName, body.prefix);
+            await this.dispatchDelete(storage, pakUserName, body.prefix);
             return { isOk: true, response: { isOk: true, error: null } };
         } catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
@@ -111,13 +139,11 @@ export class FedarishaPakService {
     ): Promise<ICommandResponse<ProbeFedarishaUserCommand.Response['response']>> {
         const storage = await this.resolveStorage(body.inboundTag);
         if (!storage) {
-            return this.failProbe(
-                `fedarisha inbound ${body.inboundTag} not found in xray config`,
-            );
+            return this.failProbe(`fedarisha inbound ${body.inboundTag} not found in xray config`);
         }
 
         try {
-            const exists = await this.pakService.probeKey(
+            const exists = await this.dispatchProbe(
                 storage,
                 body.accessKey,
                 body.secretKey,
@@ -133,34 +159,115 @@ export class FedarishaPakService {
         }
     }
 
+    private async dispatchCreate(storage: IResolvedStorage, userName: string, prefix: string) {
+        if (storage.kind === 'selectel-iam') {
+            return this.selectelPakService.createKey(storage.selectel!, userName, prefix);
+        }
+        return this.pakService.createKey(storage.vkcloud!, userName, prefix);
+    }
+
+    private async dispatchDelete(
+        storage: IResolvedStorage,
+        userName: string,
+        prefix: string,
+    ): Promise<void> {
+        if (storage.kind === 'selectel-iam') {
+            await this.selectelPakService.deleteKey(storage.selectel!, userName, prefix);
+            return;
+        }
+        await this.pakService.deleteKey(storage.vkcloud!, userName, prefix);
+    }
+
+    private async dispatchProbe(
+        storage: IResolvedStorage,
+        accessKey: string,
+        secretKey: string,
+        prefix: string,
+    ): Promise<boolean> {
+        if (storage.kind === 'selectel-iam') {
+            return this.selectelPakService.probeKey(
+                storage.selectel!,
+                accessKey,
+                secretKey,
+                prefix,
+            );
+        }
+        return this.pakService.probeKey(storage.vkcloud!, accessKey, secretKey, prefix);
+    }
+
     // VK Cloud PAK usernames live in a per-master-account namespace, not per
     // bucket — two inbounds that share master credentials but write to
     // different buckets will collide on PUT (UserAlreadyExists) and the
     // subsequent DELETE on the second bucket returns 404 because the orphan
     // PAK is anchored to the first bucket. Disambiguate by hashing the
     // inboundTag into the PAK userName so each (user, inbound) pair claims a
-    // distinct namespace entry.
+    // distinct namespace entry. The Selectel adapter reuses this same value
+    // as its S3-credentials `name` so revoke can locate the right pair.
     private buildPakUserName(userUuid: string, inboundTag: string): string {
         const tagHash = createHash('sha1').update(inboundTag).digest('hex').slice(0, 8);
         return `${userUuid}-${tagHash}`;
     }
 
-    private async resolveStorage(inboundTag: string): Promise<IPakStorage | null> {
+    private async resolveStorage(inboundTag: string): Promise<IResolvedStorage | null> {
         const config = await this.internalService.getXrayConfig();
         const inbounds = (config?.inbounds as IXrayInbound[] | undefined) ?? [];
-        const inbound = inbounds.find(
-            (i) => i.tag === inboundTag && i.protocol === 'fedarisha',
-        );
-        const storage = inbound?.settings?.storage;
-        if (!storage?.bucket || !storage.endpoint || !storage.accessKey || !storage.secretKey) {
+        const inbound = inbounds.find((i) => i.tag === inboundTag && i.protocol === 'fedarisha');
+        const raw = inbound?.settings?.storage;
+        if (!raw) return null;
+
+        const kind: ProviderKind = raw.type === 'selectel-iam' ? 'selectel-iam' : 'vkcloud-pak';
+
+        if (kind === 'selectel-iam') {
+            const selectel = this.buildSelectelStorage(raw);
+            if (!selectel) return null;
+            return { kind, selectel };
+        }
+
+        const vkcloud = this.buildVkCloudStorage(raw);
+        if (!vkcloud) return null;
+        return { kind, vkcloud };
+    }
+
+    private buildVkCloudStorage(raw: IRawStorageSettings): IPakStorage | null {
+        if (!raw.bucket || !raw.endpoint || !raw.accessKey || !raw.secretKey) return null;
+        return {
+            bucket: raw.bucket,
+            endpoint: raw.endpoint,
+            region: raw.region ?? '',
+            accessKey: raw.accessKey,
+            secretKey: raw.secretKey,
+        };
+    }
+
+    private buildSelectelStorage(raw: IRawStorageSettings): ISelectelPakStorage | null {
+        if (!raw.bucket || !raw.endpoint || !raw.accessKey || !raw.secretKey) return null;
+        const iam = raw.iam;
+        if (
+            !iam ||
+            !iam.accountId ||
+            !iam.projectName ||
+            !iam.projectId ||
+            !iam.username ||
+            !iam.password
+        ) {
             return null;
         }
         return {
-            bucket: storage.bucket,
-            endpoint: storage.endpoint,
-            region: storage.region ?? '',
-            accessKey: storage.accessKey,
-            secretKey: storage.secretKey,
+            bucket: raw.bucket,
+            endpoint: raw.endpoint,
+            region: raw.region ?? '',
+            accessKey: raw.accessKey,
+            secretKey: raw.secretKey,
+            basePrefix: raw.prefix ?? '',
+            iam: {
+                accountId: iam.accountId,
+                projectName: iam.projectName,
+                projectId: iam.projectId,
+                username: iam.username,
+                password: iam.password,
+                identityUrl: iam.identityUrl,
+                apiUrl: iam.apiUrl,
+            },
         };
     }
 

@@ -1,8 +1,9 @@
 import { Agent, request } from 'undici';
 import * as aws4 from 'aws4';
-import { randomUUID } from 'node:crypto';
 
 import { Injectable, Logger } from '@nestjs/common';
+
+import { probeS3Credentials } from './s3-probe.helper';
 
 // VK Cloud Storage Prefix Access Keys (PAK) API client.
 // Issues per-user prefix-scoped S3 credentials against a single bucket using
@@ -53,46 +54,20 @@ export class PakService {
         await this.dispatch(storage, 'DELETE', userName, prefix);
     }
 
-    // Test-call the bucket with user-supplied creds against their prefix.
-    // Prefix-scoped VK Cloud keys may be denied ListObjectsV2 while still
-    // being valid for the transport's object operations, so probe the same
-    // write/read/delete flow the client needs. Returns false only when S3
-    // actively rejects the creds/scope. Any other error is surfaced so the
-    // panel does not invalidate a cached PAK on an infra wobble.
     public async probeKey(
         storage: Pick<IPakStorage, 'bucket' | 'endpoint' | 'region'>,
         accessKey: string,
         secretKey: string,
         prefix: string,
     ): Promise<boolean> {
-        const normalizedPrefix = this.normalizeObjectPrefix(prefix);
-        const probeKey = `${normalizedPrefix}.rw-pak-probe-${Date.now()}-${randomUUID()}`;
-        const body = Buffer.alloc(0);
-        let created = false;
-
-        try {
-            await this.dispatchObject(storage, 'PUT', probeKey, accessKey, secretKey, body);
-            created = true;
-            await this.dispatchObject(storage, 'HEAD', probeKey, accessKey, secretKey);
-
-            return true;
-        } catch (error) {
-            if (this.isRejectedPakProbe(error)) return false;
-            throw error;
-        } finally {
-            if (created) {
-                try {
-                    await this.dispatchObject(storage, 'DELETE', probeKey, accessKey, secretKey);
-                } catch (error) {
-                    this.logger.warn(`VK Cloud probe cleanup failed: ${this.errorMessage(error)}`);
-                }
-            }
-        }
-    }
-
-    private normalizeObjectPrefix(prefix: string): string {
-        const trimmed = prefix.replace(/^\/+/, '');
-        return trimmed === '' || trimmed.endsWith('/') ? trimmed : `${trimmed}/`;
+        return probeS3Credentials(
+            storage,
+            accessKey,
+            secretKey,
+            prefix,
+            this.httpAgent,
+            this.logger,
+        );
     }
 
     private async dispatch(
@@ -132,52 +107,6 @@ export class PakService {
         return text;
     }
 
-    private async dispatchObject(
-        storage: Pick<IPakStorage, 'bucket' | 'endpoint' | 'region'>,
-        method: 'PUT' | 'HEAD' | 'DELETE',
-        key: string,
-        accessKey: string,
-        secretKey: string,
-        body?: Buffer,
-    ): Promise<string> {
-        const host = this.virtualHost(storage);
-        const path = `/${key}`;
-        const url = `https://${host}${path}`;
-
-        const opts: aws4.Request = {
-            host,
-            method,
-            path,
-            service: 's3',
-            region: storage.region,
-            headers: {},
-            body,
-        };
-        aws4.sign(opts, { accessKeyId: accessKey, secretAccessKey: secretKey });
-
-        const res = await request(url, {
-            method,
-            headers: opts.headers as Record<string, string>,
-            body,
-            dispatcher: this.httpAgent,
-        });
-        const text = method === 'HEAD' ? '' : await res.body.text();
-
-        if (res.statusCode >= 200 && res.statusCode < 300) return text;
-
-        throw new PakProbeError(res.statusCode, text);
-    }
-
-    private isRejectedPakProbe(error: unknown): boolean {
-        return (
-            error instanceof PakProbeError && (error.statusCode === 403 || error.statusCode === 404)
-        );
-    }
-
-    private errorMessage(error: unknown): string {
-        return error instanceof Error ? error.message : String(error);
-    }
-
     private virtualHost(storage: Pick<IPakStorage, 'bucket' | 'endpoint'>): string {
         const stripped = storage.endpoint.replace(/^https?:\/\//, '').replace(/\/$/, '');
         return `${storage.bucket}.${stripped}`;
@@ -203,15 +132,5 @@ export class PakService {
         const re = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`);
         const match = re.exec(xml);
         return match ? match[1].trim() : null;
-    }
-}
-
-class PakProbeError extends Error {
-    constructor(
-        public readonly statusCode: number,
-        text: string,
-    ) {
-        super(`VK Cloud probe -> ${statusCode} ${text.slice(0, 200)}`);
-        this.name = 'PakProbeError';
     }
 }

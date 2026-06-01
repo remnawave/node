@@ -4,6 +4,7 @@ import { NetworkStatsModule } from './network-stats/network-stats.module';
 import { AsnLmdbModule } from './asn-lmdb/asn-lmdb.module';
 import { HandlerModule } from './handler/handler.module';
 import { PluginModule } from './_plugin/plugin.module';
+import { VeilModule } from './veil-core/veil.module';
 import { XrayModule } from './xray-core/xray.module';
 import { StatsModule } from './stats/stats.module';
 
@@ -13,6 +14,7 @@ import { StatsModule } from './stats/stats.module';
         NetworkStatsModule,
         PluginModule,
         StatsModule,
+        VeilModule,
         XrayModule,
         HandlerModule,
     ],

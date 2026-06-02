@@ -40,4 +40,16 @@ describe('WARP contract shape', () => {
         assert.match(controller, /class WarpController/);
         assert.match(module, /class WarpModule/);
     });
+
+    it('uses WireGuard runtime state for WARP status and safe control', () => {
+        const service = readProjectFile('src/modules/warp/warp.service.ts');
+        const compose = readProjectFile('docker-compose-prod.yml');
+
+        assert.match(service, /show', WARP_INTERFACE, 'latest-handshakes'/);
+        assert.match(service, /hasWireGuardHandshake \|\| trace\?\.warp === 'on'/);
+        assert.match(service, /if \(await this\.isInterfaceRunning\(\)\) \{/);
+        assert.match(service, /link', 'delete', WARP_INTERFACE/);
+        assert.match(service, /maxBuffer: WARP_EXEC_MAX_BUFFER/);
+        assert.match(compose, /\/etc\/wireguard:\/etc\/wireguard/);
+    });
 });

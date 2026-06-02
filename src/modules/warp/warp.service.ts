@@ -14,6 +14,13 @@ const WARP_INTERFACE = 'warp';
 const WARP_CONFIG_PATH = '/etc/wireguard/warp.conf';
 const WARP_TRACE_URL = 'https://www.cloudflare.com/cdn-cgi/trace';
 const WARP_INSTALL_URL = 'https://raw.githubusercontent.com/distillium/warp-native/main/install.sh';
+const WARP_EXEC_MAX_BUFFER = 16 * 1024 * 1024;
+
+type TWarpTrace = {
+    ip: string | null;
+    warp: TWarpStatus['warp'];
+    colo: string | null;
+};
 
 @Injectable()
 export class WarpService {
@@ -26,6 +33,7 @@ export class WarpService {
 
         const running = await this.isInterfaceRunning();
         const installed = this.hasWarpConfig() || running;
+        const hasWireGuardHandshake = running ? await this.hasWireGuardHandshake() : false;
         const trace = running ? await this.getTrace() : null;
 
         return this.status({
@@ -33,7 +41,7 @@ export class WarpService {
             running,
             interfaceName: running ? WARP_INTERFACE : null,
             publicIp: trace?.ip ?? null,
-            warp: trace?.warp ?? (running ? 'unknown' : 'off'),
+            warp: this.getEffectiveWarpState(running, hasWireGuardHandshake, trace),
             colo: trace?.colo ?? null,
             lastError,
         });
@@ -42,6 +50,10 @@ export class WarpService {
     public async enable(): Promise<TWarpStatus> {
         if (process.platform !== 'linux') {
             return this.getStatus('WARP is supported only on Linux nodes');
+        }
+
+        if (await this.isInterfaceRunning()) {
+            return this.getStatus();
         }
 
         const permissionError = await this.getPermissionError();
@@ -66,17 +78,79 @@ export class WarpService {
         }
 
         try {
-            await this.execFixed('/usr/bin/wg-quick', ['down', WARP_INTERFACE], 20_000);
+            if (!(await this.isInterfaceRunning())) {
+                return await this.getStatus();
+            }
+
+            if (this.hasWarpConfig()) {
+                await this.execFixed('/usr/bin/wg-quick', ['down', WARP_INTERFACE], 20_000);
+            } else {
+                await this.deleteInterface();
+            }
+
             return await this.getStatus();
         } catch (error) {
-            const message = this.toSafeError(error);
-            this.logger.warn(`Failed to disable WARP: ${message}`);
-            return this.getStatus(message);
+            try {
+                await this.deleteInterface();
+                return await this.getStatus();
+            } catch (fallbackError) {
+                const message = `${this.toSafeError(error)}; fallback delete failed: ${this.toSafeError(fallbackError)}`;
+                this.logger.warn(`Failed to disable WARP: ${message}`);
+                return this.getStatus(message);
+            }
+        }
+    }
+
+    private getEffectiveWarpState(
+        running: boolean,
+        hasWireGuardHandshake: boolean,
+        trace: TWarpTrace | null,
+    ): TWarpStatus['warp'] {
+        if (!running) return 'off';
+        if (hasWireGuardHandshake || trace?.warp === 'on') return 'on';
+        if (trace?.warp === 'off') return 'unknown';
+
+        return trace?.warp ?? 'unknown';
+    }
+
+    private async deleteInterface(): Promise<void> {
+        const errors: string[] = [];
+
+        for (const command of ['/sbin/ip', '/usr/sbin/ip']) {
+            try {
+                await this.execFixed(command, ['link', 'delete', WARP_INTERFACE], 20_000);
+                return;
+            } catch (error) {
+                errors.push(`${command}: ${this.toSafeError(error)}`);
+            }
+        }
+
+        throw new Error(errors.join('; '));
+    }
+
+    private async hasWireGuardHandshake(): Promise<boolean> {
+        try {
+            const result = await this.execFixed(
+                '/usr/bin/wg',
+                ['show', WARP_INTERFACE, 'latest-handshakes'],
+                5_000,
+            );
+
+            return result.stdout
+                .split('\n')
+                .map((line) => line.trim())
+                .filter(Boolean)
+                .some((line) => {
+                    const [, timestamp] = line.split(/\s+/);
+                    return Number(timestamp) > 0;
+                });
+        } catch {
+            return false;
         }
     }
 
     private async installIfMissing(): Promise<void> {
-        if (this.hasWarpConfig()) return;
+        if (this.hasWarpConfig() || await this.isInterfaceRunning()) return;
 
         await this.ensureAlpinePackages();
         await this.execFixed('/bin/sh', ['-c', `curl -fsSL ${WARP_INSTALL_URL} | bash`], 180_000);
@@ -114,7 +188,7 @@ export class WarpService {
         }
     }
 
-    private async getTrace(): Promise<{ ip: string | null; warp: TWarpStatus['warp']; colo: string | null } | null> {
+    private async getTrace(): Promise<TWarpTrace | null> {
         try {
             const result = await this.execFixed(
                 '/usr/bin/curl',
@@ -184,7 +258,7 @@ export class WarpService {
         const result = await execFileAsync(command, args, {
             encoding: 'utf8',
             timeout,
-            maxBuffer: 1024 * 1024,
+            maxBuffer: WARP_EXEC_MAX_BUFFER,
         });
 
         return {

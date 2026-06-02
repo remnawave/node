@@ -29,6 +29,7 @@ import { GetInterfaceStatsQuery } from '../network-stats/queries/get-interface-s
 import { ResetPluginsCommand } from '../_plugin/commands/reset-plugins/reset-plugins.command';
 import { GetTorrentBlockerStateQuery } from '../_plugin/queries/get-torrent-blocker-state';
 import { InternalService } from '../internal/internal.service';
+import { WarpService } from '../warp/warp.service';
 
 const XRAY_PROCESS_NAME = 'xray' as const;
 
@@ -54,6 +55,7 @@ export class XrayService implements OnApplicationBootstrap {
         private readonly configService: ConfigService,
         private readonly queryBus: QueryBus,
         private readonly commandBus: CommandBus,
+        private readonly warpService: WarpService,
     ) {
         this.internal = {
             socketPath: this.configService.getOrThrow<string>('INTERNAL_SOCKET_PATH'),
@@ -99,11 +101,15 @@ export class XrayService implements OnApplicationBootstrap {
         ip: string,
     ): Promise<ICommandResponse<StartXrayResponseModel>> {
         const interfaceStats = await this.queryBus.execute(new GetInterfaceStatsQuery());
+        const warpStatus = await this.warpService.getStatus();
         const tm = performance.now();
         const system = {
             info: getSystemInfo(),
-            stats: getSystemStats(),
-            interface: interfaceStats,
+            stats: {
+                ...getSystemStats(),
+                interface: interfaceStats,
+                warp: warpStatus,
+            },
         };
 
         try {

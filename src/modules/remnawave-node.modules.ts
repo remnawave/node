@@ -4,10 +4,11 @@ import { NetworkStatsModule } from './network-stats/network-stats.module';
 import { HandlerModule } from './handler/handler.module';
 import { PluginModule } from './_plugin/plugin.module';
 import { XrayModule } from './xray-core/xray.module';
+import { WarpModule } from './warp/warp.module';
 import { StatsModule } from './stats/stats.module';
 
 @Module({
-    imports: [NetworkStatsModule, PluginModule, StatsModule, XrayModule, HandlerModule],
+    imports: [NetworkStatsModule, PluginModule, WarpModule, StatsModule, XrayModule, HandlerModule],
     providers: [],
 })
 export class RemnawaveNodeModules implements OnApplicationShutdown {

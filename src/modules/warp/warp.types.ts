@@ -5,6 +5,6 @@ export type TWarpCommandResult = {
     stderr: string;
 };
 
-export type TWarpMutableStatus = TWarpStatus & {
+export type TWarpMutableStatus = {
     lastError: string | null;
-};
+} & TWarpStatus;

@@ -4,8 +4,8 @@ import { NetworkStatsModule } from './network-stats/network-stats.module';
 import { HandlerModule } from './handler/handler.module';
 import { PluginModule } from './_plugin/plugin.module';
 import { XrayModule } from './xray-core/xray.module';
-import { WarpModule } from './warp/warp.module';
 import { StatsModule } from './stats/stats.module';
+import { WarpModule } from './warp/warp.module';
 
 @Module({
     imports: [NetworkStatsModule, PluginModule, WarpModule, StatsModule, XrayModule, HandlerModule],

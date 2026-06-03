@@ -2,8 +2,8 @@ import { Logger, Module, OnModuleDestroy } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 
 import { InternalModule } from '../internal/internal.module';
-import { WarpModule } from '../warp/warp.module';
 import { XrayController } from './xray.controller';
+import { WarpModule } from '../warp/warp.module';
 import { XrayService } from './xray.service';
 import { COMMANDS } from './commands';
 

@@ -2,12 +2,12 @@ import { Controller, Get, Post, UseFilters, UseGuards } from '@nestjs/common';
 
 import { JwtDefaultGuard } from '@common/guards/jwt-guards';
 import { HttpExceptionFilter } from '@common/exception';
-import { WARP_CONTROLLER, WARP_ROUTES } from '@libs/contracts/api';
 import {
     DisableWarpCommand,
     EnableWarpCommand,
     GetWarpStatusCommand,
 } from '@libs/contracts/commands';
+import { WARP_CONTROLLER, WARP_ROUTES } from '@libs/contracts/api';
 
 import { WarpService } from './warp.service';
 

@@ -2,9 +2,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
-import { Injectable, Logger } from '@nestjs/common';
-
 import type { TWarpStatus } from '@libs/contracts/models';
+
+import { Injectable, Logger } from '@nestjs/common';
 
 import { TWarpCommandResult } from './warp.types';
 
@@ -150,7 +150,7 @@ export class WarpService {
     }
 
     private async installIfMissing(): Promise<void> {
-        if (this.hasWarpConfig() || await this.isInterfaceRunning()) return;
+        if (this.hasWarpConfig() || (await this.isInterfaceRunning())) return;
 
         await this.ensureAlpinePackages();
         await this.execFixed('/bin/sh', ['-c', `curl -fsSL ${WARP_INSTALL_URL} | bash`], 180_000);
@@ -159,15 +159,11 @@ export class WarpService {
     private async ensureAlpinePackages(): Promise<void> {
         if (!existsSync('/sbin/apk')) return;
 
-        await this.execFixed('/sbin/apk', [
-            'add',
-            '--no-cache',
-            'bash',
-            'curl',
-            'iproute2',
-            'openresolv',
-            'wireguard-tools',
-        ], 120_000);
+        await this.execFixed(
+            '/sbin/apk',
+            ['add', '--no-cache', 'bash', 'curl', 'iproute2', 'openresolv', 'wireguard-tools'],
+            120_000,
+        );
     }
 
     private hasWarpConfig(): boolean {

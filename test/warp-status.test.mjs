@@ -44,6 +44,7 @@ describe('WARP contract shape', () => {
     it('uses WireGuard runtime state for WARP status and safe control', () => {
         const service = readProjectFile('src/modules/warp/warp.service.ts');
         const compose = readProjectFile('docker-compose-prod.yml');
+        const dockerfile = readProjectFile('Dockerfile');
 
         assert.match(service, /show', WARP_INTERFACE, 'latest-handshakes'/);
         assert.match(service, /hasWireGuardHandshake \|\| trace\?\.warp === 'on'/);
@@ -51,5 +52,8 @@ describe('WARP contract shape', () => {
         assert.match(service, /link', 'delete', WARP_INTERFACE/);
         assert.match(service, /maxBuffer: WARP_EXEC_MAX_BUFFER/);
         assert.match(compose, /\/etc\/wireguard:\/etc\/wireguard/);
+        assert.match(dockerfile, /wireguard-tools/);
+        assert.match(dockerfile, /iproute2/);
+        assert.match(dockerfile, /openresolv/);
     });
 });

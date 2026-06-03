@@ -12,6 +12,9 @@ const WARP_CONFIG_PATH = '/etc/wireguard/warp.conf';
 const WARP_TRACE_URL = 'https://www.cloudflare.com/cdn-cgi/trace';
 const WGCF_RELEASES_API_URL = 'https://api.github.com/repos/ViRb3/wgcf/releases/latest';
 const WARP_ENDPOINT = '162.159.192.1:2408';
+const WARP_IPV6_ROUTE_METRIC = 4242;
+const WARP_IPV6_ROUTE_POST_UP = `PostUp = ip -6 route replace ::/0 dev %i metric ${WARP_IPV6_ROUTE_METRIC}`;
+const WARP_IPV6_ROUTE_PRE_DOWN = `PreDown = ip -6 route del ::/0 dev %i metric ${WARP_IPV6_ROUTE_METRIC} 2>/dev/null || true`;
 const WARP_OUTPUT_TAIL_BYTES = 64 * 1024;
 const WARP_KILL_GRACE_MS = 5_000;
 const WARP_INSTALL_SCRIPT = String.raw`
@@ -57,6 +60,14 @@ test -s wgcf-profile.conf
 sed -i -E '/^DNS =/d' wgcf-profile.conf
 sed -i -E 's#^Endpoint = .*$#Endpoint = ${WARP_ENDPOINT}#' wgcf-profile.conf
 grep -q '^Table = off$' wgcf-profile.conf || sed -i '/^MTU =/a Table = off' wgcf-profile.conf
+grep -q '^PostUp = ip -6 route replace ::/0 dev %i metric ${WARP_IPV6_ROUTE_METRIC}$' wgcf-profile.conf || awk '
+    { print }
+    /^Table = off$/ && !done {
+        print "PostUp = ip -6 route replace ::/0 dev %i metric ${WARP_IPV6_ROUTE_METRIC}"
+        print "PreDown = ip -6 route del ::/0 dev %i metric ${WARP_IPV6_ROUTE_METRIC} 2>/dev/null || true"
+        done=1
+    }
+' wgcf-profile.conf > wgcf-profile.conf.next && mv wgcf-profile.conf.next wgcf-profile.conf
 grep -q '^PersistentKeepalive = ' wgcf-profile.conf \
     || sed -i '/^Endpoint =/a PersistentKeepalive = 25' wgcf-profile.conf
 
@@ -109,7 +120,11 @@ export class WarpService {
 
         if (await this.isInterfaceRunning()) {
             const currentStatus = await this.getStatus();
-            if (currentStatus.warp === 'on' && this.hasDualStackConfig()) {
+            if (
+                currentStatus.warp === 'on' &&
+                this.hasDualStackConfig() &&
+                this.hasBoundIpv6RouteConfig()
+            ) {
                 return currentStatus;
             }
         }
@@ -220,6 +235,13 @@ export class WarpService {
             );
         }
 
+        if (!this.hasBoundIpv6RouteConfig(updated)) {
+            updated = updated.replace(
+                /^Table = off$/m,
+                (line) => `${line}\n${WARP_IPV6_ROUTE_POST_UP}\n${WARP_IPV6_ROUTE_PRE_DOWN}`,
+            );
+        }
+
         if (updated !== original) {
             writeFileSync(WARP_CONFIG_PATH, updated, { mode: 0o600 });
         }
@@ -288,6 +310,16 @@ export class WarpService {
         const hasIpv6 = addresses.some((address) => /^[0-9a-f:]+\/\d+$/i.test(address));
 
         return hasIpv4 && hasIpv6;
+    }
+
+    private hasBoundIpv6RouteConfig(config: string | null = null): boolean {
+        if (config === null && !this.hasWarpConfig()) return false;
+
+        const warpConfig = config ?? readFileSync(WARP_CONFIG_PATH, 'utf8');
+        return (
+            warpConfig.includes(WARP_IPV6_ROUTE_POST_UP) &&
+            warpConfig.includes(WARP_IPV6_ROUTE_PRE_DOWN)
+        );
     }
 
     private async isInterfaceRunning(): Promise<boolean> {

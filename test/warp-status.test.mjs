@@ -51,6 +51,10 @@ describe('WARP contract shape', () => {
         assert.match(service, /traceIpv4\?\.warp === 'on' && traceIpv6\?\.warp === 'on'/);
         assert.match(service, /if \(await this\.isInterfaceRunning\(\)\) \{/);
         assert.match(service, /link', 'delete', WARP_INTERFACE/);
+        assert.match(service, /WARP_IPV6_ROUTE_METRIC = 4242/);
+        assert.match(service, /PostUp = ip -6 route replace ::\/0 dev %i metric/);
+        assert.match(service, /PreDown = ip -6 route del ::\/0 dev %i metric/);
+        assert.match(service, /hasBoundIpv6RouteConfig/);
         assert.match(service, /wgcf register --accept-tos/);
         assert.match(service, /wgcf generate/);
         assert.doesNotMatch(service, /s#\^\(Address = \[\^,\]\+\),\.\*#\\1#/);

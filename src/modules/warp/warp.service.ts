@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import { spawn } from 'node:child_process';
 
 import type { TWarpStatus } from '@libs/contracts/models';
 
@@ -8,13 +7,61 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { TWarpCommandResult } from './warp.types';
 
-const execFileAsync = promisify(execFile);
-
 const WARP_INTERFACE = 'warp';
 const WARP_CONFIG_PATH = '/etc/wireguard/warp.conf';
 const WARP_TRACE_URL = 'https://www.cloudflare.com/cdn-cgi/trace';
-const WARP_INSTALL_URL = 'https://raw.githubusercontent.com/distillium/warp-native/main/install.sh';
-const WARP_EXEC_MAX_BUFFER = 16 * 1024 * 1024;
+const WGCF_RELEASES_API_URL = 'https://api.github.com/repos/ViRb3/wgcf/releases/latest';
+const WARP_OUTPUT_TAIL_BYTES = 64 * 1024;
+const WARP_KILL_GRACE_MS = 5_000;
+const WARP_INSTALL_SCRIPT = String.raw`
+set -euo pipefail
+
+ARCH="$(uname -m)"
+case "$ARCH" in
+    x86_64|amd64) WGCF_ARCH="linux_amd64" ;;
+    aarch64|arm64) WGCF_ARCH="linux_arm64" ;;
+    armv7l|armv7) WGCF_ARCH="linux_armv7" ;;
+    armv6l|armv6) WGCF_ARCH="linux_armv6" ;;
+    armv5l|armv5) WGCF_ARCH="linux_armv5" ;;
+    i386|i686) WGCF_ARCH="linux_386" ;;
+    s390x) WGCF_ARCH="linux_s390x" ;;
+    *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;;
+esac
+
+if ! command -v wgcf >/dev/null 2>&1; then
+    WGCF_URL="$(
+        curl -fsSL ${WGCF_RELEASES_API_URL} \
+            | grep -Eo 'https://[^"]+wgcf_[^"]+_'"$WGCF_ARCH"'"?' \
+            | head -n 1 \
+            | tr -d '"'
+    )"
+
+    if [ -z "$WGCF_URL" ]; then
+        echo "Could not resolve wgcf download URL for $WGCF_ARCH" >&2
+        exit 1
+    fi
+
+    curl -fsSL "$WGCF_URL" -o /usr/local/bin/wgcf
+    chmod +x /usr/local/bin/wgcf
+fi
+
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+cd "$TMP_DIR"
+
+wgcf register --accept-tos >/dev/null
+wgcf generate >/dev/null
+test -s wgcf-profile.conf
+
+sed -i -E '/^DNS =/d' wgcf-profile.conf
+sed -i -E 's#^(Address = [^,]+),.*#\1#' wgcf-profile.conf
+grep -q '^Table = off$' wgcf-profile.conf || sed -i '/^MTU =/a Table = off' wgcf-profile.conf
+grep -q '^PersistentKeepalive = ' wgcf-profile.conf \
+    || sed -i '/^Endpoint =/a PersistentKeepalive = 25' wgcf-profile.conf
+
+mkdir -p /etc/wireguard
+install -m 600 wgcf-profile.conf ${WARP_CONFIG_PATH}
+`;
 
 type TWarpTrace = {
     ip: string | null;
@@ -153,7 +200,7 @@ export class WarpService {
         if (this.hasWarpConfig() || (await this.isInterfaceRunning())) return;
 
         await this.ensureAlpinePackages();
-        await this.execFixed('/bin/sh', ['-c', `curl -fsSL ${WARP_INSTALL_URL} | bash`], 180_000);
+        await this.execFixed('/bin/bash', ['-o', 'pipefail', '-c', WARP_INSTALL_SCRIPT], 180_000);
     }
 
     private async ensureAlpinePackages(): Promise<void> {
@@ -161,7 +208,16 @@ export class WarpService {
 
         await this.execFixed(
             '/sbin/apk',
-            ['add', '--no-cache', 'bash', 'curl', 'iproute2', 'openresolv', 'wireguard-tools'],
+            [
+                'add',
+                '--no-cache',
+                'bash',
+                'ca-certificates',
+                'curl',
+                'iproute2',
+                'openresolv',
+                'wireguard-tools',
+            ],
             120_000,
         );
     }
@@ -251,16 +307,69 @@ export class WarpService {
         args: string[],
         timeout: number,
     ): Promise<TWarpCommandResult> {
-        const result = await execFileAsync(command, args, {
-            encoding: 'utf8',
-            timeout,
-            maxBuffer: WARP_EXEC_MAX_BUFFER,
-        });
+        return await new Promise<TWarpCommandResult>((resolve, reject) => {
+            const child = spawn(command, args, {
+                detached: true,
+                stdio: ['ignore', 'pipe', 'pipe'],
+            });
+            let stdout = '';
+            let stderr = '';
+            let settled = false;
+            let timedOut = false;
+            let killTimer: NodeJS.Timeout | null = null;
 
-        return {
-            stdout: String(result.stdout ?? ''),
-            stderr: String(result.stderr ?? ''),
-        };
+            const timer = setTimeout(() => {
+                timedOut = true;
+                this.killProcessGroup(child.pid, 'SIGTERM');
+                killTimer = setTimeout(() => {
+                    this.killProcessGroup(child.pid, 'SIGKILL');
+                }, WARP_KILL_GRACE_MS);
+            }, timeout);
+
+            const settle = (callback: () => void) => {
+                if (settled) return;
+
+                settled = true;
+                clearTimeout(timer);
+                if (killTimer) clearTimeout(killTimer);
+                callback();
+            };
+
+            child.stdout?.on('data', (chunk: Buffer) => {
+                stdout = this.appendOutputTail(stdout, chunk);
+            });
+
+            child.stderr?.on('data', (chunk: Buffer) => {
+                stderr = this.appendOutputTail(stderr, chunk);
+            });
+
+            child.on('error', (error) => {
+                settle(() => reject(error));
+            });
+
+            child.on('close', (code, signal) => {
+                settle(() => {
+                    if (timedOut) {
+                        reject(new Error(`${command} timed out after ${timeout}ms`));
+                        return;
+                    }
+
+                    if (code === 0) {
+                        resolve({ stdout, stderr });
+                        return;
+                    }
+
+                    const details = [
+                        `${command} exited with code ${code ?? 'null'}`,
+                        signal ? `signal ${signal}` : null,
+                        stderr.trim() ? `stderr: ${stderr.trim()}` : null,
+                        stdout.trim() ? `stdout: ${stdout.trim()}` : null,
+                    ].filter(Boolean);
+
+                    reject(new Error(details.join('; ')));
+                });
+            });
+        });
     }
 
     private status(partial: Partial<TWarpStatus>): TWarpStatus {
@@ -285,6 +394,30 @@ export class WarpService {
     }
 
     private limitOutput(value: string): string {
-        return value.replaceAll(WARP_INSTALL_URL, '[warp-install-url]').slice(0, 500);
+        return value.replaceAll(WGCF_RELEASES_API_URL, '[wgcf-releases-url]').slice(0, 500);
+    }
+
+    private appendOutputTail(current: string, chunk: Buffer): string {
+        const next = `${current}${chunk.toString('utf8')}`;
+
+        if (Buffer.byteLength(next, 'utf8') <= WARP_OUTPUT_TAIL_BYTES) {
+            return next;
+        }
+
+        return next.slice(-WARP_OUTPUT_TAIL_BYTES);
+    }
+
+    private killProcessGroup(pid: number | undefined, signal: NodeJS.Signals): void {
+        if (!pid) return;
+
+        try {
+            process.kill(-pid, signal);
+        } catch {
+            try {
+                process.kill(pid, signal);
+            } catch {
+                // The process may already have exited.
+            }
+        }
     }
 }

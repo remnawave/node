@@ -31,7 +31,7 @@ describe('WARP contract shape', () => {
         const module = readProjectFile('src/modules/warp/warp.module.ts');
 
         assert.match(service, /class WarpService/);
-        assert.match(service, /execFile/);
+        assert.match(service, /spawn/);
         assert.match(service, /getStatus/);
         assert.match(service, /enable/);
         assert.match(service, /disable/);
@@ -50,7 +50,16 @@ describe('WARP contract shape', () => {
         assert.match(service, /hasWireGuardHandshake \|\| trace\?\.warp === 'on'/);
         assert.match(service, /if \(await this\.isInterfaceRunning\(\)\) \{/);
         assert.match(service, /link', 'delete', WARP_INTERFACE/);
-        assert.match(service, /maxBuffer: WARP_EXEC_MAX_BUFFER/);
+        assert.match(service, /wgcf register --accept-tos/);
+        assert.match(service, /wgcf generate/);
+        assert.match(service, /WGCF_RELEASES_API_URL/);
+        assert.match(service, /install -m 600 wgcf-profile\.conf/);
+        assert.match(service, /WARP_OUTPUT_TAIL_BYTES/);
+        assert.match(service, /detached: true/);
+        assert.match(service, /killProcessGroup/);
+        assert.match(service, /process\.kill\(-pid, signal\)/);
+        assert.doesNotMatch(service, /maxBuffer/);
+        assert.doesNotMatch(service, /warp-native/);
         assert.match(compose, /\/etc\/wireguard:\/etc\/wireguard/);
         assert.match(dockerfile, /wireguard-tools/);
         assert.match(dockerfile, /iproute2/);

@@ -100,14 +100,18 @@ export class XrayService implements OnApplicationBootstrap {
         body: StartXrayCommand.Request,
         ip: string,
     ): Promise<ICommandResponse<StartXrayResponseModel>> {
-        const interfaceStats = await this.queryBus.execute(new GetInterfaceStatsQuery());
-        const warpStatus = await this.warpService.getStatus();
+        const [interfaceStats, warpStatus, hostConnectivity] = await Promise.all([
+            this.queryBus.execute(new GetInterfaceStatsQuery()),
+            this.warpService.getStatus(),
+            this.warpService.getHostConnectivity(),
+        ]);
         const tm = performance.now();
         const system = {
             info: getSystemInfo(),
             stats: {
                 ...getSystemStats(),
                 interface: interfaceStats,
+                host: hostConnectivity,
                 warp: warpStatus,
             },
         };

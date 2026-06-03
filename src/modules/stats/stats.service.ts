@@ -74,9 +74,12 @@ export class StatsService {
                 };
             }
 
-            const interfaceStats = await this.queryBus.execute(new GetInterfaceStatsQuery());
+            const [interfaceStats, warpStatus, hostConnectivity] = await Promise.all([
+                this.queryBus.execute(new GetInterfaceStatsQuery()),
+                this.warpService.getStatus(),
+                this.warpService.getHostConnectivity(),
+            ]);
             const systemStats = getSystemStats();
-            const warpStatus = await this.warpService.getStatus();
             const reportsCount = await this.queryBus.execute(
                 new GetTorrentBlockerReportsCountQuery(),
             );
@@ -93,6 +96,7 @@ export class StatsService {
                     {
                         ...systemStats,
                         interface: interfaceStats,
+                        host: hostConnectivity,
                         warp: warpStatus,
                     },
                 ),

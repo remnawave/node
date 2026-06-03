@@ -6,6 +6,8 @@ import {
     DisableWarpCommand,
     EnableWarpCommand,
     GetWarpStatusCommand,
+    InstallWarpCommand,
+    UninstallWarpCommand,
 } from '@libs/contracts/commands';
 import { WARP_CONTROLLER, WARP_ROUTES } from '@libs/contracts/api';
 
@@ -31,10 +33,24 @@ export class WarpController {
         };
     }
 
+    @Post(WARP_ROUTES.INSTALL)
+    public async install(): Promise<InstallWarpCommand.Response> {
+        return {
+            response: await this.warpService.install(),
+        };
+    }
+
     @Post(WARP_ROUTES.DISABLE)
     public async disable(): Promise<DisableWarpCommand.Response> {
         return {
             response: await this.warpService.disable(),
+        };
+    }
+
+    @Post(WARP_ROUTES.UNINSTALL)
+    public async uninstall(): Promise<UninstallWarpCommand.Response> {
+        return {
+            response: await this.warpService.uninstall(),
         };
     }
 }

@@ -18,11 +18,15 @@ describe('WARP contract shape', () => {
         assert.match(controllers, /warp/);
         assert.match(routes, /WARP/);
         assert.match(routes, /STATUS/);
+        assert.match(routes, /INSTALL/);
         assert.match(routes, /ENABLE/);
         assert.match(routes, /DISABLE/);
+        assert.match(routes, /UNINSTALL/);
         assert.match(commands, /warp/);
         assert.match(nodeSystem, /WarpStatusSchema/);
+        assert.match(nodeSystem, /HostConnectivitySchema/);
         assert.match(nodeSystem, /warp: z\.optional/);
+        assert.match(nodeSystem, /host: z\.optional/);
     });
 
     it('declares WARP service without a generic command executor', () => {
@@ -33,8 +37,10 @@ describe('WARP contract shape', () => {
         assert.match(service, /class WarpService/);
         assert.match(service, /spawn/);
         assert.match(service, /getStatus/);
+        assert.match(service, /install/);
         assert.match(service, /enable/);
         assert.match(service, /disable/);
+        assert.match(service, /uninstall/);
         assert.doesNotMatch(service, /executeCommand/);
         assert.doesNotMatch(service, /runShell/);
         assert.match(controller, /class WarpController/);
@@ -55,6 +61,10 @@ describe('WARP contract shape', () => {
         assert.match(service, /PostUp = ip -6 route replace ::\/0 dev %i metric/);
         assert.match(service, /PreDown = ip -6 route del ::\/0 dev %i metric/);
         assert.match(service, /hasBoundIpv6RouteConfig/);
+        assert.match(service, /getHostConnectivity/);
+        assert.match(service, /operation/);
+        assert.match(service, /appendOperationLog/);
+        assert.match(service, /onOutput/);
         assert.match(service, /wgcf register --accept-tos/);
         assert.match(service, /wgcf generate/);
         assert.doesNotMatch(service, /s#\^\(Address = \[\^,\]\+\),\.\*#\\1#/);
@@ -81,6 +91,9 @@ describe('WARP contract shape', () => {
         assert.match(dockerfile, /openresolv/);
         assert.match(nodeSystem, /publicIpv4: z\.string\(\)\.nullable\(\)/);
         assert.match(nodeSystem, /publicIpv6: z\.string\(\)\.nullable\(\)/);
+        assert.match(nodeSystem, /supportsIpv4: z\.boolean\(\)/);
+        assert.match(nodeSystem, /supportsIpv6: z\.boolean\(\)/);
+        assert.match(nodeSystem, /WarpOperationSchema/);
         assert.match(nodeSystem, /ipv4: WarpTraceSchema\.nullable\(\)/);
         assert.match(nodeSystem, /ipv6: WarpTraceSchema\.nullable\(\)/);
     });

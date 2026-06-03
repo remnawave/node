@@ -1,7 +1,7 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 
-import type { TWarpStatus } from '@libs/contracts/models';
+import type { THostConnectivity, TWarpOperation, TWarpStatus } from '@libs/contracts/models';
 
 import { Injectable, Logger } from '@nestjs/common';
 
@@ -9,6 +9,7 @@ import { TWarpCommandResult } from './warp.types';
 
 const WARP_INTERFACE = 'warp';
 const WARP_CONFIG_PATH = '/etc/wireguard/warp.conf';
+const WARP_TOOL_PATH = '/usr/local/bin/wgcf';
 const WARP_TRACE_URL = 'https://www.cloudflare.com/cdn-cgi/trace';
 const WGCF_RELEASES_API_URL = 'https://api.github.com/repos/ViRb3/wgcf/releases/latest';
 const WARP_ENDPOINT = '162.159.192.1:2408';
@@ -33,6 +34,7 @@ case "$ARCH" in
 esac
 
 if ! command -v wgcf >/dev/null 2>&1; then
+    echo "[warp] resolving latest wgcf release"
     WGCF_URL="$(
         curl -fsSL ${WGCF_RELEASES_API_URL} \
             | grep -Eo 'https://[^"]+wgcf_[^"]+_'"$WGCF_ARCH"'"?' \
@@ -45,18 +47,22 @@ if ! command -v wgcf >/dev/null 2>&1; then
         exit 1
     fi
 
-    curl -fsSL "$WGCF_URL" -o /usr/local/bin/wgcf
-    chmod +x /usr/local/bin/wgcf
+    echo "[warp] downloading wgcf"
+    curl -fsSL "$WGCF_URL" -o ${WARP_TOOL_PATH}
+    chmod +x ${WARP_TOOL_PATH}
 fi
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 cd "$TMP_DIR"
 
+echo "[warp] registering WARP account"
 wgcf register --accept-tos >/dev/null
+echo "[warp] generating WireGuard profile"
 wgcf generate >/dev/null
 test -s wgcf-profile.conf
 
+echo "[warp] normalizing WireGuard profile"
 sed -i -E '/^DNS =/d' wgcf-profile.conf
 sed -i -E 's#^Endpoint = .*$#Endpoint = ${WARP_ENDPOINT}#' wgcf-profile.conf
 grep -q '^Table = off$' wgcf-profile.conf || sed -i '/^MTU =/a Table = off' wgcf-profile.conf
@@ -72,6 +78,7 @@ grep -q '^PersistentKeepalive = ' wgcf-profile.conf \
     || sed -i '/^Endpoint =/a PersistentKeepalive = 25' wgcf-profile.conf
 
 mkdir -p /etc/wireguard
+echo "[warp] installing WireGuard profile"
 install -m 600 wgcf-profile.conf ${WARP_CONFIG_PATH}
 `;
 
@@ -82,10 +89,42 @@ type TWarpTrace = {
 };
 
 type TWarpTraceIpVersion = '4' | '6';
+type TPublicIpProbe = {
+    publicIp: string | null;
+    reachable: boolean;
+    lastError: string | null;
+};
+type TWarpOperationState = TWarpOperation['state'];
 
 @Injectable()
 export class WarpService {
     private readonly logger = new Logger(WarpService.name);
+    private operation: TWarpOperation = this.createIdleOperation();
+
+    public async getHostConnectivity(): Promise<THostConnectivity> {
+        if (process.platform !== 'linux') {
+            return this.hostConnectivity({
+                lastError: 'Host connectivity probing is supported only on Linux nodes',
+            });
+        }
+
+        const [ipv4, ipv6] = await Promise.all([
+            this.getPublicIpProbe('4'),
+            this.getPublicIpProbe('6'),
+        ]);
+
+        const lastError = [ipv4.lastError, ipv6.lastError].filter(Boolean).join('; ') || null;
+
+        return this.hostConnectivity({
+            publicIpv4: ipv4.publicIp,
+            publicIpv6: ipv6.publicIp,
+            supportsIpv4: ipv4.reachable,
+            supportsIpv6: ipv6.reachable,
+            ipv4,
+            ipv6,
+            lastError,
+        });
+    }
 
     public async getStatus(lastError: string | null = null): Promise<TWarpStatus> {
         if (process.platform !== 'linux') {
@@ -109,7 +148,35 @@ export class WarpService {
             colo: traceIpv4?.colo ?? traceIpv6?.colo ?? null,
             ipv4: traceIpv4,
             ipv6: traceIpv6,
+            operation: this.operation,
             lastError,
+        });
+    }
+
+    public async install(): Promise<TWarpStatus> {
+        if (process.platform !== 'linux') {
+            return this.getStatus('WARP is supported only on Linux nodes');
+        }
+
+        return this.withOperation('installing', 'Preparing WARP installation', async () => {
+            const permissionError = await this.getPermissionError();
+            if (permissionError) {
+                this.failOperation(permissionError);
+                return this.getStatus(permissionError);
+            }
+
+            try {
+                await this.installIfMissingOrSingleStack();
+                this.appendOperationLog('Normalizing WARP configuration');
+                this.normalizeWarpConfig();
+                this.finishOperation('WARP installed');
+                return await this.getStatus();
+            } catch (error) {
+                const message = this.toSafeError(error);
+                this.logger.warn(`Failed to install WARP: ${message}`);
+                this.failOperation(message);
+                return this.getStatus(message);
+            }
         });
     }
 
@@ -118,33 +185,44 @@ export class WarpService {
             return this.getStatus('WARP is supported only on Linux nodes');
         }
 
-        if (await this.isInterfaceRunning()) {
-            const currentStatus = await this.getStatus();
-            if (
-                currentStatus.warp === 'on' &&
-                this.hasDualStackConfig() &&
-                this.hasBoundIpv6RouteConfig()
-            ) {
-                return currentStatus;
+        return this.withOperation('enabling', 'Preparing WARP enable', async () => {
+            if (await this.isInterfaceRunning()) {
+                const currentStatus = await this.getStatus();
+                if (
+                    currentStatus.warp === 'on' &&
+                    this.hasDualStackConfig() &&
+                    this.hasBoundIpv6RouteConfig()
+                ) {
+                    this.finishOperation('WARP is already enabled');
+                    return currentStatus;
+                }
             }
-        }
 
-        const permissionError = await this.getPermissionError();
-        if (permissionError) {
-            return this.getStatus(permissionError);
-        }
+            const permissionError = await this.getPermissionError();
+            if (permissionError) {
+                this.failOperation(permissionError);
+                return this.getStatus(permissionError);
+            }
 
-        try {
-            await this.installIfMissingOrSingleStack();
-            this.normalizeWarpConfig();
-            await this.stopRunningInterface();
-            await this.execFixed('/usr/bin/wg-quick', ['up', WARP_INTERFACE], 20_000);
-            return await this.getStatus();
-        } catch (error) {
-            const message = this.toSafeError(error);
-            this.logger.warn(`Failed to enable WARP: ${message}`);
-            return this.getStatus(message);
-        }
+            try {
+                await this.installIfMissingOrSingleStack();
+                this.appendOperationLog('Normalizing WARP configuration');
+                this.normalizeWarpConfig();
+                this.appendOperationLog('Stopping any existing WARP interface');
+                await this.stopRunningInterface();
+                this.appendOperationLog('Starting WireGuard interface');
+                await this.execFixed('/usr/bin/wg-quick', ['up', WARP_INTERFACE], 20_000, {
+                    onOutput: (line) => this.appendOperationLog(line),
+                });
+                this.finishOperation('WARP enabled');
+                return await this.getStatus();
+            } catch (error) {
+                const message = this.toSafeError(error);
+                this.logger.warn(`Failed to enable WARP: ${message}`);
+                this.failOperation(message);
+                return this.getStatus(message);
+            }
+        });
     }
 
     public async disable(): Promise<TWarpStatus> {
@@ -152,28 +230,64 @@ export class WarpService {
             return this.getStatus('WARP is supported only on Linux nodes');
         }
 
-        try {
-            if (!(await this.isInterfaceRunning())) {
-                return await this.getStatus();
-            }
-
-            if (this.hasWarpConfig()) {
-                await this.execFixed('/usr/bin/wg-quick', ['down', WARP_INTERFACE], 20_000);
-            } else {
-                await this.deleteInterface();
-            }
-
-            return await this.getStatus();
-        } catch (error) {
+        return this.withOperation('disabling', 'Preparing WARP disable', async () => {
             try {
-                await this.deleteInterface();
+                if (!(await this.isInterfaceRunning())) {
+                    this.finishOperation('WARP is already stopped');
+                    return await this.getStatus();
+                }
+
+                if (this.hasWarpConfig()) {
+                    this.appendOperationLog('Stopping WireGuard interface');
+                    await this.execFixed('/usr/bin/wg-quick', ['down', WARP_INTERFACE], 20_000, {
+                        onOutput: (line) => this.appendOperationLog(line),
+                    });
+                } else {
+                    this.appendOperationLog('Deleting orphaned WARP interface');
+                    await this.deleteInterface();
+                }
+
+                this.finishOperation('WARP disabled');
                 return await this.getStatus();
-            } catch (fallbackError) {
-                const message = `${this.toSafeError(error)}; fallback delete failed: ${this.toSafeError(fallbackError)}`;
-                this.logger.warn(`Failed to disable WARP: ${message}`);
+            } catch (error) {
+                try {
+                    this.appendOperationLog('Deleting WARP interface after disable failure');
+                    await this.deleteInterface();
+                    this.finishOperation('WARP disabled with fallback cleanup');
+                    return await this.getStatus();
+                } catch (fallbackError) {
+                    const message = `${this.toSafeError(error)}; fallback delete failed: ${this.toSafeError(fallbackError)}`;
+                    this.logger.warn(`Failed to disable WARP: ${message}`);
+                    this.failOperation(message);
+                    return this.getStatus(message);
+                }
+            }
+        });
+    }
+
+    public async uninstall(): Promise<TWarpStatus> {
+        if (process.platform !== 'linux') {
+            return this.getStatus('WARP is supported only on Linux nodes');
+        }
+
+        return this.withOperation('uninstalling', 'Preparing WARP uninstall', async () => {
+            try {
+                if (await this.isInterfaceRunning()) {
+                    this.appendOperationLog('Stopping WARP before uninstall');
+                    await this.stopRunningInterface();
+                }
+
+                this.removeFileIfExists(WARP_CONFIG_PATH);
+                this.removeFileIfExists(WARP_TOOL_PATH);
+                this.finishOperation('WARP uninstalled');
+                return await this.getStatus();
+            } catch (error) {
+                const message = this.toSafeError(error);
+                this.logger.warn(`Failed to uninstall WARP: ${message}`);
+                this.failOperation(message);
                 return this.getStatus(message);
             }
-        }
+        });
     }
 
     private getEffectiveWarpState(
@@ -269,10 +383,17 @@ export class WarpService {
     }
 
     private async installIfMissingOrSingleStack(): Promise<void> {
-        if (this.hasWarpConfig() && this.hasDualStackConfig()) return;
+        if (this.hasWarpConfig() && this.hasDualStackConfig()) {
+            this.appendOperationLog('Existing WARP profile is already dual-stack');
+            return;
+        }
 
+        this.appendOperationLog('Ensuring WARP runtime packages');
         await this.ensureAlpinePackages();
-        await this.execFixed('/bin/bash', ['-o', 'pipefail', '-c', WARP_INSTALL_SCRIPT], 180_000);
+        this.appendOperationLog('Installing WARP profile');
+        await this.execFixed('/bin/bash', ['-o', 'pipefail', '-c', WARP_INSTALL_SCRIPT], 180_000, {
+            onOutput: (line) => this.appendOperationLog(line),
+        });
     }
 
     private async ensureAlpinePackages(): Promise<void> {
@@ -374,6 +495,38 @@ export class WarpService {
         }
     }
 
+    private async getPublicIpProbe(ipVersion: TWarpTraceIpVersion): Promise<TPublicIpProbe> {
+        try {
+            const result = await this.execFixed(
+                '/usr/bin/curl',
+                ['--max-time', '5', `-${ipVersion}`, '-fsSL', WARP_TRACE_URL],
+                8_000,
+            );
+            const publicIp = this.parseTraceField(result.stdout, 'ip');
+
+            return {
+                publicIp,
+                reachable: publicIp !== null,
+                lastError: null,
+            };
+        } catch (error) {
+            return {
+                publicIp: null,
+                reachable: false,
+                lastError: this.toSafeError(error),
+            };
+        }
+    }
+
+    private parseTraceField(output: string, field: string): string | null {
+        const line = output
+            .split('\n')
+            .map((item) => item.trim())
+            .find((item) => item.startsWith(`${field}=`));
+
+        return line?.slice(field.length + 1) ?? null;
+    }
+
     private async getPermissionError(): Promise<string | null> {
         if (!this.hasNetAdminCapability()) {
             return 'NET_ADMIN capability is required to manage WARP';
@@ -410,6 +563,9 @@ export class WarpService {
         command: string,
         args: string[],
         timeout: number,
+        options: {
+            onOutput?: (line: string) => void;
+        } = {},
     ): Promise<TWarpCommandResult> {
         return await new Promise<TWarpCommandResult>((resolve, reject) => {
             const child = spawn(command, args, {
@@ -441,10 +597,12 @@ export class WarpService {
 
             child.stdout?.on('data', (chunk: Buffer) => {
                 stdout = this.appendOutputTail(stdout, chunk);
+                this.emitOutputLines(chunk, options.onOutput);
             });
 
             child.stderr?.on('data', (chunk: Buffer) => {
                 stderr = this.appendOutputTail(stderr, chunk);
+                this.emitOutputLines(chunk, options.onOutput);
             });
 
             child.on('error', (error) => {
@@ -488,9 +646,98 @@ export class WarpService {
             colo: null,
             ipv4: null,
             ipv6: null,
+            operation: this.operation,
             lastError: null,
             ...partial,
         };
+    }
+
+    private hostConnectivity(partial: Partial<THostConnectivity>): THostConnectivity {
+        return {
+            publicIpv4: null,
+            publicIpv6: null,
+            supportsIpv4: false,
+            supportsIpv6: false,
+            ipv4: null,
+            ipv6: null,
+            lastError: null,
+            ...partial,
+        };
+    }
+
+    private createIdleOperation(): TWarpOperation {
+        return {
+            state: 'idle',
+            startedAt: null,
+            finishedAt: null,
+            step: null,
+            logs: [],
+        };
+    }
+
+    private async withOperation<T>(
+        state: TWarpOperationState,
+        step: string,
+        action: () => Promise<T>,
+    ): Promise<T> {
+        this.operation = {
+            state,
+            startedAt: new Date().toISOString(),
+            finishedAt: null,
+            step,
+            logs: [step],
+        };
+
+        return await action();
+    }
+
+    private appendOperationLog(message: string): void {
+        const line = this.limitOutput(message.trim());
+        if (!line) return;
+
+        this.operation = {
+            ...this.operation,
+            step: line,
+            logs: [...this.operation.logs, line].slice(-50),
+        };
+    }
+
+    private finishOperation(step: string): void {
+        this.appendOperationLog(step);
+        this.operation = {
+            ...this.operation,
+            state: 'idle',
+            finishedAt: new Date().toISOString(),
+            step,
+        };
+    }
+
+    private failOperation(step: string): void {
+        this.appendOperationLog(step);
+        this.operation = {
+            ...this.operation,
+            state: 'error',
+            finishedAt: new Date().toISOString(),
+            step,
+        };
+    }
+
+    private emitOutputLines(chunk: Buffer, onOutput: undefined | ((line: string) => void)): void {
+        if (!onOutput) return;
+
+        chunk
+            .toString('utf8')
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .forEach(onOutput);
+    }
+
+    private removeFileIfExists(path: string): void {
+        if (!existsSync(path)) return;
+
+        this.appendOperationLog(`Removing ${path}`);
+        unlinkSync(path);
     }
 
     private toSafeError(error: unknown): string {

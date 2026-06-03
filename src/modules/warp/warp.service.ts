@@ -284,7 +284,7 @@ export class WarpService {
         try {
             const result = await this.execFixed(
                 '/usr/bin/curl',
-                ['--max-time', '5', '-fsSL', WARP_TRACE_URL],
+                ['--max-time', '5', '-4', '--interface', WARP_INTERFACE, '-fsSL', WARP_TRACE_URL],
                 8_000,
             );
 

@@ -55,6 +55,7 @@ describe('WARP contract shape', () => {
         assert.match(service, /WGCF_RELEASES_API_URL/);
         assert.match(service, /WARP_ENDPOINT = '162\.159\.192\.1:2408'/);
         assert.match(service, /Endpoint = \$\{WARP_ENDPOINT\}/);
+        assert.match(service, /'--interface', WARP_INTERFACE/);
         assert.match(service, /normalizeWarpConfig/);
         assert.match(service, /stopRunningInterface/);
         assert.match(service, /install -m 600 wgcf-profile\.conf/);

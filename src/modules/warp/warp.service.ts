@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 
 import type { TWarpStatus } from '@libs/contracts/models';
@@ -11,6 +11,7 @@ const WARP_INTERFACE = 'warp';
 const WARP_CONFIG_PATH = '/etc/wireguard/warp.conf';
 const WARP_TRACE_URL = 'https://www.cloudflare.com/cdn-cgi/trace';
 const WGCF_RELEASES_API_URL = 'https://api.github.com/repos/ViRb3/wgcf/releases/latest';
+const WARP_ENDPOINT = '162.159.192.1:2408';
 const WARP_OUTPUT_TAIL_BYTES = 64 * 1024;
 const WARP_KILL_GRACE_MS = 5_000;
 const WARP_INSTALL_SCRIPT = String.raw`
@@ -55,6 +56,7 @@ test -s wgcf-profile.conf
 
 sed -i -E '/^DNS =/d' wgcf-profile.conf
 sed -i -E 's#^(Address = [^,]+),.*#\1#' wgcf-profile.conf
+sed -i -E 's#^Endpoint = .*$#Endpoint = ${WARP_ENDPOINT}#' wgcf-profile.conf
 grep -q '^Table = off$' wgcf-profile.conf || sed -i '/^MTU =/a Table = off' wgcf-profile.conf
 grep -q '^PersistentKeepalive = ' wgcf-profile.conf \
     || sed -i '/^Endpoint =/a PersistentKeepalive = 25' wgcf-profile.conf
@@ -100,7 +102,10 @@ export class WarpService {
         }
 
         if (await this.isInterfaceRunning()) {
-            return this.getStatus();
+            const currentStatus = await this.getStatus();
+            if (currentStatus.warp === 'on') {
+                return currentStatus;
+            }
         }
 
         const permissionError = await this.getPermissionError();
@@ -110,6 +115,8 @@ export class WarpService {
 
         try {
             await this.installIfMissing();
+            this.normalizeWarpConfig();
+            await this.stopRunningInterface();
             await this.execFixed('/usr/bin/wg-quick', ['up', WARP_INTERFACE], 20_000);
             return await this.getStatus();
         } catch (error) {
@@ -173,6 +180,39 @@ export class WarpService {
         }
 
         throw new Error(errors.join('; '));
+    }
+
+    private async stopRunningInterface(): Promise<void> {
+        if (!(await this.isInterfaceRunning())) return;
+
+        if (this.hasWarpConfig()) {
+            await this.execFixed('/usr/bin/wg-quick', ['down', WARP_INTERFACE], 20_000);
+            return;
+        }
+
+        await this.deleteInterface();
+    }
+
+    private normalizeWarpConfig(): void {
+        if (!this.hasWarpConfig()) return;
+
+        const original = readFileSync(WARP_CONFIG_PATH, 'utf8');
+        let updated = original.replace(/^Endpoint = .*$/m, `Endpoint = ${WARP_ENDPOINT}`);
+
+        if (!/^Table = off$/m.test(updated)) {
+            updated = updated.replace(/^MTU = .*$/m, (line) => `${line}\nTable = off`);
+        }
+
+        if (!/^PersistentKeepalive = /m.test(updated)) {
+            updated = updated.replace(
+                /^Endpoint = .*$/m,
+                (line) => `${line}\nPersistentKeepalive = 25`,
+            );
+        }
+
+        if (updated !== original) {
+            writeFileSync(WARP_CONFIG_PATH, updated, { mode: 0o600 });
+        }
     }
 
     private async hasWireGuardHandshake(): Promise<boolean> {

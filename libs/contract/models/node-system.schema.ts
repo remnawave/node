@@ -8,13 +8,23 @@ export const NetworkInterfaceSchema = z.object({
     txTotal: z.number(),
 });
 
+const WarpTraceSchema = z.object({
+    publicIp: z.string().nullable(),
+    warp: z.enum(['on', 'off', 'unknown']),
+    colo: z.string().nullable(),
+});
+
 export const WarpStatusSchema = z.object({
     installed: z.boolean(),
     running: z.boolean(),
     interfaceName: z.string().nullable(),
     publicIp: z.string().nullable(),
+    publicIpv4: z.string().nullable(),
+    publicIpv6: z.string().nullable(),
     warp: z.enum(['on', 'off', 'unknown']),
     colo: z.string().nullable(),
+    ipv4: WarpTraceSchema.nullable(),
+    ipv6: WarpTraceSchema.nullable(),
     lastError: z.string().nullable(),
 });
 

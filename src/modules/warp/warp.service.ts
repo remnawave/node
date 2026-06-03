@@ -55,7 +55,6 @@ wgcf generate >/dev/null
 test -s wgcf-profile.conf
 
 sed -i -E '/^DNS =/d' wgcf-profile.conf
-sed -i -E 's#^(Address = [^,]+),.*#\1#' wgcf-profile.conf
 sed -i -E 's#^Endpoint = .*$#Endpoint = ${WARP_ENDPOINT}#' wgcf-profile.conf
 grep -q '^Table = off$' wgcf-profile.conf || sed -i '/^MTU =/a Table = off' wgcf-profile.conf
 grep -q '^PersistentKeepalive = ' wgcf-profile.conf \
@@ -66,10 +65,12 @@ install -m 600 wgcf-profile.conf ${WARP_CONFIG_PATH}
 `;
 
 type TWarpTrace = {
-    ip: string | null;
+    publicIp: string | null;
     warp: TWarpStatus['warp'];
     colo: string | null;
 };
+
+type TWarpTraceIpVersion = '4' | '6';
 
 @Injectable()
 export class WarpService {
@@ -83,15 +84,20 @@ export class WarpService {
         const running = await this.isInterfaceRunning();
         const installed = this.hasWarpConfig() || running;
         const hasWireGuardHandshake = running ? await this.hasWireGuardHandshake() : false;
-        const trace = running ? await this.getTrace() : null;
+        const traceIpv4 = running ? await this.getTrace('4') : null;
+        const traceIpv6 = running ? await this.getTrace('6') : null;
 
         return this.status({
             installed,
             running,
             interfaceName: running ? WARP_INTERFACE : null,
-            publicIp: trace?.ip ?? null,
-            warp: this.getEffectiveWarpState(running, hasWireGuardHandshake, trace),
-            colo: trace?.colo ?? null,
+            publicIp: traceIpv4?.publicIp ?? traceIpv6?.publicIp ?? null,
+            publicIpv4: traceIpv4?.publicIp ?? null,
+            publicIpv6: traceIpv6?.publicIp ?? null,
+            warp: this.getEffectiveWarpState(running, hasWireGuardHandshake, traceIpv4, traceIpv6),
+            colo: traceIpv4?.colo ?? traceIpv6?.colo ?? null,
+            ipv4: traceIpv4,
+            ipv6: traceIpv6,
             lastError,
         });
     }
@@ -103,7 +109,7 @@ export class WarpService {
 
         if (await this.isInterfaceRunning()) {
             const currentStatus = await this.getStatus();
-            if (currentStatus.warp === 'on') {
+            if (currentStatus.warp === 'on' && this.hasDualStackConfig()) {
                 return currentStatus;
             }
         }
@@ -114,7 +120,7 @@ export class WarpService {
         }
 
         try {
-            await this.installIfMissing();
+            await this.installIfMissingOrSingleStack();
             this.normalizeWarpConfig();
             await this.stopRunningInterface();
             await this.execFixed('/usr/bin/wg-quick', ['up', WARP_INTERFACE], 20_000);
@@ -158,13 +164,17 @@ export class WarpService {
     private getEffectiveWarpState(
         running: boolean,
         hasWireGuardHandshake: boolean,
-        trace: TWarpTrace | null,
+        traceIpv4: TWarpTrace | null,
+        traceIpv6: TWarpTrace | null,
     ): TWarpStatus['warp'] {
         if (!running) return 'off';
-        if (hasWireGuardHandshake || trace?.warp === 'on') return 'on';
-        if (trace?.warp === 'off') return 'unknown';
+        if (traceIpv4?.warp === 'on' && traceIpv6?.warp === 'on') return 'on';
+        if (hasWireGuardHandshake && (traceIpv4?.warp === 'on' || traceIpv6?.warp === 'on')) {
+            return 'unknown';
+        }
+        if (traceIpv4?.warp === 'off' || traceIpv6?.warp === 'off') return 'unknown';
 
-        return trace?.warp ?? 'unknown';
+        return traceIpv4?.warp ?? traceIpv6?.warp ?? 'unknown';
     }
 
     private async deleteInterface(): Promise<void> {
@@ -236,8 +246,8 @@ export class WarpService {
         }
     }
 
-    private async installIfMissing(): Promise<void> {
-        if (this.hasWarpConfig() || (await this.isInterfaceRunning())) return;
+    private async installIfMissingOrSingleStack(): Promise<void> {
+        if (this.hasWarpConfig() && this.hasDualStackConfig()) return;
 
         await this.ensureAlpinePackages();
         await this.execFixed('/bin/bash', ['-o', 'pipefail', '-c', WARP_INSTALL_SCRIPT], 180_000);
@@ -266,6 +276,20 @@ export class WarpService {
         return existsSync(WARP_CONFIG_PATH);
     }
 
+    private hasDualStackConfig(): boolean {
+        if (!this.hasWarpConfig()) return false;
+
+        const config = readFileSync(WARP_CONFIG_PATH, 'utf8');
+        const addresses = [...config.matchAll(/^Address = (.+)$/gm)]
+            .flatMap((match) => match[1].split(','))
+            .map((address) => address.trim());
+
+        const hasIpv4 = addresses.some((address) => /^\d{1,3}(?:\.\d{1,3}){3}\/\d+$/.test(address));
+        const hasIpv6 = addresses.some((address) => /^[0-9a-f:]+\/\d+$/i.test(address));
+
+        return hasIpv4 && hasIpv6;
+    }
+
     private async isInterfaceRunning(): Promise<boolean> {
         try {
             await this.execFixed('/sbin/ip', ['link', 'show', WARP_INTERFACE], 5_000);
@@ -280,11 +304,19 @@ export class WarpService {
         }
     }
 
-    private async getTrace(): Promise<TWarpTrace | null> {
+    private async getTrace(ipVersion: TWarpTraceIpVersion): Promise<TWarpTrace | null> {
         try {
             const result = await this.execFixed(
                 '/usr/bin/curl',
-                ['--max-time', '5', '-4', '--interface', WARP_INTERFACE, '-fsSL', WARP_TRACE_URL],
+                [
+                    '--max-time',
+                    '5',
+                    `-${ipVersion}`,
+                    '--interface',
+                    WARP_INTERFACE,
+                    '-fsSL',
+                    WARP_TRACE_URL,
+                ],
                 8_000,
             );
 
@@ -301,7 +333,7 @@ export class WarpService {
 
             const warp = fields.get('warp');
             return {
-                ip: fields.get('ip') ?? null,
+                publicIp: fields.get('ip') ?? null,
                 warp: warp === 'on' || warp === 'off' ? warp : 'unknown',
                 colo: fields.get('colo') ?? null,
             };
@@ -418,8 +450,12 @@ export class WarpService {
             running: false,
             interfaceName: null,
             publicIp: null,
+            publicIpv4: null,
+            publicIpv6: null,
             warp: 'unknown',
             colo: null,
+            ipv4: null,
+            ipv6: null,
             lastError: null,
             ...partial,
         };

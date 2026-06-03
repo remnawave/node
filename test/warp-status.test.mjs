@@ -45,17 +45,23 @@ describe('WARP contract shape', () => {
         const service = readProjectFile('src/modules/warp/warp.service.ts');
         const compose = readProjectFile('docker-compose-prod.yml');
         const dockerfile = readProjectFile('Dockerfile');
+        const nodeSystem = readProjectFile('libs/contract/models/node-system.schema.ts');
 
         assert.match(service, /show', WARP_INTERFACE, 'latest-handshakes'/);
-        assert.match(service, /hasWireGuardHandshake \|\| trace\?\.warp === 'on'/);
+        assert.match(service, /traceIpv4\?\.warp === 'on' && traceIpv6\?\.warp === 'on'/);
         assert.match(service, /if \(await this\.isInterfaceRunning\(\)\) \{/);
         assert.match(service, /link', 'delete', WARP_INTERFACE/);
         assert.match(service, /wgcf register --accept-tos/);
         assert.match(service, /wgcf generate/);
+        assert.doesNotMatch(service, /s#\^\(Address = \[\^,\]\+\),\.\*#\\1#/);
         assert.match(service, /WGCF_RELEASES_API_URL/);
         assert.match(service, /WARP_ENDPOINT = '162\.159\.192\.1:2408'/);
         assert.match(service, /Endpoint = \$\{WARP_ENDPOINT\}/);
-        assert.match(service, /'--interface', WARP_INTERFACE/);
+        assert.match(service, /getTrace\('4'\)/);
+        assert.match(service, /getTrace\('6'\)/);
+        assert.match(service, /`\-\$\{ipVersion\}`/);
+        assert.match(service, /'--interface',\s+WARP_INTERFACE/);
+        assert.match(service, /hasDualStackConfig/);
         assert.match(service, /normalizeWarpConfig/);
         assert.match(service, /stopRunningInterface/);
         assert.match(service, /install -m 600 wgcf-profile\.conf/);
@@ -69,5 +75,9 @@ describe('WARP contract shape', () => {
         assert.match(dockerfile, /wireguard-tools/);
         assert.match(dockerfile, /iproute2/);
         assert.match(dockerfile, /openresolv/);
+        assert.match(nodeSystem, /publicIpv4: z\.string\(\)\.nullable\(\)/);
+        assert.match(nodeSystem, /publicIpv6: z\.string\(\)\.nullable\(\)/);
+        assert.match(nodeSystem, /ipv4: WarpTraceSchema\.nullable\(\)/);
+        assert.match(nodeSystem, /ipv6: WarpTraceSchema\.nullable\(\)/);
     });
 });

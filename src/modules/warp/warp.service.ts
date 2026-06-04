@@ -16,6 +16,7 @@ const WARP_ENDPOINT = '162.159.192.1:2408';
 const WARP_IPV6_ROUTE_METRIC = 4242;
 const WARP_IPV6_ROUTE_POST_UP = `PostUp = ip -6 route replace ::/0 dev %i metric ${WARP_IPV6_ROUTE_METRIC}`;
 const WARP_IPV6_ROUTE_PRE_DOWN = `PreDown = ip -6 route del ::/0 dev %i metric ${WARP_IPV6_ROUTE_METRIC} 2>/dev/null || true`;
+const WARP_MANAGED_IPV6_ROUTE_LINES = [WARP_IPV6_ROUTE_POST_UP, WARP_IPV6_ROUTE_PRE_DOWN];
 const WARP_OUTPUT_TAIL_BYTES = 64 * 1024;
 const WARP_KILL_GRACE_MS = 5_000;
 const WARP_INSTALL_SCRIPT = String.raw`
@@ -58,6 +59,8 @@ cd "$TMP_DIR"
 
 echo "[warp] registering WARP account"
 wgcf register --accept-tos >/dev/null
+echo "[warp] updating WARP account"
+wgcf update >/dev/null
 echo "[warp] generating WireGuard profile"
 wgcf generate >/dev/null
 test -s wgcf-profile.conf
@@ -66,14 +69,6 @@ echo "[warp] normalizing WireGuard profile"
 sed -i -E '/^DNS =/d' wgcf-profile.conf
 sed -i -E 's#^Endpoint = .*$#Endpoint = ${WARP_ENDPOINT}#' wgcf-profile.conf
 grep -q '^Table = off$' wgcf-profile.conf || sed -i '/^MTU =/a Table = off' wgcf-profile.conf
-grep -q '^PostUp = ip -6 route replace ::/0 dev %i metric ${WARP_IPV6_ROUTE_METRIC}$' wgcf-profile.conf || awk '
-    { print }
-    /^Table = off$/ && !done {
-        print "PostUp = ip -6 route replace ::/0 dev %i metric ${WARP_IPV6_ROUTE_METRIC}"
-        print "PreDown = ip -6 route del ::/0 dev %i metric ${WARP_IPV6_ROUTE_METRIC} 2>/dev/null || true"
-        done=1
-    }
-' wgcf-profile.conf > wgcf-profile.conf.next && mv wgcf-profile.conf.next wgcf-profile.conf
 grep -q '^PersistentKeepalive = ' wgcf-profile.conf \
     || sed -i '/^Endpoint =/a PersistentKeepalive = 25' wgcf-profile.conf
 
@@ -191,7 +186,9 @@ export class WarpService {
                 if (
                     currentStatus.warp === 'on' &&
                     this.hasDualStackConfig() &&
-                    this.hasBoundIpv6RouteConfig()
+                    this.hasBoundIpv6RouteConfig() &&
+                    this.hasExpectedEndpointConfig() &&
+                    !this.hasDeprecatedIpv6EndpointRouteConfig()
                 ) {
                     this.finishOperation('WARP is already enabled');
                     return currentStatus;
@@ -349,10 +346,13 @@ export class WarpService {
             );
         }
 
+        updated = this.removeDeprecatedIpv6EndpointRouteLines(updated);
+
         if (!this.hasBoundIpv6RouteConfig(updated)) {
+            updated = this.removeManagedIpv6RouteLines(updated);
             updated = updated.replace(
                 /^Table = off$/m,
-                (line) => `${line}\n${WARP_IPV6_ROUTE_POST_UP}\n${WARP_IPV6_ROUTE_PRE_DOWN}`,
+                (line) => `${line}\n${WARP_MANAGED_IPV6_ROUTE_LINES.join('\n')}`,
             );
         }
 
@@ -437,9 +437,69 @@ export class WarpService {
         if (config === null && !this.hasWarpConfig()) return false;
 
         const warpConfig = config ?? readFileSync(WARP_CONFIG_PATH, 'utf8');
-        return (
-            warpConfig.includes(WARP_IPV6_ROUTE_POST_UP) &&
-            warpConfig.includes(WARP_IPV6_ROUTE_PRE_DOWN)
+        return WARP_MANAGED_IPV6_ROUTE_LINES.every((line) => warpConfig.includes(line));
+    }
+
+    private hasExpectedEndpointConfig(config: string | null = null): boolean {
+        if (config === null && !this.hasWarpConfig()) return false;
+
+        const warpConfig = config ?? readFileSync(WARP_CONFIG_PATH, 'utf8');
+        return warpConfig.includes(`Endpoint = ${WARP_ENDPOINT}`);
+    }
+
+    private hasDeprecatedIpv6EndpointRouteConfig(config: string | null = null): boolean {
+        if (config === null && !this.hasWarpConfig()) return false;
+
+        const warpConfig = config ?? readFileSync(WARP_CONFIG_PATH, 'utf8');
+        return warpConfig.split('\n').some((line) => this.isDeprecatedIpv6EndpointRouteLine(line));
+    }
+
+    private removeManagedIpv6RouteLines(config: string): string {
+        return config
+            .split('\n')
+            .filter((line) => !this.isManagedIpv6RouteLine(line))
+            .join('\n')
+            .replace(/\n{3,}/g, '\n\n');
+    }
+
+    private removeDeprecatedIpv6EndpointRouteLines(config: string): string {
+        return config
+            .split('\n')
+            .filter((line) => !this.isDeprecatedIpv6EndpointRouteLine(line))
+            .join('\n')
+            .replace(/\n{3,}/g, '\n\n');
+    }
+
+    private isManagedIpv6RouteLine(line: string): boolean {
+        if (WARP_MANAGED_IPV6_ROUTE_LINES.includes(line)) return true;
+        if (/^PostUp = ip -6 route replace ::\/0 dev %i metric \d+$/.test(line)) return true;
+        if (
+            /^PreDown = ip -6 route del ::\/0 dev %i metric \d+ 2>\/dev\/null \|\| true$/.test(line)
+        ) {
+            return true;
+        }
+        if (
+            /^PreDown = ip -6 route del 2606:4700:d0::a29f:c001\/128 2>\/dev\/null \|\| true$/.test(
+                line,
+            )
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private isDeprecatedIpv6EndpointRouteLine(line: string): boolean {
+        if (
+            /^PreDown = ip -6 route del 2606:4700:d0::a29f:c001\/128 2>\/dev\/null \|\| true$/.test(
+                line,
+            )
+        ) {
+            return true;
+        }
+
+        return /^PostUp = endpoint_route=.*ip -6 route replace 2606:4700:d0::a29f:c001\/128 .* metric \d+$/.test(
+            line,
         );
     }
 
@@ -497,11 +557,22 @@ export class WarpService {
 
     private async getPublicIpProbe(ipVersion: TWarpTraceIpVersion): Promise<TPublicIpProbe> {
         try {
-            const result = await this.execFixed(
-                '/usr/bin/curl',
-                ['--max-time', '5', `-${ipVersion}`, '-fsSL', WARP_TRACE_URL],
-                8_000,
-            );
+            const hostInterface = await this.getHostDefaultInterface(ipVersion);
+            const isWarpRunning = await this.isInterfaceRunning();
+
+            if (ipVersion === '6' && hostInterface === null && isWarpRunning) {
+                return {
+                    publicIp: null,
+                    reachable: false,
+                    lastError: 'No non-WARP IPv6 default interface is available',
+                };
+            }
+
+            const args = ['--max-time', '5', `-${ipVersion}`];
+            if (hostInterface) args.push('--interface', hostInterface);
+            args.push('-fsSL', WARP_TRACE_URL);
+
+            const result = await this.execFixed('/usr/bin/curl', args, 8_000);
             const publicIp = this.parseTraceField(result.stdout, 'ip');
 
             return {
@@ -516,6 +587,30 @@ export class WarpService {
                 lastError: this.toSafeError(error),
             };
         }
+    }
+
+    private async getHostDefaultInterface(ipVersion: TWarpTraceIpVersion): Promise<string | null> {
+        const args =
+            ipVersion === '4' ? ['route', 'show', 'default'] : ['-6', 'route', 'show', 'default'];
+
+        for (const command of ['/sbin/ip', '/usr/sbin/ip']) {
+            try {
+                const result = await this.execFixed(command, args, 5_000);
+                const defaultRoute = result.stdout
+                    .split('\n')
+                    .map((line) => line.trim())
+                    .filter(Boolean)
+                    .filter((line) => !line.includes(`dev ${WARP_INTERFACE}`))
+                    .find((line) => line.includes('default'));
+
+                const match = defaultRoute?.match(/\bdev\s+(\S+)/);
+                if (match?.[1]) return match[1];
+            } catch {
+                // Try the next iproute2 location used by common Linux distributions.
+            }
+        }
+
+        return null;
     }
 
     private parseTraceField(output: string, field: string): string | null {

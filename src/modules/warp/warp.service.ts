@@ -79,6 +79,7 @@ install -m 600 wgcf-profile.conf ${WARP_CONFIG_PATH}
 
 type TWarpTrace = {
     publicIp: string | null;
+    countryCode: string | null;
     warp: TWarpStatus['warp'];
     colo: string | null;
 };
@@ -86,6 +87,7 @@ type TWarpTrace = {
 type TWarpTraceIpVersion = '4' | '6';
 type TPublicIpProbe = {
     publicIp: string | null;
+    countryCode: string | null;
     reachable: boolean;
     lastError: string | null;
 };
@@ -547,6 +549,7 @@ export class WarpService {
             const warp = fields.get('warp');
             return {
                 publicIp: fields.get('ip') ?? null,
+                countryCode: this.normalizeCountryCode(fields.get('loc') ?? null),
                 warp: warp === 'on' || warp === 'off' ? warp : 'unknown',
                 colo: fields.get('colo') ?? null,
             };
@@ -563,6 +566,7 @@ export class WarpService {
             if (ipVersion === '6' && hostInterface === null && isWarpRunning) {
                 return {
                     publicIp: null,
+                    countryCode: null,
                     reachable: false,
                     lastError: 'No non-WARP IPv6 default interface is available',
                 };
@@ -577,12 +581,14 @@ export class WarpService {
 
             return {
                 publicIp,
+                countryCode: this.parseCountryCode(result.stdout),
                 reachable: publicIp !== null,
                 lastError: null,
             };
         } catch (error) {
             return {
                 publicIp: null,
+                countryCode: null,
                 reachable: false,
                 lastError: this.toSafeError(error),
             };
@@ -620,6 +626,17 @@ export class WarpService {
             .find((item) => item.startsWith(`${field}=`));
 
         return line?.slice(field.length + 1) ?? null;
+    }
+
+    private parseCountryCode(output: string): string | null {
+        return this.normalizeCountryCode(this.parseTraceField(output, 'loc'));
+    }
+
+    private normalizeCountryCode(countryCode: string | null): string | null {
+        if (!countryCode) return null;
+
+        const normalized = countryCode.trim().toUpperCase();
+        return /^[A-Z]{2}$/.test(normalized) ? normalized : null;
     }
 
     private async getPermissionError(): Promise<string | null> {

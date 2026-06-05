@@ -100,10 +100,13 @@ describe('WARP contract shape', () => {
         assert.match(dockerfile, /openresolv/);
         assert.match(nodeSystem, /publicIpv4: z\.string\(\)\.nullable\(\)/);
         assert.match(nodeSystem, /publicIpv6: z\.string\(\)\.nullable\(\)/);
+        assert.match(nodeSystem, /countryCode: z\.string\(\)\.nullable\(\)/);
         assert.match(nodeSystem, /supportsIpv4: z\.boolean\(\)/);
         assert.match(nodeSystem, /supportsIpv6: z\.boolean\(\)/);
         assert.match(nodeSystem, /WarpOperationSchema/);
         assert.match(nodeSystem, /ipv4: WarpTraceSchema\.nullable\(\)/);
         assert.match(nodeSystem, /ipv6: WarpTraceSchema\.nullable\(\)/);
+        assert.match(service, /parseCountryCode/);
+        assert.match(service, /normalizeCountryCode/);
     });
 });

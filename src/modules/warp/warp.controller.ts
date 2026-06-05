@@ -1,0 +1,56 @@
+import { Controller, Get, Post, UseFilters, UseGuards } from '@nestjs/common';
+
+import { JwtDefaultGuard } from '@common/guards/jwt-guards';
+import { HttpExceptionFilter } from '@common/exception';
+import {
+    DisableWarpCommand,
+    EnableWarpCommand,
+    GetWarpStatusCommand,
+    InstallWarpCommand,
+    UninstallWarpCommand,
+} from '@libs/contracts/commands';
+import { WARP_CONTROLLER, WARP_ROUTES } from '@libs/contracts/api';
+
+import { WarpService } from './warp.service';
+
+@UseFilters(HttpExceptionFilter)
+@UseGuards(JwtDefaultGuard)
+@Controller(WARP_CONTROLLER)
+export class WarpController {
+    constructor(private readonly warpService: WarpService) {}
+
+    @Get(WARP_ROUTES.STATUS)
+    public async status(): Promise<GetWarpStatusCommand.Response> {
+        return {
+            response: await this.warpService.getStatus(),
+        };
+    }
+
+    @Post(WARP_ROUTES.ENABLE)
+    public async enable(): Promise<EnableWarpCommand.Response> {
+        return {
+            response: await this.warpService.enable(),
+        };
+    }
+
+    @Post(WARP_ROUTES.INSTALL)
+    public async install(): Promise<InstallWarpCommand.Response> {
+        return {
+            response: await this.warpService.install(),
+        };
+    }
+
+    @Post(WARP_ROUTES.DISABLE)
+    public async disable(): Promise<DisableWarpCommand.Response> {
+        return {
+            response: await this.warpService.disable(),
+        };
+    }
+
+    @Post(WARP_ROUTES.UNINSTALL)
+    public async uninstall(): Promise<UninstallWarpCommand.Response> {
+        return {
+            response: await this.warpService.uninstall(),
+        };
+    }
+}

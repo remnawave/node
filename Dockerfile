@@ -47,7 +47,15 @@ COPY docker-entrypoint.sh /usr/local/bin/
 COPY package*.json ./
 COPY ./libs ./libs
 
-RUN apk add --no-cache supervisor libnftnl libmnl && \
+RUN apk add --no-cache \
+    bash \
+    curl \
+    iproute2 \
+    libmnl \
+    libnftnl \
+    openresolv \
+    supervisor \
+    wireguard-tools && \
     mkdir -p /var/log/supervisor && \
     chmod +x /usr/local/bin/docker-entrypoint.sh && \
     ln -s /usr/local/bin/xray /usr/local/bin/rw-core

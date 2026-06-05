@@ -7,6 +7,8 @@ services:
     restart: always
     cap_add:
       - NET_ADMIN
+    volumes:
+      - /etc/wireguard:/etc/wireguard
     ulimits:
       nofile:
         soft: 1048576

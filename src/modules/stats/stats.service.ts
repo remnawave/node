@@ -25,12 +25,14 @@ import {
 import { GetInterfaceStatsQuery } from '../network-stats/queries/get-interface-stats/get-interface-stats.query';
 import { GetTorrentBlockerReportsCountQuery } from '../_plugin/queries/get-torrent-blocker-reports-count';
 import { IGetUserOnlineStatusRequest } from './interfaces';
+import { WarpService } from '../warp/warp.service';
 
 @Injectable()
 export class StatsService {
     constructor(
         @InjectXtls() private readonly xtlsSdk: XtlsApi,
         private readonly queryBus: QueryBus,
+        private readonly warpService: WarpService,
     ) {}
     private readonly logger = new Logger(StatsService.name);
 
@@ -72,7 +74,11 @@ export class StatsService {
                 };
             }
 
-            const interfaceStats = await this.queryBus.execute(new GetInterfaceStatsQuery());
+            const [interfaceStats, warpStatus, hostConnectivity] = await Promise.all([
+                this.queryBus.execute(new GetInterfaceStatsQuery()),
+                this.warpService.getStatus(),
+                this.warpService.getHostConnectivity(),
+            ]);
             const systemStats = getSystemStats();
             const reportsCount = await this.queryBus.execute(
                 new GetTorrentBlockerReportsCountQuery(),
@@ -90,6 +96,8 @@ export class StatsService {
                     {
                         ...systemStats,
                         interface: interfaceStats,
+                        host: hostConnectivity,
+                        warp: warpStatus,
                     },
                 ),
             };

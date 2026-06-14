@@ -47,6 +47,7 @@
     "@remnawave/xtls-sdk": "0.14.0",
     "@remnawave/xtls-sdk-nestjs": "0.6.1",
     "compression": "^1.8.1",
+    "consola": "^3.4.2",
     "enhanced-ms": "^4.2.0",
     "helmet": "^8.2.0",
     "json-colorizer": "^3.0.1",

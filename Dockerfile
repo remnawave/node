@@ -1,4 +1,4 @@
-FROM node:24.15-alpine AS build
+FROM node:24.16-alpine AS build
 
 WORKDIR /opt/app
 
@@ -26,7 +26,7 @@ RUN apk add --no-cache curl \
     && rm -f /tmp/asn-prefixes-lmdb.tar.gz
 
 
-FROM node:24.15-alpine
+FROM node:24.16-alpine
 
 LABEL org.opencontainers.image.title="Remnawave Node"
 LABEL org.opencontainers.image.description="Remnawave Node with built-in XRay Core"

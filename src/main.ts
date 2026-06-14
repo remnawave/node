@@ -3,6 +3,7 @@ process.title = 'rw-node';
 import { utilities as nestWinstonModuleUtilities, WinstonModule } from 'nest-winston';
 import * as bodyParser from '@kastov/body-parser-with-zstd';
 import { ZodValidationPipe } from 'nestjs-zod';
+import { SecureVersion } from 'node:tls';
 import express, { json } from 'express';
 import { createLogger } from 'winston';
 import compression from 'compression';
@@ -11,6 +12,7 @@ import { Server } from 'https';
 import helmet from 'helmet';
 import morgan from 'morgan';
 
+import { HttpsOptions } from '@nestjs/common/interfaces/external/https-options.interface';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 
@@ -51,14 +53,17 @@ async function bootstrap(): Promise<void> {
 
     const nodePayload = parseNodePayload();
 
+    const httpsOptions: { minVersion?: SecureVersion } & HttpsOptions = {
+        key: nodePayload.nodeKeyPem,
+        cert: nodePayload.nodeCertPem,
+        ca: [nodePayload.caCertPem],
+        requestCert: true,
+        rejectUnauthorized: true,
+        minVersion: 'TLSv1.3',
+    };
+
     const app = await NestFactory.create(AppModule, {
-        httpsOptions: {
-            key: nodePayload.nodeKeyPem,
-            cert: nodePayload.nodeCertPem,
-            ca: [nodePayload.caCertPem],
-            requestCert: true,
-            rejectUnauthorized: true,
-        },
+        httpsOptions,
         bodyParser: false,
         logger: WinstonModule.createLogger({
             instance: logger,

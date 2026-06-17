@@ -33,18 +33,19 @@
   "dependencies": {
     "@henrygd/semaphore": "0.1.0",
     "@kastov/body-parser-with-zstd": "2.2.2",
-    "@kastov/node-supervisord": ">=2.0.3",
-    "@nestjs/common": "11.1.26",
+    "@kastov/node-supervisord": ">=2.0.4",
+    "@nestjs/common": "11.1.27",
     "@nestjs/config": "4.0.4",
-    "@nestjs/core": "11.1.26",
+    "@nestjs/core": "11.1.27",
     "@nestjs/cqrs": "11.0.3",
     "@nestjs/jwt": "11.0.2",
     "@nestjs/passport": "11.0.5",
-    "@nestjs/platform-express": "11.1.26",
+    "@nestjs/platform-express": "11.1.27",
+    "@nestjs/schedule": "^6.1.3",
     "@remnawave/hashed-set": "^0.0.4",
     "@remnawave/node-plugins": "0.4.5",
     "@remnawave/supervisord-nestjs": "0.3.1",
-    "@remnawave/xtls-sdk": "0.14.0",
+    "@remnawave/xtls-sdk": "0.15.0",
     "@remnawave/xtls-sdk-nestjs": "0.6.1",
     "compression": "^1.8.1",
     "consola": "^3.4.2",
@@ -97,5 +98,10 @@
     "ts-node": "10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "@nestjs/platform-express": {
+      "multer": "2.2.0"
+    }
   }
 }

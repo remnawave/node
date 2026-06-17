@@ -1,14 +1,16 @@
 import { existsSync, readFileSync } from 'node:fs';
 
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { SchedulerRegistry } from '@nestjs/schedule';
 
 import { IInterfaceRate, IInterfaceStats, INetworkSnapshot } from './interfaces';
 
-@Injectable()
-export class NetworkStatsService implements OnModuleDestroy, OnModuleInit {
-    private readonly logger = new Logger(NetworkStatsService.name);
+const INTERVAL_MS = 1_000;
+const INTERVAL_NAME = 'network-stats-poll';
 
-    private readonly INTERVAL_MS = 1_000;
+@Injectable()
+export class NetworkStatsService implements OnModuleInit {
+    private readonly logger = new Logger(NetworkStatsService.name);
 
     private static readonly PROC_NET_DEV = '/proc/net/dev';
     private static readonly PROC_NET_ROUTE = '/proc/net/route';
@@ -17,10 +19,9 @@ export class NetworkStatsService implements OnModuleDestroy, OnModuleInit {
     private previousStats = new Map<string, IInterfaceStats>();
     private currentRates = new Map<string, IInterfaceRate>();
     private defaultIface: string | null = null;
-    private timer: NodeJS.Timeout | null = null;
     private updatedAt: Date = new Date();
 
-    constructor() {}
+    constructor(private readonly schedulerRegistry: SchedulerRegistry) {}
 
     onModuleInit(): void {
         const isAvailable = existsSync(NetworkStatsService.PROC_NET_DEV);
@@ -37,18 +38,12 @@ export class NetworkStatsService implements OnModuleDestroy, OnModuleInit {
         this.previousStats = this.readProcNetDev();
         this.updatedAt = new Date();
 
-        this.timer = setInterval(() => this.tick(), this.INTERVAL_MS);
+        const interval = setInterval(() => this.tick(), INTERVAL_MS);
+        this.schedulerRegistry.addInterval(INTERVAL_NAME, interval);
 
         this.logger.log(
-            `Network stats polling started (interval: ${this.INTERVAL_MS}ms, default: ${this.defaultIface ?? 'unknown'})`,
+            `Network stats polling started (interval: ${INTERVAL_MS}ms, default: ${this.defaultIface ?? 'unknown'})`,
         );
-    }
-
-    onModuleDestroy(): void {
-        if (this.timer) {
-            clearInterval(this.timer);
-            this.timer = null;
-        }
     }
 
     getSnapshot(): INetworkSnapshot {
@@ -105,18 +100,26 @@ export class NetworkStatsService implements OnModuleDestroy, OnModuleInit {
         const timestamp = Date.now();
 
         const content = readFileSync(NetworkStatsService.PROC_NET_DEV, 'utf-8');
-        const lines = content.split('\n').slice(2).filter(Boolean);
+        const lines = content.split('\n').slice(2);
 
         for (const line of lines) {
-            const parts = line.trim().split(/\s+/);
-            if (parts.length < 10) continue;
+            const colonIdx = line.indexOf(':');
+            if (colonIdx === -1) continue;
 
-            const iface = parts[0].replace(':', '');
-            result.set(iface, {
-                rxBytes: parseInt(parts[1], 10),
-                txBytes: parseInt(parts[9], 10),
-                timestamp,
-            });
+            const iface = line.slice(0, colonIdx).trim();
+            if (!iface) continue;
+
+            const fields = line
+                .slice(colonIdx + 1)
+                .trim()
+                .split(/\s+/);
+            if (fields.length < 16) continue;
+
+            const rxBytes = Number(fields[0]);
+            const txBytes = Number(fields[8]);
+            if (!Number.isFinite(rxBytes) || !Number.isFinite(txBytes)) continue;
+
+            result.set(iface, { rxBytes, txBytes, timestamp });
         }
 
         return result;
@@ -127,9 +130,21 @@ export class NetworkStatsService implements OnModuleDestroy, OnModuleInit {
             if (!existsSync(NetworkStatsService.PROC_NET_ROUTE)) return null;
 
             const content = readFileSync(NetworkStatsService.PROC_NET_ROUTE, 'utf-8');
-            const lines = content.split('\n').slice(1).filter(Boolean);
-            const defaultRoute = lines.find((l) => l.split('\t')[1] === '00000000');
-            return defaultRoute?.split('\t')[0] ?? null;
+            const lines = content.split('\n').slice(1);
+
+            let best: { iface: string; metric: number } | null = null;
+            for (const line of lines) {
+                const f = line.trim().split(/\s+/);
+                if (f.length < 11) continue;
+
+                const [iface, destination, , , , , metricStr] = f;
+                if (destination !== '00000000') continue;
+
+                const metric = Number(metricStr) || 0;
+                if (!best || metric < best.metric) best = { iface, metric };
+            }
+
+            return best?.iface ?? null;
         } catch {
             this.logger.warn('Could not resolve default interface from /proc/net/route');
             return null;

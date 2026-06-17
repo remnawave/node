@@ -2,6 +2,7 @@ import { ChannelCredentials } from 'nice-grpc';
 import { experimental } from '@grpc/grpc-js';
 
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 
@@ -26,6 +27,7 @@ experimental.registerResolver('unix-abstract', AbstractUdsResolver);
             envFilePath: '.env',
             validate: (config) => validateEnvConfig<Env>(configSchema, config),
         }),
+        ScheduleModule.forRoot(),
         XtlsSdkNestjsModule.forRootAsync({
             imports: [],
             inject: [ConfigService],

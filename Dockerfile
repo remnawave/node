@@ -8,7 +8,8 @@ RUN npm ci --prefer-offline --no-audit --no-fund
 COPY . .
 
 RUN npm run build \
-    && npm run trace
+    && npm run trace \
+    && find dist/node_modules/@lmdb -name '*.glibc.node' -delete
 
 
 FROM alpine:3.21 AS xray
@@ -65,7 +66,11 @@ RUN apk add --no-cache ca-certificates xz libnftnl libmnl \
     && ln -s /opt/app/dist/cli.js /usr/local/bin/cli \
     && printf '#!/bin/sh\ntail -n +1 -f /var/log/xray/current\n' > /usr/local/bin/xlogs \
     && printf '#!/bin/sh\ntail -n +1 -f /var/log/xray/current\n' > /usr/local/bin/xerrors \
-    && chmod +x /usr/local/bin/xlogs /usr/local/bin/xerrors
+    && chmod +x /usr/local/bin/xlogs /usr/local/bin/xerrors \
+    && apk del xz \
+    && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+        /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+        /usr/local/include/node
 
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-http-header-size=65536"

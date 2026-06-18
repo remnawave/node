@@ -73,6 +73,8 @@ ENV UV_THREADPOOL_SIZE=24
 
 ENV XRAY_JSON_STRICT=true
 
+ENV S6_VERBOSITY=1
+
 ENTRYPOINT ["/init"]
 
 CMD ["/command/with-contenv", "node", "dist/main.js"]

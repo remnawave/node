@@ -28,6 +28,8 @@ RUN apk add --no-cache curl \
 
 FROM node:24.16-alpine
 
+ARG S6_OVERLAY_VERSION=3.2.0.2
+
 LABEL org.opencontainers.image.title="Remnawave Node"
 LABEL org.opencontainers.image.description="Remnawave Node with built-in XRay Core"
 LABEL org.opencontainers.image.url="https://github.com/remnawave/node"
@@ -45,16 +47,24 @@ COPY --from=xray /usr/local/share/xray/geoip.dat /usr/local/share/xray/geoip.dat
 COPY --from=xray /usr/local/share/xray/geosite.dat /usr/local/share/xray/geosite.dat
 COPY --from=xray /usr/local/share/asn /usr/local/share/asn
 
-COPY supervisord.conf /etc/supervisord.conf
-COPY docker-entrypoint.sh /usr/local/bin/
+COPY rootfs/ /
 
-RUN apk add --no-cache supervisor libnftnl libmnl \
-    && mkdir -p /var/log/supervisor \
-    && chmod +x /usr/local/bin/docker-entrypoint.sh /opt/app/dist/cli.js \
+RUN apk add --no-cache ca-certificates xz libnftnl libmnl \
+    && S6_ARCH="$(uname -m)" \
+    && wget -qO /tmp/s6-noarch.tar.xz "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" \
+    && wget -qO /tmp/s6-arch.tar.xz "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz" \
+    && xz -dc /tmp/s6-noarch.tar.xz | tar -C / -xpf - \
+    && xz -dc /tmp/s6-arch.tar.xz | tar -C / -xpf - \
+    && rm -f /tmp/s6-noarch.tar.xz /tmp/s6-arch.tar.xz \
+    && mkdir -p /var/log/xray \
+    && chmod +x /opt/app/dist/cli.js \
+        /etc/s6-overlay/scripts/init-env.sh \
+        /etc/s6-overlay/s6-rc.d/xray/run \
+        /etc/s6-overlay/s6-rc.d/xray-log/run \
     && ln -s /usr/local/bin/xray /usr/local/bin/rw-core \
     && ln -s /opt/app/dist/cli.js /usr/local/bin/cli \
-    && printf '#!/bin/sh\ntail -n +1 -f /var/log/supervisor/xray.out.log\n' > /usr/local/bin/xlogs \
-    && printf '#!/bin/sh\ntail -n +1 -f /var/log/supervisor/xray.err.log\n' > /usr/local/bin/xerrors \
+    && printf '#!/bin/sh\ntail -n +1 -f /var/log/xray/current\n' > /usr/local/bin/xlogs \
+    && printf '#!/bin/sh\ntail -n +1 -f /var/log/xray/current\n' > /usr/local/bin/xerrors \
     && chmod +x /usr/local/bin/xlogs /usr/local/bin/xerrors
 
 ENV NODE_ENV=production
@@ -63,6 +73,6 @@ ENV UV_THREADPOOL_SIZE=24
 
 ENV XRAY_JSON_STRICT=true
 
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+ENTRYPOINT ["/init"]
 
-CMD ["node", "dist/main.js"]
+CMD ["/command/with-contenv", "node", "dist/main.js"]

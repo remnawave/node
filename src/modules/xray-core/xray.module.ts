@@ -2,13 +2,14 @@ import { Logger, Module, OnModuleDestroy } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 
 import { InternalModule } from '../internal/internal.module';
+import { XrayProcessService } from './xray-process.service';
 import { XrayController } from './xray.controller';
 import { XrayService } from './xray.service';
 import { COMMANDS } from './commands';
 
 @Module({
     imports: [InternalModule, CqrsModule],
-    providers: [XrayService, ...COMMANDS],
+    providers: [XrayService, XrayProcessService, ...COMMANDS],
     controllers: [XrayController],
     exports: [XrayService],
 })

@@ -42,5 +42,3 @@ lerna-debug.log*
 .env.production
 
 /samples
-
-supervisord-dev.conf

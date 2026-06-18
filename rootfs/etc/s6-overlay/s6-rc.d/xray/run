@@ -1,0 +1,6 @@
+#!/command/with-contenv sh
+
+exec 2>&1
+exec /usr/local/bin/rw-core \
+    -config @"${INTERNAL_SOCKET_PATH}":/internal/get-config?token="${INTERNAL_REST_TOKEN}" \
+    -format json

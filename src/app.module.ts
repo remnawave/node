@@ -6,7 +6,6 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 
-import { SupervisordNestjsModule } from '@remnawave/supervisord-nestjs';
 import { XtlsSdkNestjsModule } from '@remnawave/xtls-sdk-nestjs';
 
 import { JwtStrategy } from '@common/guards/jwt-guards/strategies/validate-token';
@@ -40,17 +39,6 @@ experimental.registerResolver('unix-abstract', AbstractUdsResolver);
                     },
                 };
             },
-        }),
-        SupervisordNestjsModule.forRootAsync({
-            imports: [ConfigModule],
-            inject: [ConfigService],
-            useFactory: (configService: ConfigService) => ({
-                connectionUrl: `http://unix:${configService.getOrThrow<string>('SUPERVISORD_SOCKET_PATH')}:/RPC2`,
-                options: {
-                    username: configService.getOrThrow<string>('SUPERVISORD_USER'),
-                    password: configService.getOrThrow<string>('SUPERVISORD_PASSWORD'),
-                },
-            }),
         }),
         RemnawaveNodeModules,
         InternalModule,

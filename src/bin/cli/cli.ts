@@ -13,25 +13,23 @@ const enum CLI_ACTIONS {
     KILL_SOCKETS = 'kill-sockets',
 }
 
-function loadEnvFromMainProcess(): { socketPath?: string; token?: string } {
-    try {
-        const environ = fs.readFileSync('/proc/1/environ', 'utf8');
-        const envVars = environ.split('\0').reduce(
-            (acc, pair) => {
-                const [key, value] = pair.split('=');
-                if (key && value) acc[key] = value;
-                return acc;
-            },
-            {} as Record<string, string>,
-        );
+const S6_CONTAINER_ENV_DIR = '/run/s6/container_environment';
 
-        return {
-            socketPath: envVars.INTERNAL_SOCKET_PATH,
-            token: envVars.INTERNAL_REST_TOKEN,
-        };
+function readFromS6Env(name: string): string | undefined {
+    try {
+        return fs.readFileSync(`${S6_CONTAINER_ENV_DIR}/${name}`, 'utf8').replace(/\n$/, '');
     } catch {
-        return {};
+        return undefined;
     }
+}
+
+function loadInternalEnv(): { socketPath?: string; token?: string } {
+    const resolve = (name: string): string | undefined => process.env[name] || readFromS6Env(name);
+
+    return {
+        socketPath: resolve('INTERNAL_SOCKET_PATH'),
+        token: resolve('INTERNAL_REST_TOKEN'),
+    };
 }
 
 function requestOverSocket(
@@ -73,7 +71,7 @@ async function dumpConfig({ raw = false }: { raw?: boolean } = {}) {
         process.exit(1);
     };
 
-    const { socketPath, token } = loadEnvFromMainProcess();
+    const { socketPath, token } = loadInternalEnv();
 
     if (!socketPath || !token) {
         fail('Missing environment variables.');

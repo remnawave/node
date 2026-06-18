@@ -15,11 +15,7 @@ export const configSchema = z
             .default('false')
             .transform((val) => val === 'true'),
         INTERNAL_REST_TOKEN: z.string(),
-        SUPERVISORD_USER: z.string(),
-        SUPERVISORD_PASSWORD: z.string(),
         INTERNAL_SOCKET_PATH: z.string(),
-        SUPERVISORD_SOCKET_PATH: z.string(),
-        SUPERVISORD_PID_PATH: z.string(),
         XTLS_API_SOCKET_PATH: z.string(),
     })
     .superRefine((data, ctx) => {

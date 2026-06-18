@@ -1,5 +1,3 @@
-import { ProcessInfo } from '@kastov/node-supervisord/dist/interfaces';
-import { SupervisordClient } from '@kastov/node-supervisord';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import ems from 'enhanced-ms';
@@ -10,7 +8,6 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { ConfigService } from '@nestjs/config';
 
-import { InjectSupervisord } from '@remnawave/supervisord-nestjs';
 import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { XtlsApi } from '@remnawave/xtls-sdk';
 
@@ -29,8 +26,9 @@ import { GetInterfaceStatsQuery } from '../network-stats/queries/get-interface-s
 import { ResetPluginsCommand } from '../_plugin/commands/reset-plugins/reset-plugins.command';
 import { GetTorrentBlockerStateQuery } from '../_plugin/queries/get-torrent-blocker-state';
 import { InternalService } from '../internal/internal.service';
+import { XrayProcessService } from './xray-process.service';
 
-const XRAY_PROCESS_NAME = 'xray' as const;
+const XRAY_LOG_FILE = '/var/log/xray/current' as const;
 const execFileAsync = promisify(execFile);
 
 @Injectable()
@@ -51,7 +49,7 @@ export class XrayService implements OnApplicationBootstrap {
     private nodeVersion: string = '0.0.0';
     constructor(
         @InjectXtls() private readonly xtlsSdk: XtlsApi,
-        @InjectSupervisord() private readonly supervisordApi: SupervisordClient,
+        private readonly xrayProcess: XrayProcessService,
         private readonly internalService: InternalService,
         private readonly configService: ConfigService,
         private readonly queryBus: QueryBus,
@@ -77,18 +75,11 @@ export class XrayService implements OnApplicationBootstrap {
             this.xrayVersion = this.getXrayVersionFromEnv();
             this.nodeVersion = __RWNODE_VERSION__ ?? '0.0.0';
 
-            await this.supervisordApi.getState();
-        } catch (error: unknown) {
-            if (
-                error !== null &&
-                typeof error === 'object' &&
-                'code' in error &&
-                error.code === 'ENOENT'
-            ) {
-                this.logger.error('Supervisord socket file not found, exiting...');
+            if (!this.xrayProcess.isControlAvailable()) {
+                this.logger.error('s6 xray control socket not found, exiting...');
                 process.exit(1);
             }
-
+        } catch (error: unknown) {
             this.logger.error(`Error in Application Bootstrap: ${error}`);
         }
 
@@ -174,17 +165,7 @@ export class XrayService implements OnApplicationBootstrap {
             const xrayProcess = await this.restartXrayProcess();
 
             if (xrayProcess.error) {
-                if (xrayProcess.error.includes('XML-RPC fault: SPAWN_ERROR: xray')) {
-                    this.logger.error(`Xray Core v${this.xrayVersion} failed to start.`, {
-                        timestamp: new Date().toISOString(),
-                        rawError: xrayProcess.error,
-                        ...KNOWN_ERRORS.XRAY_FAILED_TO_START,
-                    });
-
-                    await this.dumpTailBlock('/var/log/supervisor/xray.out.log', 5);
-                } else {
-                    this.logger.error(xrayProcess.error);
-                }
+                this.logger.error(`Failed to (re)start Xray process via s6: ${xrayProcess.error}`);
 
                 return {
                     isOk: true,
@@ -203,16 +184,19 @@ export class XrayService implements OnApplicationBootstrap {
             if (!isStarted) {
                 this.isXrayOnline = false;
 
-                this.logger.error(
-                    `Xray Core v${this.xrayVersion} failed to start. Error: ${xrayProcess.error}`,
-                );
+                this.logger.error(`Xray Core v${this.xrayVersion} failed to start.`, {
+                    timestamp: new Date().toISOString(),
+                    ...KNOWN_ERRORS.XRAY_FAILED_TO_START,
+                });
+
+                await this.dumpTailBlock(XRAY_LOG_FILE, 5);
 
                 return {
                     isOk: true,
                     response: new StartXrayResponseModel(
                         isStarted,
                         this.xrayVersion,
-                        xrayProcess.error,
+                        'Xray Core did not become ready in time',
                         {
                             version: this.nodeVersion,
                         },
@@ -328,11 +312,11 @@ export class XrayService implements OnApplicationBootstrap {
 
     public async killAllXrayProcesses(): Promise<void> {
         try {
-            await this.supervisordApi.stopProcess(XRAY_PROCESS_NAME, true);
+            await this.xrayProcess.stop();
 
-            this.logger.log('Supervisord: Xray processes killed.');
+            this.logger.log('s6: Xray process stopped.');
         } catch (error) {
-            this.logger.log(`Supervisord: No existing Xray processes found. Error: ${error}`);
+            this.logger.log(`s6: Failed to stop Xray process. Error: ${error}`);
         }
     }
 
@@ -398,26 +382,14 @@ export class XrayService implements OnApplicationBootstrap {
     }
 
     private async restartXrayProcess(): Promise<{
-        processInfo: ProcessInfo | null;
         error: string | null;
     }> {
         try {
-            const processState = await this.supervisordApi.getProcessInfo(XRAY_PROCESS_NAME);
+            await this.xrayProcess.restart();
 
-            // Reference: https://supervisord.org/subprocess.html#process-states
-            if (processState.state === 20) {
-                await this.supervisordApi.stopProcess(XRAY_PROCESS_NAME, true);
-            }
-
-            await this.supervisordApi.startProcess(XRAY_PROCESS_NAME, true);
-
-            return {
-                processInfo: await this.supervisordApi.getProcessInfo(XRAY_PROCESS_NAME),
-                error: null,
-            };
+            return { error: null };
         } catch (error) {
             return {
-                processInfo: null,
                 error: error instanceof Error ? error.message : 'Unknown error',
             };
         }

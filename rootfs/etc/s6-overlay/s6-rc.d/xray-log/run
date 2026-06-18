@@ -1,0 +1,2 @@
+#!/command/with-contenv sh
+exec /command/s6-log -b n0 s10485760 /var/log/xray

@@ -97,25 +97,25 @@ export class XrayService implements OnApplicationBootstrap {
             interface: interfaceStats,
         };
 
+        if (this.isXrayStartedProccesing) {
+            this.logger.warn('Request already in progress');
+            return {
+                isOk: true,
+                response: new StartXrayResponseModel(
+                    false,
+                    this.xrayVersion,
+                    'Request already in progress',
+                    {
+                        version: this.nodeVersion,
+                    },
+                    system,
+                ),
+            };
+        }
+
+        this.isXrayStartedProccesing = true;
+
         try {
-            if (this.isXrayStartedProccesing) {
-                this.logger.warn('Request already in progress');
-                return {
-                    isOk: true,
-                    response: new StartXrayResponseModel(
-                        false,
-                        this.xrayVersion,
-                        'Request already in progress',
-                        {
-                            version: this.nodeVersion,
-                        },
-                        system,
-                    ),
-                };
-            }
-
-            this.isXrayStartedProccesing = true;
-
             if (this.isXrayOnline && !this.disableHashedSetCheck && !body.internals.forceRestart) {
                 const { isOk } = await this.xtlsSdk.stats.getSysStats();
 

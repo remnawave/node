@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Logger, Post, UseFilters, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Ip, Logger, Post, UseFilters, UseGuards } from '@nestjs/common';
 
 import { HttpExceptionFilter } from '@common/exception/http-exception.filter';
 import { errorHandler } from '@common/helpers/error-handler.helper';
@@ -22,8 +22,11 @@ export class XrayController {
     constructor(private readonly xrayService: XrayService) {}
 
     @Post(XRAY_ROUTES.START)
-    public async startXray(@Body() body: StartXrayRequestDto): Promise<StartXrayResponseDto> {
-        const response = await this.xrayService.startXray(body);
+    public async startXray(
+        @Body() body: StartXrayRequestDto,
+        @Ip() ip: string,
+    ): Promise<StartXrayResponseDto> {
+        const response = await this.xrayService.startXray(body, ip);
         const data = errorHandler(response);
 
         return {

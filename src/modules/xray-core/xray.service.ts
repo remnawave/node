@@ -88,6 +88,7 @@ export class XrayService implements OnApplicationBootstrap {
 
     public async startXray(
         body: StartXrayCommand.Request,
+        ip: string,
     ): Promise<ICommandResponse<StartXrayResponseModel>> {
         const interfaceStats = await this.queryBus.execute(new GetInterfaceStatsQuery());
         const tm = performance.now();
@@ -243,11 +244,10 @@ export class XrayService implements OnApplicationBootstrap {
             };
         } finally {
             this.logger.log(
-                'Attempt to start XTLS took: ' +
-                    ems(performance.now() - tm, {
-                        extends: 'short',
-                        includeMs: true,
-                    }),
+                `Attempt to start XTLS took: ${ems(performance.now() - tm, {
+                    extends: 'short',
+                    includeMs: true,
+                })} (IP: ${ip})`,
             );
 
             this.isXrayStartedProccesing = false;

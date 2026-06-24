@@ -1,4 +1,4 @@
-FROM node:24.18-alpine AS build
+FROM node:24.18-trixie-slim AS build
 
 WORKDIR /opt/app
 
@@ -9,7 +9,7 @@ COPY . .
 
 RUN npm run build \
     && npm run trace \
-    && find dist/node_modules/@lmdb -name '*.glibc.node' -delete
+    && find dist/node_modules/@lmdb -name '*.node' ! -name 'node.napi.glibc.node' -delete
 
 
 FROM alpine:3.21 AS xray
@@ -27,7 +27,7 @@ RUN apk add --no-cache curl \
     && rm -f /tmp/asn-prefixes-lmdb.tar.gz
 
 
-FROM node:24.18-alpine
+FROM node:24.18-trixie-slim
 
 ARG S6_OVERLAY_VERSION=3.2.0.2
 
@@ -50,7 +50,9 @@ COPY --from=xray /usr/local/share/asn /usr/local/share/asn
 
 COPY rootfs/ /
 
-RUN apk add --no-cache ca-certificates xz libnftnl libmnl \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates wget xz-utils libnftnl11 libmnl0 \
     && S6_ARCH="$(uname -m)" \
     && wget -qO /tmp/s6-noarch.tar.xz "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" \
     && wget -qO /tmp/s6-arch.tar.xz "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz" \
@@ -67,7 +69,8 @@ RUN apk add --no-cache ca-certificates xz libnftnl libmnl \
     && printf '#!/bin/sh\ntail -n +1 -f /var/log/xray/current\n' > /usr/local/bin/xlogs \
     && printf '#!/bin/sh\ntail -n +1 -f /var/log/xray/current\n' > /usr/local/bin/xerrors \
     && chmod +x /usr/local/bin/xlogs /usr/local/bin/xerrors \
-    && apk del xz \
+    && apt-get purge -y --auto-remove xz-utils \
+    && rm -rf /var/lib/apt/lists/* \
     && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
         /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
         /usr/local/include/node
@@ -75,9 +78,7 @@ RUN apk add --no-cache ca-certificates xz libnftnl libmnl \
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-http-header-size=65536"
 ENV UV_THREADPOOL_SIZE=24
-
 ENV XRAY_JSON_STRICT=true
-
 ENV S6_VERBOSITY=1
 
 ENTRYPOINT ["/init"]

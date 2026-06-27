@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "jsPlugins": ["eslint-plugin-perfectionist"],
+  "plugins": ["typescript", "eslint", "import", "unicorn", "oxc", "node", "promise"],
+  "env": { "node": true },
+  "categories": { "correctness": "error" },
+  "ignorePatterns": ["node_modules", "**/*.js", "**/*.d.ts"],
+  "rules": {
+    "perfectionist/sort-decorators": [
+      "error",
+      {
+        "type": "alphabetical",
+        "order": "asc",
+        "groups": ["unknown", "httpCodes", "filters", "controllers", "nestJSMethods"],
+        "customGroups": [
+          { "groupName": "httpCodes", "elementNamePattern": "^HttpCode$" },
+          { "groupName": "filters", "elementNamePattern": "^UseFilters$" },
+          { "groupName": "controllers", "elementNamePattern": "^Controller$" },
+          {
+            "groupName": "nestJSMethods",
+            "elementNamePattern": "^(Post|Get|Put|Delete|Patch|Options|Head)$"
+          }
+        ]
+      }
+    ],
+    "no-console": "warn"
+  }
+}

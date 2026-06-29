@@ -1,0 +1,56 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "tabWidth": 4,
+  "singleQuote": true,
+  "printWidth": 100,
+  "ignorePatterns": ["node_modules"],
+  "overrides": [
+    {
+      "files": [
+        "*.json",
+        "**/*.json",
+        "*.jsonc",
+        "**/*.jsonc",
+        "*.yaml",
+        "**/*.yaml",
+        "*.yml",
+        "**/*.yml",
+        "*.md",
+        "**/*.md"
+      ],
+      "options": { "tabWidth": 2 }
+    }
+  ],
+  "sortImports": {
+    "newlinesBetween": true,
+    "internalPattern": ["~/**"],
+    "groups": [
+      "type",
+      ["value-builtin", "value-external"],
+      "type-internal",
+      "value-internal",
+      "nestJs",
+      "remnawave",
+      "aliasCommon",
+      { "newlinesBetween": false },
+      "aliasLibs",
+      "aliasIntegrationModules",
+      "aliasModules",
+      "aliasScheduler",
+      "aliasQueue",
+      ["type-parent", "type-sibling", "type-index"],
+      ["value-parent", "value-sibling", "value-index"],
+      "unknown"
+    ],
+    "customGroups": [
+      { "groupName": "nestJs", "elementNamePattern": ["@nestjs/**"] },
+      { "groupName": "remnawave", "elementNamePattern": ["@remnawave/**"] },
+      { "groupName": "aliasCommon", "elementNamePattern": ["@common/**"] },
+      { "groupName": "aliasLibs", "elementNamePattern": ["@libs/**"] },
+      { "groupName": "aliasIntegrationModules", "elementNamePattern": ["@integration-modules/**"] },
+      { "groupName": "aliasModules", "elementNamePattern": ["@modules/**"] },
+      { "groupName": "aliasScheduler", "elementNamePattern": ["@scheduler/**"] },
+      { "groupName": "aliasQueue", "elementNamePattern": ["@queue/**"] }
+    ]
+  }
+}

@@ -14,15 +14,9 @@ export const configSchema = z
             .string()
             .default('false')
             .transform((val) => val === 'true'),
-        XTLS_API_PORT: z.string().transform((port) => {
-            return parseInt(port, 10);
-        }),
         INTERNAL_REST_TOKEN: z.string(),
-        SUPERVISORD_USER: z.string(),
-        SUPERVISORD_PASSWORD: z.string(),
         INTERNAL_SOCKET_PATH: z.string(),
-        SUPERVISORD_SOCKET_PATH: z.string(),
-        SUPERVISORD_PID_PATH: z.string(),
+        XTLS_API_SOCKET_PATH: z.string(),
     })
     .superRefine((data, ctx) => {
         if (data.SECRET_KEY) {

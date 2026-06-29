@@ -1,19 +1,21 @@
+process.title = 'rw-node';
+
 import { utilities as nestWinstonModuleUtilities, WinstonModule } from 'nest-winston';
 import * as bodyParser from '@kastov/body-parser-with-zstd';
 import { ZodValidationPipe } from 'nestjs-zod';
+import { SecureVersion } from 'node:tls';
 import express, { json } from 'express';
 import { createLogger } from 'winston';
 import compression from 'compression';
 import * as winston from 'winston';
 import { Server } from 'https';
-import * as fs from 'node:fs';
 import helmet from 'helmet';
 import morgan from 'morgan';
 
+import { HttpsOptions } from '@nestjs/common/interfaces/external/https-options.interface';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 
-import { initializeMTLSCerts } from '@common/utils/generate-mtls-certs';
 import { parseNodePayload } from '@common/utils/decode-node-payload';
 import { getStartMessage } from '@common/utils/get-start-message';
 import { isDevelopment } from '@common/utils/is-development';
@@ -23,7 +25,7 @@ import {
     XRAY_INTERNAL_FULL_PATH,
     XRAY_INTERNAL_FULL_WEBHOOK_PATH,
 } from '@libs/contracts/constants';
-import { REST_API, ROOT } from '@libs/contracts/api';
+import { ROOT } from '@libs/contracts/api';
 
 import { AppModule } from './app.module';
 
@@ -49,22 +51,19 @@ const logger = createLogger({
 async function bootstrap(): Promise<void> {
     const internalSocketPath = process.env.INTERNAL_SOCKET_PATH!;
 
-    if (fs.existsSync(internalSocketPath)) {
-        fs.unlinkSync(internalSocketPath);
-    }
-
-    await initializeMTLSCerts();
-
     const nodePayload = parseNodePayload();
 
+    const httpsOptions: { minVersion?: SecureVersion } & HttpsOptions = {
+        key: nodePayload.nodeKeyPem,
+        cert: nodePayload.nodeCertPem,
+        ca: [nodePayload.caCertPem],
+        requestCert: true,
+        rejectUnauthorized: true,
+        minVersion: 'TLSv1.3',
+    };
+
     const app = await NestFactory.create(AppModule, {
-        httpsOptions: {
-            key: nodePayload.nodeKeyPem,
-            cert: nodePayload.nodeCertPem,
-            ca: [nodePayload.caCertPem],
-            requestCert: true,
-            rejectUnauthorized: true,
-        },
+        httpsOptions,
         bodyParser: false,
         logger: WinstonModule.createLogger({
             instance: logger,
@@ -96,12 +95,7 @@ async function bootstrap(): Promise<void> {
     app.useGlobalFilters(new NotFoundExceptionFilter());
 
     app.setGlobalPrefix(ROOT, {
-        exclude: [
-            XRAY_INTERNAL_FULL_PATH,
-            XRAY_INTERNAL_FULL_WEBHOOK_PATH,
-            '/' + REST_API.VISION.BLOCK_IP,
-            '/' + REST_API.VISION.UNBLOCK_IP,
-        ],
+        exclude: [XRAY_INTERNAL_FULL_PATH, XRAY_INTERNAL_FULL_WEBHOOK_PATH],
     });
 
     app.useGlobalPipes(new ZodValidationPipe());
@@ -124,7 +118,7 @@ async function bootstrap(): Promise<void> {
         },
     );
 
-    const internalServer = internalApp.listen(internalSocketPath);
+    const internalServer = internalApp.listen('\0' + internalSocketPath);
 
     let internalServerClosed = false;
 
@@ -133,10 +127,6 @@ async function bootstrap(): Promise<void> {
         internalServerClosed = true;
 
         internalServer.close(() => {
-            if (fs.existsSync(internalSocketPath)) {
-                fs.unlinkSync(internalSocketPath);
-            }
-
             logger.info('Shutting down...');
         });
     };

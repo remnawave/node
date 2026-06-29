@@ -11,8 +11,6 @@ import {
 } from '@libs/contracts/constants/xray';
 import { XRAY_INTERNAL_FULL_WEBHOOK_PATH } from '@libs/contracts/constants';
 
-import { getServerCerts } from './generate-mtls-certs';
-import { getXtlsApiPort } from './get-initial-ports';
 import { IPolicyConfig } from './interfaces';
 
 interface IRoutingXrayConfig {
@@ -35,6 +33,7 @@ interface IGenerateApiConfigParams {
     internal: {
         socketPath: string;
         token: string;
+        xtlsApiSocketPath: string;
     };
 }
 
@@ -42,7 +41,6 @@ export const generateApiConfig = (args: IGenerateApiConfigParams): Record<string
     const { config, torrentBlockerState, internal } = args;
 
     const policyConfig = config.policy as undefined | IPolicyConfig;
-    const serverCerts = getServerCerts();
     const hasCapNetAdminResult = hasCapNetAdmin();
 
     const builtPolicy: IPolicyConfig = {
@@ -63,10 +61,7 @@ export const generateApiConfig = (args: IGenerateApiConfigParams): Record<string
         ...XRAY_DEFAULT_API_MODEL,
         inbounds: [
             XRAY_API_INBOUND_MODEL({
-                port: getXtlsApiPort(),
-                caCertPem: serverCerts.caCertPem,
-                serverCertPem: serverCerts.serverCertPem,
-                serverKeyPem: serverCerts.serverKeyPem,
+                xtlsApiSocketPath: internal.xtlsApiSocketPath,
             }),
             ...(Array.isArray(config.inbounds) ? config.inbounds : []),
         ],
@@ -76,7 +71,9 @@ export const generateApiConfig = (args: IGenerateApiConfigParams): Record<string
             ...(config.routing || {}),
             rules: [
                 XRAY_ROUTING_RULES_MODEL,
-                ...((config.routing as { rules?: unknown[] })?.rules || []),
+                ...((config.routing as unknown as IRoutingXrayConfig)?.rules ?? []).filter(
+                    (rule) => rule.outboundTag !== 'REMNAWAVE_API',
+                ),
             ],
         },
     };
@@ -109,5 +106,5 @@ export const generateApiConfig = (args: IGenerateApiConfigParams): Record<string
 };
 
 const buildWebhookUrl = (internal: { socketPath: string; token: string }): string => {
-    return `/${internal.socketPath}:${XRAY_INTERNAL_FULL_WEBHOOK_PATH}?token=${internal.token}`;
+    return `@${internal.socketPath}:${XRAY_INTERNAL_FULL_WEBHOOK_PATH}?token=${internal.token}`;
 };

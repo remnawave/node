@@ -17,13 +17,7 @@ nvm install v22.12.0 && nvm use v22.12.0
 ```
 
 ```bash
-sudo apt update && sudo apt install supervisor
-```
-
-run supervisor
-
-```bash
-supervisord -c supervisord.conf &
+for f in /run/s6/container_environment/*; do export "$(basename "$f")=$(cat "$f")"; done
 ```
 
 ```bash

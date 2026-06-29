@@ -1,7 +1,7 @@
 import { hasher } from 'node-object-hash';
 
 import { Injectable, Logger } from '@nestjs/common';
-import { CommandBus } from '@nestjs/cqrs';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 
 import { NodePluginSchema, type TNodePlugin } from '@remnawave/node-plugins';
 
@@ -10,6 +10,7 @@ import { XRAY_TORRENT_BLOCKER_OUTBOUND_TAG } from '@libs/contracts/constants';
 
 import { TorrentBlockerReportsResponseModel } from './models/torrent-blocker-reports.response.model';
 import { RemoveOutboundCommand } from '../handler/commands/remove-outbound/remove-outbound.command';
+import { GetAsnPrefixesQuery } from '../asn-lmdb/queries/get-asn-prefixes/get-asn-prefixes.query';
 import { PluginStateService } from './services/plugin-state.service';
 import { StopXrayCommand } from '../xray-core/commands/stop-xray';
 import { NftService } from './services/nft.service';
@@ -25,6 +26,7 @@ export class PluginService {
         private readonly state: PluginStateService,
         private readonly nftService: NftService,
         private readonly commandBus: CommandBus,
+        private readonly queryBus: QueryBus,
     ) {}
 
     public async sync(body: SyncRequestDto): Promise<ICommandResponse<GenericResponseModel>> {
@@ -78,11 +80,7 @@ export class PluginService {
 
             const pluginData = parsed.data;
 
-            const sharedMap = new Map(
-                pluginData.sharedLists
-                    .filter((list) => list.type === 'ipList')
-                    .map((list) => [list.name, list.items]),
-            );
+            const sharedMap = await this.resolveSharedLists(pluginData.sharedLists);
 
             this.state.resetState();
             this.state.cleanUpActivePlugin();
@@ -210,6 +208,42 @@ export class PluginService {
             }
             return ip;
         });
+    }
+
+    private async resolveSharedLists(
+        sharedLists: TNodePlugin['sharedLists'],
+    ): Promise<Map<string, string[]>> {
+        const sharedMap = new Map<string, string[]>();
+
+        for (const list of sharedLists) {
+            switch (list.type) {
+                case 'ipList':
+                    sharedMap.set(list.name, list.items);
+                    break;
+                case 'asList':
+                    const prefixes: string[] = [];
+
+                    for (const asn of list.items) {
+                        const resolved = await this.queryBus.execute(new GetAsnPrefixesQuery(asn));
+                        if (!resolved) {
+                            this.logger.warn(`[PLUGIN] ASN ${asn} not found`);
+                            continue;
+                        }
+                        this.logger.log(
+                            `[PLUGIN] ASN ${asn} resolved: ${resolved.ipv4.length} IPv4, ${resolved.ipv6.length} IPv6`,
+                        );
+                        prefixes.push(...resolved.ipv4, ...resolved.ipv6);
+                    }
+
+                    sharedMap.set(list.name, prefixes);
+                    break;
+                default:
+                    this.logger.warn(`[PLUGIN] Unknown shared list type: ${list}`);
+                    break;
+            }
+        }
+
+        return sharedMap;
     }
 
     public async collectReports(): Promise<ICommandResponse<TorrentBlockerReportsResponseModel>> {

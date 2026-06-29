@@ -29,7 +29,7 @@ RUN apk add --no-cache curl \
 
 FROM node:24.18-trixie-slim
 
-ARG S6_OVERLAY_VERSION=3.2.0.2
+ARG S6_OVERLAY_VERSION=3.2.3.0
 
 LABEL org.opencontainers.image.title="Remnawave Node"
 LABEL org.opencontainers.image.description="Remnawave Node with built-in XRay Core"

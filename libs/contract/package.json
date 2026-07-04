@@ -1,31 +1,31 @@
 {
   "name": "@remnawave/node-contract",
-  "version": "2.7.0",
+  "version": "2.9.0",
   "description": "A node-contract library for Remnawave Panel",
-  "main": "build/index.js",
-  "types": "build/index.d.ts",
-  "files": [
-    "build/**/*"
-  ],
-  "scripts": {
-    "prepublish": "rm -rf build && tsc",
-    "build": "tsc"
-  },
   "keywords": [],
-  "author": "Remnawave",
   "homepage": "https://github.com/remnawave",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/remnawave/node"
-  },
   "bugs": {
     "url": "https://github.com/remnawave/node/issues"
   },
   "license": "AGPL-3.0-only",
+  "author": "Remnawave",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/remnawave/node"
+  },
+  "files": [
+    "build/**/*"
+  ],
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "scripts": {
+    "prepublish": "rm -rf build && tsc",
+    "build": "tsc"
+  },
   "dependencies": {
-    "zod": "^3.25.76"
+    "zod": "4.4.3"
   },
   "devDependencies": {
-    "typescript": "5.9.3"
+    "typescript": "~5.9.3"
   }
 }

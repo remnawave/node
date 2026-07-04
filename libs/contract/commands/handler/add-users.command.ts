@@ -47,8 +47,8 @@ export namespace AddUsersCommand {
 
                 userData: z.object({
                     userId: z.string(),
-                    hashUuid: z.string().uuid(),
-                    vlessUuid: z.string().uuid(),
+                    hashUuid: z.uuid(),
+                    vlessUuid: z.uuid(),
                     trojanPassword: z.string(),
                     ssPassword: z.string(),
                 }),

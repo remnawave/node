@@ -179,7 +179,7 @@ export class PluginService {
     private syncTorrentBlocker(pluginData: TNodePlugin, sharedMap: Map<string, string[]>): void {
         if (!pluginData.torrentBlocker) return;
         if (!pluginData.torrentBlocker.enabled) return;
-        if (!this.nftService.isAvailable) return;
+        if (!this.state.plugins.torrentBlocker) return;
 
         const { blockDuration, ignoreLists } = pluginData.torrentBlocker;
 
@@ -191,8 +191,14 @@ export class PluginService {
         this.state.torrentBlocker.configure(blockDuration);
         this.state.torrentBlocker.setIncludeRuleTags(pluginData.torrentBlocker.includeRuleTags);
 
+        if (!this.nftService.isAvailable) {
+            this.logger.warn(
+                '[PLUGIN] Torrent-Blocker: notification only (nft unavailable) — reports on, IP block off',
+            );
+        }
+
         this.logger.log(
-            `[PLUGIN] Torrent-Blocker: blockDuration=${blockDuration}s, ${ips.length} ignored IPs, ${users.length} ignored users`,
+            `[PLUGIN] Torrent-Blocker: blockDuration=${blockDuration}s, ${ips.length} ignored IPs, ${users.length} ignored users, nftBlock=${this.nftService.isAvailable}`,
         );
     }
 

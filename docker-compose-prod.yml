@@ -14,3 +14,4 @@ services:
     environment:
       - NODE_PORT=2222
       - SECRET_KEY=""
+      # - TBLOCKER_NOTIFY_ALWAYS=true

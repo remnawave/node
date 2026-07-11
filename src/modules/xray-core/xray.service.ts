@@ -15,7 +15,7 @@ import { getSystemInfo, getSystemStats } from '@common/utils/get-system-stats';
 import { ICommandResponse } from '@common/types/command-response.type';
 import { generateApiConfig } from '@common/utils/generate-api-config';
 import { StartXrayCommand } from '@libs/contracts/commands';
-import { KNOWN_ERRORS } from '@libs/contracts/constants';
+import { KNOWN_ERRORS, XRAY_TORRENT_BLOCKER_OUTBOUND_TAG } from '@libs/contracts/constants';
 
 import {
     GetNodeHealthCheckResponseModel,
@@ -117,6 +117,10 @@ export class XrayService implements OnApplicationBootstrap {
         this.isXrayStartedProccesing = true;
 
         try {
+            const isTorrentBlockerEnabled = await this.queryBus.execute(
+                new GetTorrentBlockerStateQuery(),
+            );
+
             if (this.isXrayOnline && !this.disableHashedSetCheck && !body.internals.forceRestart) {
                 const { isOk } = await this.xtlsSdk.stats.getSysStats();
 
@@ -129,6 +133,17 @@ export class XrayService implements OnApplicationBootstrap {
                     shouldRestart = true;
 
                     this.logger.warn(`Xray Core health check failed, restarting...`);
+                }
+
+                if (
+                    !shouldRestart &&
+                    isTorrentBlockerEnabled.enabled &&
+                    !this.hasTorrentBlockerOutbound(await this.internalService.getXrayConfig())
+                ) {
+                    shouldRestart = true;
+                    this.logger.warn(
+                        'Torrent-Blocker is enabled but missing from Xray config, restarting...',
+                    );
                 }
 
                 if (!shouldRestart) {
@@ -150,10 +165,6 @@ export class XrayService implements OnApplicationBootstrap {
             if (body.internals.forceRestart) {
                 this.logger.warn('Force restart requested');
             }
-
-            const isTorrentBlockerEnabled = await this.queryBus.execute(
-                new GetTorrentBlockerStateQuery(),
-            );
 
             const fullConfig = generateApiConfig({
                 config: body.xrayConfig,
@@ -318,6 +329,21 @@ export class XrayService implements OnApplicationBootstrap {
         } catch (error) {
             this.logger.log(`s6: Failed to stop Xray process. Error: ${error}`);
         }
+    }
+
+    private hasTorrentBlockerOutbound(config: Record<string, unknown>): boolean {
+        const outbounds = config.outbounds;
+        if (!Array.isArray(outbounds)) {
+            return false;
+        }
+
+        return outbounds.some(
+            (outbound) =>
+                typeof outbound === 'object' &&
+                outbound !== null &&
+                'tag' in outbound &&
+                outbound.tag === XRAY_TORRENT_BLOCKER_OUTBOUND_TAG,
+        );
     }
 
     private getXrayVersionFromEnv(): null | string {

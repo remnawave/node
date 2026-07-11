@@ -52,8 +52,10 @@ export class XrayWebhookHandler implements IEventHandler<XrayWebhookEvent> {
             let blocked = false;
 
             try {
-                await this.nftService.blockIp(ip, blockDuration);
-                blocked = true;
+                if (this.nftService.isAvailable) {
+                    await this.nftService.blockIp(ip, blockDuration);
+                    blocked = true;
+                }
 
                 this.logger.log(
                     `[TORRENT-BLOCKER] IP: ${ip}, user: ${webhook.email}, blocked: ${blocked}, duration: ${blockDuration}s`,

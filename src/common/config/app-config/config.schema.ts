@@ -14,6 +14,10 @@ export const configSchema = z
             .string()
             .default('false')
             .transform((val) => val === 'true'),
+        TBLOCKER_NOTIFY_ALWAYS: z
+            .string()
+            .default('false')
+            .transform((val) => val === 'true'),
         INTERNAL_REST_TOKEN: z.string(),
         INTERNAL_SOCKET_PATH: z.string(),
         XTLS_API_SOCKET_PATH: z.string(),

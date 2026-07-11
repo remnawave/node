@@ -2,6 +2,7 @@ import { hasCapNetAdmin } from 'sockdestroy';
 import { NftManager } from 'nftables-napi';
 
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 
 import { ICommandResponse } from '@common/types/command-response.type';
@@ -17,10 +18,12 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
     private readonly logger = new Logger(NftService.name);
     private nftManager: NftManager | null = null;
     private available = false;
+    private notifyAlways = false;
 
     constructor(
         private readonly state: PluginStateService,
         private readonly eventBus: EventBus,
+        private readonly configService: ConfigService,
     ) {}
 
     get isAvailable(): boolean {
@@ -29,13 +32,25 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
 
     public async onModuleInit(): Promise<void> {
         const capNetAdmin = hasCapNetAdmin();
+        this.notifyAlways = this.configService.getOrThrow<boolean>('TBLOCKER_NOTIFY_ALWAYS');
 
-        if (!capNetAdmin) return;
+        if (!capNetAdmin) {
+            if (this.notifyAlways) {
+                this.state.setPlugins({
+                    connectionDrop: false,
+                    ingressFilter: false,
+                    torrentBlocker: true,
+                    egressFilter: false,
+                });
+                this.logAvailablePlugins();
+            }
+            return;
+        }
 
         this.state.setPlugins({
             connectionDrop: true,
             ingressFilter: false,
-            torrentBlocker: false,
+            torrentBlocker: this.notifyAlways,
             egressFilter: false,
         });
 
@@ -62,6 +77,16 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
         } catch (error) {
             this.logger.error(error);
             this.logger.warn('[PLUGIN] NftManager initialization failed.');
+            this.nftManager = null;
+            this.available = false;
+            if (this.notifyAlways) {
+                this.state.setPlugins({
+                    connectionDrop: true,
+                    ingressFilter: false,
+                    torrentBlocker: true,
+                    egressFilter: false,
+                });
+            }
         }
 
         this.logAvailablePlugins();
@@ -133,7 +158,11 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
             { name: 'Connection Drop', enabled: plugins.connectionDrop },
         ].forEach((plugin) => {
             if (plugin.enabled) {
-                this.logger.log(`[PLUGIN] ${plugin.name}: available`);
+                if (plugin.name === 'Torrent Blocker' && this.notifyAlways && !this.available) {
+                    this.logger.warn(`[PLUGIN] ${plugin.name}: notification only`);
+                } else {
+                    this.logger.log(`[PLUGIN] ${plugin.name}: available`);
+                }
             } else {
                 this.logger.warn(`[PLUGIN] ${plugin.name}: not available`);
             }

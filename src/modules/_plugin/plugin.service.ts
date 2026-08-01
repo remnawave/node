@@ -8,14 +8,14 @@ import { NodePluginSchema, type TNodePlugin } from '@remnawave/node-plugins';
 import { ICommandResponse } from '@common/types/command-response.type';
 import { XRAY_TORRENT_BLOCKER_OUTBOUND_TAG } from '@libs/contracts/constants';
 
-import { TorrentBlockerReportsResponseModel } from './models/torrent-blocker-reports.response.model';
-import { RemoveOutboundCommand } from '../handler/commands/remove-outbound/remove-outbound.command';
 import { GetAsnPrefixesQuery } from '../asn-lmdb/queries/get-asn-prefixes/get-asn-prefixes.query';
-import { PluginStateService } from './services/plugin-state.service';
+import { RemoveOutboundCommand } from '../handler/commands/remove-outbound/remove-outbound.command';
 import { StopXrayCommand } from '../xray-core/commands/stop-xray';
-import { NftService } from './services/nft.service';
-import { GenericResponseModel } from './models';
 import { SyncRequestDto } from './dtos';
+import { GenericResponseModel } from './models';
+import { TorrentBlockerReportsResponseModel } from './models/torrent-blocker-reports.response.model';
+import { NftService } from './services/nft.service';
+import { PluginStateService } from './services/plugin-state.service';
 
 @Injectable()
 export class PluginService {
@@ -88,6 +88,7 @@ export class PluginService {
 
             this.syncConnectionDrop(pluginData, sharedMap);
             this.syncTorrentBlocker(pluginData, sharedMap);
+            this.syncPreStart(pluginData);
 
             await this.syncIngressFilter(pluginData, sharedMap);
             await this.syncEgressFilter(pluginData, sharedMap);
@@ -143,6 +144,27 @@ export class PluginService {
         this.state.connectionDrop.setWhitelistIps(ips);
 
         this.logger.log(`[PLUGIN] Connection-Drop: ${ips.length} whitelisted IPs synced.`);
+    }
+
+    private syncPreStart(pluginData: TNodePlugin): void {
+        if (!pluginData.preStart) return;
+        if (!pluginData.preStart.enabled) return;
+        if (!this.state.plugins.preStart) return;
+
+        const cleanupSockets = pluginData.preStart.cleanupSockets;
+
+        this.state.preStart.configure({
+            cleanupSockets: {
+                enabled: cleanupSockets?.enabled ?? false,
+                files: cleanupSockets?.files ?? [],
+            },
+        });
+
+        const { enabled, files } = this.state.preStart.cleanupSocketsConfig;
+
+        this.logger.log(
+            `[PLUGIN] Pre-Start: socket cleanup ${enabled ? `enabled, ${files.length} path(s)` : 'disabled'}.`,
+        );
     }
 
     private async syncIngressFilter(

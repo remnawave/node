@@ -1,31 +1,32 @@
+import ems from 'enhanced-ms';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import ems from 'enhanced-ms';
 import pRetry from 'p-retry';
 import semver from 'semver';
 
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
-import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { ConfigService } from '@nestjs/config';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 
-import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { XtlsApi } from '@remnawave/xtls-sdk';
+import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 
-import { getSystemInfo, getSystemStats } from '@common/utils/get-system-stats';
 import { ICommandResponse } from '@common/types/command-response.type';
 import { generateApiConfig } from '@common/utils/generate-api-config';
+import { getSystemInfo, getSystemStats } from '@common/utils/get-system-stats';
 import { StartXrayCommand } from '@libs/contracts/commands';
 import { KNOWN_ERRORS } from '@libs/contracts/constants';
 
+import { ResetPluginsCommand } from '../_plugin/commands/reset-plugins/reset-plugins.command';
+import { RunPreStartCommand } from '../_plugin/commands/run-pre-start/run-pre-start.command';
+import { GetTorrentBlockerStateQuery } from '../_plugin/queries/get-torrent-blocker-state';
+import { InternalService } from '../internal/internal.service';
+import { GetInterfaceStatsQuery } from '../network-stats/queries/get-interface-stats/get-interface-stats.query';
 import {
     GetNodeHealthCheckResponseModel,
     StartXrayResponseModel,
     StopXrayResponseModel,
 } from './models';
-import { GetInterfaceStatsQuery } from '../network-stats/queries/get-interface-stats/get-interface-stats.query';
-import { ResetPluginsCommand } from '../_plugin/commands/reset-plugins/reset-plugins.command';
-import { GetTorrentBlockerStateQuery } from '../_plugin/queries/get-torrent-blocker-state';
-import { InternalService } from '../internal/internal.service';
 import { XrayProcessService } from './xray-process.service';
 
 const XRAY_LOG_FILE = '/var/log/xray/current' as const;
@@ -385,7 +386,11 @@ export class XrayService implements OnApplicationBootstrap {
         error: string | null;
     }> {
         try {
-            await this.xrayProcess.restart();
+            await this.xrayProcess.stop();
+
+            await this.commandBus.execute(new RunPreStartCommand());
+
+            await this.xrayProcess.start();
 
             return { error: null };
         } catch (error) {

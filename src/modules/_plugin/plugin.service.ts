@@ -154,10 +154,8 @@ export class PluginService {
         const cleanupSockets = pluginData.preStart.cleanupSockets;
 
         this.state.preStart.configure({
-            cleanupSockets: {
-                enabled: cleanupSockets?.enabled ?? false,
-                files: cleanupSockets?.files ?? [],
-            },
+            enabled: pluginData.preStart.enabled,
+            cleanupSockets,
         });
 
         const { enabled, files } = this.state.preStart.cleanupSocketsConfig;

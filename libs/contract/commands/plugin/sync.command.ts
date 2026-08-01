@@ -7,8 +7,8 @@ export namespace SyncCommand {
     export const RequestSchema = z.object({
         plugin: z
             .object({
-                config: z.record(z.unknown()),
-                uuid: z.string().uuid(),
+                config: z.record(z.string(), z.unknown()),
+                uuid: z.uuid(),
                 name: z.string(),
             })
             .nullable(),

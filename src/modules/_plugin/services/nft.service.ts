@@ -1,15 +1,15 @@
-import { hasCapNetAdmin } from 'sockdestroy';
 import { NftManager } from 'nftables-napi';
+import { hasCapNetAdmin } from 'sockdestroy';
 
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 
 import { ICommandResponse } from '@common/types/command-response.type';
 
-import { GenericResponseModel } from '../models/generic.response.model';
 import { NFT_TABLES_CONSTANTS } from '../constants/nfttables.contants';
 import { BlockIpsRequestDto, UnblockIpsRequestDto } from '../dtos';
 import { DropConnectionsEvent } from '../events/drop-connections';
+import { GenericResponseModel } from '../models/generic.response.model';
 import { PluginStateService } from './plugin-state.service';
 
 @Injectable()
@@ -37,6 +37,7 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
             ingressFilter: false,
             torrentBlocker: false,
             egressFilter: false,
+            preStart: true,
         });
 
         try {
@@ -58,6 +59,7 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
                 ingressFilter: true,
                 torrentBlocker: true,
                 egressFilter: true,
+                preStart: true,
             });
         } catch (error) {
             this.logger.error(error);

@@ -1,14 +1,14 @@
 import { isIP } from 'node:net';
 
-import { IEventHandler, EventsHandler } from '@nestjs/cqrs';
 import { Logger } from '@nestjs/common';
+import { IEventHandler, EventsHandler } from '@nestjs/cqrs';
 
 import { formatExecutionTime, getTime } from '@common/utils/get-elapsed-time';
 import { TorrentBlockerReportModel, XrayWebhookSchema } from '@libs/contracts/models';
 
+import { NftService } from '../../services/nft.service';
 import { PluginStateService } from '../../services/plugin-state.service';
 import { XrayWebhookEvent } from './xray-webhook.event';
-import { NftService } from '../../services/nft.service';
 
 const SOURCE_REGEX = /^(?:(?:tcp|udp):)?(?:\[(.+?)\]|(.+?))(?::(\d+))?$/;
 
@@ -59,7 +59,7 @@ export class XrayWebhookHandler implements IEventHandler<XrayWebhookEvent> {
                     `[TORRENT-BLOCKER] IP: ${ip}, user: ${webhook.email}, blocked: ${blocked}, duration: ${blockDuration}s`,
                 );
             } catch (error) {
-                this.logger.error(`Failed to block IP ${ip}:`, error);
+                this.logger.error(`Failed to block IP ${ip}: ${error}`);
             }
 
             const report: TorrentBlockerReportModel = {

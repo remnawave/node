@@ -1,31 +1,31 @@
 process.title = 'rw-node';
 
-import { utilities as nestWinstonModuleUtilities, WinstonModule } from 'nest-winston';
 import * as bodyParser from '@kastov/body-parser-with-zstd';
+import compression from 'compression';
+import express, { json } from 'express';
+import helmet from 'helmet';
+import { Server } from 'https';
+import morgan from 'morgan';
+import { utilities as nestWinstonModuleUtilities, WinstonModule } from 'nest-winston';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { SecureVersion } from 'node:tls';
-import express, { json } from 'express';
 import { createLogger } from 'winston';
-import compression from 'compression';
 import * as winston from 'winston';
-import { Server } from 'https';
-import helmet from 'helmet';
-import morgan from 'morgan';
 
 import { HttpsOptions } from '@nestjs/common/interfaces/external/https-options.interface';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 
+import { NotFoundExceptionFilter } from '@common/exception';
 import { parseNodePayload } from '@common/utils/decode-node-payload';
+import { customLogFilter } from '@common/utils/filter-logs';
 import { getStartMessage } from '@common/utils/get-start-message';
 import { isDevelopment } from '@common/utils/is-development';
-import { NotFoundExceptionFilter } from '@common/exception';
-import { customLogFilter } from '@common/utils/filter-logs';
+import { ROOT } from '@libs/contracts/api';
 import {
     XRAY_INTERNAL_FULL_PATH,
     XRAY_INTERNAL_FULL_WEBHOOK_PATH,
 } from '@libs/contracts/constants';
-import { ROOT } from '@libs/contracts/api';
 
 import { AppModule } from './app.module';
 
@@ -145,6 +145,11 @@ async function bootstrap(): Promise<void> {
             )) +
             '\n',
     );
+
+    if (import.meta.webpackHot) {
+        import.meta.webpackHot.accept();
+        import.meta.webpackHot.dispose(() => app.close());
+    }
 }
 
 void bootstrap();

@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 
-import { TorrentBlockerState, ConnectionDropState } from './states';
 import { IPlugins } from '../interfaces';
+import { TorrentBlockerState, ConnectionDropState, PreStartState } from './states';
 
 @Injectable()
 export class PluginStateService {
     public readonly torrentBlocker = new TorrentBlockerState();
     public readonly connectionDrop = new ConnectionDropState();
+    public readonly preStart = new PreStartState();
 
     private initialized = false;
     private lastConfigHash: string | null = null;
@@ -16,6 +17,7 @@ export class PluginStateService {
         ingressFilter: false,
         torrentBlocker: false,
         egressFilter: false,
+        preStart: true,
     };
 
     private pluginConfigDetails: { uuid: string; name: string } | null = null;
@@ -44,6 +46,7 @@ export class PluginStateService {
     resetState(): void {
         this.torrentBlocker.reset();
         this.connectionDrop.reset();
+        this.preStart.reset();
     }
 
     cleanUpActivePlugin(): void {

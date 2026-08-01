@@ -19,7 +19,7 @@ export namespace StartXrayCommand {
                 ),
             }),
         }),
-        xrayConfig: z.record(z.unknown()),
+        xrayConfig: z.record(z.string(), z.unknown()),
     });
 
     export type Request = z.infer<typeof RequestSchema>;

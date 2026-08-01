@@ -35,7 +35,7 @@ export namespace AddUserCommand {
         tag: z.string(),
         username: z.string(),
         password: z.string(),
-        cipherType: z.nativeEnum(CipherType),
+        cipherType: z.enum(CipherType),
         ivCheck: z.boolean(),
     });
 
@@ -64,8 +64,8 @@ export namespace AddUserCommand {
             ]),
         ),
         hashData: z.object({
-            vlessUuid: z.string().uuid(),
-            prevVlessUuid: z.optional(z.string().uuid()),
+            vlessUuid: z.uuid(),
+            prevVlessUuid: z.optional(z.uuid()),
         }),
     });
 

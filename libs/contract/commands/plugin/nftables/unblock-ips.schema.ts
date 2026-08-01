@@ -6,7 +6,7 @@ export namespace UnblockIpsCommand {
     export const url = REST_API.PLUGIN.NFTABLES.UNBLOCK_IPS;
 
     export const RequestSchema = z.object({
-        ips: z.array(z.string().ip()),
+        ips: z.array(z.union([z.ipv4(), z.ipv6()])),
     });
 
     export type Request = z.infer<typeof RequestSchema>;

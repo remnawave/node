@@ -8,7 +8,7 @@ export namespace BlockIpsCommand {
     export const RequestSchema = z.object({
         ips: z.array(
             z.object({
-                ip: z.string().ip(),
+                ip: z.union([z.ipv4(), z.ipv6()]),
                 timeout: z.number(),
             }),
         ),

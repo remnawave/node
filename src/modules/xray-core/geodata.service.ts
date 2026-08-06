@@ -38,6 +38,10 @@ const GeodataSchema = z.object({
 
 type IGeodataAsset = z.infer<typeof GeodataSchema>['assets'][number];
 
+const elapsed = (since: number): string =>
+    ems(performance.now() - since, { extends: 'short', includeMs: true, includeSubMs: true }) ??
+    '0ms';
+
 @Injectable()
 export class GeodataService {
     private readonly logger = new Logger(GeodataService.name);
@@ -64,12 +68,7 @@ export class GeodataService {
 
         await pMap(assets, (asset) => this.prepareAsset(asset), { concurrency: CONCURRENCY });
 
-        this.logger.log(
-            `[GEODATA] ${assets.length} asset(s) processed in ${ems(performance.now() - tm, {
-                extends: 'short',
-                includeMs: true,
-            })}`,
-        );
+        this.logger.log(`[GEODATA] ${assets.length} asset(s) processed in ${elapsed(tm)}`);
     }
 
     private async prepareAsset(asset: IGeodataAsset): Promise<void> {
@@ -110,7 +109,6 @@ export class GeodataService {
 
         const controller = new AbortController();
 
-        // Guards the response headers first, then every gap between body chunks.
         const idle = setTimeout(
             () => controller.abort(new Error(`no data received for ${REQUEST_TIMEOUT_MS}ms`)),
             REQUEST_TIMEOUT_MS,
@@ -161,10 +159,7 @@ export class GeodataService {
             await rename(tmpPath, path);
 
             this.logger.log(
-                `[GEODATA] Downloaded "${path}" (${prettyBytes(downloaded)}) in ${ems(
-                    performance.now() - tm,
-                    { extends: 'short', includeMs: true },
-                )}`,
+                `[GEODATA] Downloaded "${path}" (${prettyBytes(downloaded)}) in ${elapsed(tm)}`,
             );
 
             return true;

@@ -3,13 +3,14 @@ import { CqrsModule } from '@nestjs/cqrs';
 
 import { InternalModule } from '../internal/internal.module';
 import { COMMANDS } from './commands';
+import { GeodataService } from './geodata.service';
 import { XrayProcessService } from './xray-process.service';
 import { XrayController } from './xray.controller';
 import { XrayService } from './xray.service';
 
 @Module({
     imports: [InternalModule, CqrsModule],
-    providers: [XrayService, XrayProcessService, ...COMMANDS],
+    providers: [XrayService, XrayProcessService, GeodataService, ...COMMANDS],
     controllers: [XrayController],
     exports: [XrayService],
 })

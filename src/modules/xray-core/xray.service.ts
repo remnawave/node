@@ -22,6 +22,7 @@ import { RunPreStartCommand } from '../_plugin/commands/run-pre-start/run-pre-st
 import { GetTorrentBlockerStateQuery } from '../_plugin/queries/get-torrent-blocker-state';
 import { InternalService } from '../internal/internal.service';
 import { GetInterfaceStatsQuery } from '../network-stats/queries/get-interface-stats/get-interface-stats.query';
+import { GeodataService } from './geodata.service';
 import {
     GetNodeHealthCheckResponseModel,
     StartXrayResponseModel,
@@ -51,6 +52,7 @@ export class XrayService implements OnApplicationBootstrap {
     constructor(
         @InjectXtls() private readonly xtlsSdk: XtlsApi,
         private readonly xrayProcess: XrayProcessService,
+        private readonly geodataService: GeodataService,
         private readonly internalService: InternalService,
         private readonly configService: ConfigService,
         private readonly queryBus: QueryBus,
@@ -163,6 +165,8 @@ export class XrayService implements OnApplicationBootstrap {
             });
 
             await this.internalService.extractUsersFromConfig(body.internals.hashes, fullConfig);
+
+            await this.geodataService.prepareAssets(fullConfig);
 
             const xrayProcess = await this.restartXrayProcess();
 

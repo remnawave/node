@@ -22,7 +22,7 @@ export class XrayProcessService {
     private static readonly S6_SVC = '/command/s6-svc';
     private static readonly S6_SVSTAT = '/command/s6-svstat';
 
-    private static readonly DOWN_TIMEOUT_MS = 5_000;
+    private static readonly DOWN_TIMEOUT_MS = 10_000;
     private static readonly UP_TIMEOUT_MS = 10_000;
 
     constructor() {

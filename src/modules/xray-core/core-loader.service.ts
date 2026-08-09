@@ -20,7 +20,7 @@ const CoreSchema = z.object({
     core: z
         .object({
             url: z.url({ protocol: /^https$/ }),
-            sha256: z.hash('sha256'),
+            sha256: z.hash('sha256').transform((value) => value.toLowerCase()),
         })
         .optional(),
 });
@@ -59,17 +59,22 @@ export class CoreLoaderService {
             return;
         }
 
-        if (await this.isInstalled(core.url)) return;
+        if (await this.isInstalled(core)) return;
 
         await this.install(core);
     }
 
-    private async isInstalled(url: string): Promise<boolean> {
+    private async isInstalled(core: ICore): Promise<boolean> {
         try {
             const marker = JSON.parse(await readFile(CORE_MARKER, 'utf8')) as ICoreMarker;
 
-            if (marker.url !== url) {
+            if (marker.url !== core.url) {
                 this.logger.log('Configured url changed, re-downloading.');
+                return false;
+            }
+
+            if (marker.sha256 !== core.sha256) {
+                this.logger.log('Configured sha256 changed, re-downloading.');
                 return false;
             }
 

@@ -68,7 +68,7 @@ export async function getStartMessage(appPort: number, app: INestApplication) {
     return renderBox(`Remnawave Node v${__RWNODE_VERSION__}`, [
         'Docs → https://docs.rw\nCommunity → https://t.me/remnawave',
         `API Port: ${appPort}`,
-        `XRay Core: v${xrayInfo.version || 'N/A'}\nXRay Path: ${xrayInfo.path}`,
+        `XRay Core: v${xrayInfo.version || 'N/A'}\nXRay Path: /usr/local/bin/xray`,
         `${systemInfo.cpus}C, ${systemInfo.cpuModel}, ${prettyBytes(systemInfo.memoryTotal)}`,
         `Kernel: ${systemInfo.release} ${systemInfo.type} ${systemInfo.platform}`,
         `Network Interfaces: ${systemInfo.networkInterfaces.join(', ')}`,

@@ -209,6 +209,7 @@ export class PluginService {
         this.state.torrentBlocker.setIgnoredIps(ips);
         this.state.torrentBlocker.setIgnoredUsers(users);
         this.state.torrentBlocker.configure(blockDuration);
+        this.state.torrentBlocker.setWebhookUrl(pluginData.torrentBlocker.webhookUrl);
         this.state.torrentBlocker.setIncludeRuleTags(pluginData.torrentBlocker.includeRuleTags);
 
         this.logger.log(

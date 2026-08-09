@@ -4,6 +4,8 @@ import { promisify } from 'node:util';
 
 import { Injectable, Logger } from '@nestjs/common';
 
+import { readCoreVersion } from '@common/utils/read-core-version';
+
 const execFileAsync = promisify(execFile);
 
 export interface IXrayProcessStatus {
@@ -21,8 +23,9 @@ export class XrayProcessService {
 
     private static readonly S6_SVC = '/command/s6-svc';
     private static readonly S6_SVSTAT = '/command/s6-svstat';
+    private static readonly CORE_LINK = '/usr/local/bin/rw-core';
 
-    private static readonly DOWN_TIMEOUT_MS = 5_000;
+    private static readonly DOWN_TIMEOUT_MS = 10_000;
     private static readonly UP_TIMEOUT_MS = 10_000;
 
     constructor() {
@@ -52,6 +55,15 @@ export class XrayProcessService {
             '-o',
             this.serviceDir,
         ]);
+    }
+
+    public async getCoreVersion(): Promise<null | string> {
+        try {
+            return (await readCoreVersion(XrayProcessService.CORE_LINK)).semver;
+        } catch (error) {
+            this.logger.warn(`Failed to read xray core version: ${error}`);
+            return null;
+        }
     }
 
     public async getStatus(): Promise<IXrayProcessStatus> {

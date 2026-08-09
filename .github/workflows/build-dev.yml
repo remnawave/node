@@ -1,9 +1,11 @@
-name: Build & Push Docker Image
+name: Build Dev
 
 on:
   push:
     branches:
       - dev
+
+  workflow_dispatch:
 
 env:
   REGISTRY_IMAGE: remnawave/node
@@ -15,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
 
       - name: Send Telegram message
         uses: proDreams/actions-telegram-notifier@main
@@ -115,7 +117,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
 
       - name: Send Telegram message
         uses: proDreams/actions-telegram-notifier@main
@@ -133,7 +135,7 @@ jobs:
     if: failure()
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
 
       - name: Send error notification
         uses: proDreams/actions-telegram-notifier@main

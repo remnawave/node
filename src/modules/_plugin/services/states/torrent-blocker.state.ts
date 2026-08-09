@@ -7,6 +7,7 @@ export class TorrentBlockerState {
     private ignoredIps = new Set<string>();
     private ignoredUsers = new Set<string>();
     private includeRuleTags = new Set<string>();
+    private webhookUrl: string | null = null;
     private reports: TorrentBlockerReportModel[] = [];
 
     get isEnabled(): boolean {
@@ -28,6 +29,14 @@ export class TorrentBlockerState {
 
     setIgnoredUsers(users: string[]): void {
         this.ignoredUsers = new Set(users);
+    }
+
+    setWebhookUrl(url: string | undefined | null): void {
+        this.webhookUrl = url ?? null;
+    }
+
+    getWebhookUrl(): string | null {
+        return this.webhookUrl;
     }
 
     isIpIgnored(ip: string): boolean {

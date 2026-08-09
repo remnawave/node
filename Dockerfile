@@ -1,4 +1,4 @@
-FROM node:24.18-trixie-slim AS build
+FROM node:24.19-trixie-slim AS build
 
 WORKDIR /opt/app
 
@@ -27,7 +27,7 @@ RUN apk add --no-cache curl \
     && rm -f /tmp/asn-prefixes-lmdb.tar.gz
 
 
-FROM node:24.18-trixie-slim
+FROM node:24.19-trixie-slim
 
 ARG S6_OVERLAY_VERSION=3.2.3.0
 

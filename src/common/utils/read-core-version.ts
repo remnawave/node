@@ -17,5 +17,5 @@ export async function readCoreVersion(path: string): Promise<ICoreVersion> {
 
     if (!raw) throw new Error('binary produced no version output');
 
-    return { raw, semver: semver.valid(semver.coerce(raw)) };
+    return { raw, semver: semver.valid(semver.coerce(raw, { includePrerelease: true })) };
 }

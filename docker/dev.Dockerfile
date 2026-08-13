@@ -37,7 +37,7 @@ RUN mkdir -p /var/log/xray /var/lib/rnode/xray /app /usr/local/share/asn \
     && tar -xzf /tmp/asn-prefixes-lmdb.tar.gz -C /usr/local/share/asn \
     && rm -f /tmp/asn-prefixes-lmdb.tar.gz
 
-COPY rootfs/ /
+COPY docker/rootfs/ /
 RUN chmod +x /etc/s6-overlay/scripts/init-env.sh \
     /etc/s6-overlay/s6-rc.d/xray/run \
     /etc/s6-overlay/s6-rc.d/xray-log/run
@@ -47,8 +47,6 @@ WORKDIR /app
 
 EXPOSE 24000
 
-# /init brings up the s6 service tree (init-env + xray[down] + xray-log),
-# then runs CMD. Node is started manually by the developer (see DEV_ENV.md).
 ENTRYPOINT ["/init"]
 
 CMD ["tail", "-f", "/dev/null"]

@@ -24,12 +24,31 @@ jobs:
 
             ⏱️ <code>${{ github.event.head_commit.timestamp }}</code>
 
+  variants:
+    name: Resolve variants
+    runs-on: ubuntu-latest
+    outputs:
+      list: ${{ steps.bake.outputs.list }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read variants from docker-bake.hcl
+        id: bake
+        run: |
+          list=$(docker buildx bake --print 2>/dev/null | jq -c '.group.default.targets')
+          echo "list=$list" >> "$GITHUB_OUTPUT"
+          echo "Variants: $list"
+
   build-docker-images:
-    name: Build ${{ matrix.platform }}
+    name: Build ${{ matrix.variant }} ${{ matrix.platform }}
+    needs: [variants]
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
+        platform: [linux/amd64, linux/arm64]
+        variant: ${{ fromJson(needs.variants.outputs.list) }}
         include:
           - platform: linux/amd64
             runner: ubuntu-latest
@@ -61,39 +80,44 @@ jobs:
           password: ${{ secrets.TOKEN_GH_DEPLOY }}
 
       - name: Build and push by digest
-        id: build
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile
-          platforms: ${{ matrix.platform }}
-          outputs: |
-            type=image,"name=remnawave/node,ghcr.io/remnawave/node",push-by-digest=true,name-canonical=true,push=true
+        run: |
+          docker buildx bake "${{ matrix.variant }}" \
+            --set "*.platform=${{ matrix.platform }}" \
+            --set "*.tags=" \
+            --set '*.output=type=image,"name=remnawave/node,ghcr.io/remnawave/node",push-by-digest=true,name-canonical=true,push=true' \
+            --metadata-file "${{ runner.temp }}/metadata.json"
 
       - name: Export digest
         run: |
           mkdir -p "${{ runner.temp }}/digests"
-          digest="${{ steps.build.outputs.digest }}"
+          digest=$(jq -r '.["${{ matrix.variant }}"]["containerimage.digest"]' "${{ runner.temp }}/metadata.json")
           touch "${{ runner.temp }}/digests/${digest#sha256:}"
 
       - name: Upload digest
         uses: actions/upload-artifact@v4
         with:
-          name: digests-${{ env.PLATFORM_PAIR }}
+          name: digests-${{ matrix.variant }}-${{ env.PLATFORM_PAIR }}
           path: ${{ runner.temp }}/digests/*
           if-no-files-found: error
           retention-days: 1
 
   merge:
-    name: Merge & push manifests
-    needs: [build-docker-images]
+    name: Merge & push manifests (${{ matrix.variant }})
+    needs: [variants, build-docker-images]
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: ${{ fromJson(needs.variants.outputs.list) }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Download digests
         uses: actions/download-artifact@v4
         with:
           path: ${{ runner.temp }}/digests
-          pattern: digests-*
+          pattern: digests-${{ matrix.variant }}-*
           merge-multiple: true
 
       - name: Set up Docker Buildx
@@ -115,18 +139,25 @@ jobs:
       - name: Create & push manifest lists
         working-directory: ${{ runner.temp }}/digests
         run: |
-          docker buildx imagetools create \
-            -t remnawave/node:latest \
-            -t remnawave/node:${{ github.ref_name }} \
-            $(printf 'remnawave/node@sha256:%s ' *)
+          # Tags come from docker-bake.hcl, so a new variant needs no change here.
+          resolve() {
+            TAG="$1" docker buildx bake --file "$GITHUB_WORKSPACE/docker-bake.hcl" \
+              --print "${{ matrix.variant }}" 2>/dev/null \
+              | jq -r --arg reg "$2:" '.target[].tags[] | select(startswith($reg))'
+          }
 
-          docker buildx imagetools create \
-            -t ghcr.io/remnawave/node:latest \
-            -t ghcr.io/remnawave/node:${{ github.ref_name }} \
-            $(printf 'ghcr.io/remnawave/node@sha256:%s ' *)
+          for registry in remnawave/node ghcr.io/remnawave/node; do
+            tags=$( { resolve latest "$registry"; resolve "${{ github.ref_name }}" "$registry"; } \
+              | sed 's/^/-t /' | tr '\n' ' ')
+
+            echo "→ $registry: $tags"
+
+            docker buildx imagetools create $tags \
+              $(for digest in *; do echo "$registry@sha256:$digest"; done)
+          done
 
       - name: Inspect image
-        run: docker buildx imagetools inspect remnawave/node:${{ github.ref_name }}
+        run: docker buildx imagetools inspect $(TAG=${{ github.ref_name }} docker buildx bake --print "${{ matrix.variant }}" 2>/dev/null | jq -r '.target[].tags[0]')
 
   create-release:
     needs: [merge]
@@ -160,6 +191,10 @@ jobs:
             Docker images:
             - `remnawave/node:${{github.ref_name}}`
             - `ghcr.io/remnawave/node:${{github.ref_name}}`
+
+            Docker images with bundled HAProxy:
+            - `remnawave/node:latest-hp` / `remnawave/node:${{github.ref_name}}-hp`
+            - `ghcr.io/remnawave/node:latest-hp` / `ghcr.io/remnawave/node:${{github.ref_name}}-hp`
 
   send-telegram-message:
     name: Send Telegram message

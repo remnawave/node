@@ -16,6 +16,8 @@ import { getSystemInfo, getSystemStats } from '@common/utils/get-system-stats';
 import { StartXrayCommand } from '@libs/contracts/commands';
 import { KNOWN_ERRORS } from '@libs/contracts/constants';
 
+import { IntegrationsService } from '@integration-modules/integrations.service';
+
 import { ResetPluginsCommand } from '../_plugin/commands/reset-plugins/reset-plugins.command';
 import { RunPreStartCommand } from '../_plugin/commands/run-pre-start/run-pre-start.command';
 import { GetTorrentBlockerStateQuery } from '../_plugin/queries/get-torrent-blocker-state';
@@ -54,6 +56,7 @@ export class XrayService implements OnApplicationBootstrap {
         private readonly xrayProcess: XrayProcessService,
         private readonly geodataService: GeodataService,
         private readonly coreLoaderService: CoreLoaderService,
+        private readonly integrations: IntegrationsService,
         private readonly internalService: InternalService,
         private readonly configService: ConfigService,
         private readonly queryBus: QueryBus,
@@ -121,6 +124,24 @@ export class XrayService implements OnApplicationBootstrap {
         this.isXrayStartedProccesing = true;
 
         try {
+            const integrations = await this.integrations.sync(body.xrayConfig);
+
+            if (integrations.error) {
+                this.logger.error(`Failed to sync integrations: ${integrations.error}`);
+                return {
+                    isOk: true,
+                    response: new StartXrayResponseModel(
+                        false,
+                        null,
+                        integrations.error,
+                        {
+                            version: this.nodeVersion,
+                        },
+                        system,
+                    ),
+                };
+            }
+
             if (this.isXrayOnline && !this.disableHashedSetCheck && !body.internals.forceRestart) {
                 const { isOk } = await this.xtlsSdk.stats.getSysStats();
 
@@ -281,6 +302,7 @@ export class XrayService implements OnApplicationBootstrap {
             }
 
             await this.killAllXrayProcesses();
+            await this.integrations.stop();
 
             this.isXrayOnline = false;
             this.internalService.cleanup();

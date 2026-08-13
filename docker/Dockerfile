@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 FROM node:24.19-trixie-slim AS build
 
 WORKDIR /opt/app
@@ -9,7 +11,8 @@ COPY . .
 
 RUN npm run build \
     && npm run trace \
-    && find dist/node_modules/@lmdb -name '*.node' ! -name 'node.napi.glibc.node' -delete
+    && find dist/node_modules/@lmdb -name '*.node' ! -name 'node.napi.glibc.node' -delete \
+    && chmod +x dist/cli.js
 
 
 FROM alpine:3.21 AS xray
@@ -48,7 +51,7 @@ COPY --from=xray /usr/local/share/xray/geoip.dat /usr/local/share/xray/geoip.dat
 COPY --from=xray /usr/local/share/xray/geosite.dat /usr/local/share/xray/geosite.dat
 COPY --from=xray /usr/local/share/asn /usr/local/share/asn
 
-COPY rootfs/ /
+COPY docker/rootfs/ /
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -60,8 +63,7 @@ RUN apt-get update \
     && xz -dc /tmp/s6-arch.tar.xz | tar -C / -xpf - \
     && rm -f /tmp/s6-noarch.tar.xz /tmp/s6-arch.tar.xz \
     && mkdir -p /var/log/xray \
-    && chmod +x /opt/app/dist/cli.js \
-        /etc/s6-overlay/scripts/init-env.sh \
+    && chmod +x /etc/s6-overlay/scripts/init-env.sh \
         /etc/s6-overlay/s6-rc.d/xray/run \
         /etc/s6-overlay/s6-rc.d/xray-log/run \
     && ln -s /usr/local/bin/xray /usr/local/bin/rw-core \
@@ -74,6 +76,11 @@ RUN apt-get update \
     && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
         /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
         /usr/local/include/node
+
+ARG INTEGRATIONS=""
+
+RUN --mount=type=bind,source=docker/integrations,target=/mnt/integrations \
+    sh /mnt/integrations/install.sh "${INTEGRATIONS}"
 
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-http-header-size=65536"

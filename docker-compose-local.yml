@@ -4,7 +4,9 @@ services:
     hostname: remnawave-node-local
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile
+      args:
+        INTEGRATIONS: ${INTEGRATIONS:-}
     networks:
       - remnawave-node-dev
     ports:

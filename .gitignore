@@ -42,3 +42,6 @@ lerna-debug.log*
 .env.production
 
 /samples
+
+/build
+*.tar.gz

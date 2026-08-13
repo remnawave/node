@@ -29,12 +29,31 @@ jobs:
           notify_fields: 'repo_with_tag,commit,workflow'
           title: 'Building docker images.'
 
+  variants:
+    name: Resolve variants
+    runs-on: ubuntu-latest
+    outputs:
+      list: ${{ steps.bake.outputs.list }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read variants from docker-bake.hcl
+        id: bake
+        run: |
+          list=$(docker buildx bake --print 2>/dev/null | jq -c '.group.default.targets')
+          echo "list=$list" >> "$GITHUB_OUTPUT"
+          echo "Variants: $list"
+
   build-docker-images:
-    name: Build ${{ matrix.platform }}
+    name: Build ${{ matrix.variant }} ${{ matrix.platform }}
+    needs: [variants]
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
+        platform: [linux/amd64, linux/arm64]
+        variant: ${{ fromJson(needs.variants.outputs.list) }}
         include:
           - platform: linux/amd64
             runner: ubuntu-latest
@@ -59,38 +78,44 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push by digest
-        id: build
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile
-          platforms: ${{ matrix.platform }}
-          outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+        run: |
+          docker buildx bake "${{ matrix.variant }}" \
+            --set "*.platform=${{ matrix.platform }}" \
+            --set "*.tags=" \
+            --set "*.output=type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true" \
+            --metadata-file "${{ runner.temp }}/metadata.json"
 
       - name: Export digest
         run: |
           mkdir -p "${{ runner.temp }}/digests"
-          digest="${{ steps.build.outputs.digest }}"
+          digest=$(jq -r '.["${{ matrix.variant }}"]["containerimage.digest"]' "${{ runner.temp }}/metadata.json")
           touch "${{ runner.temp }}/digests/${digest#sha256:}"
 
       - name: Upload digest
         uses: actions/upload-artifact@v4
         with:
-          name: digests-${{ env.PLATFORM_PAIR }}
+          name: digests-${{ matrix.variant }}-${{ env.PLATFORM_PAIR }}
           path: ${{ runner.temp }}/digests/*
           if-no-files-found: error
           retention-days: 1
 
   merge:
-    name: Merge & push manifest
-    needs: [build-docker-images]
+    name: Merge & push manifest (${{ matrix.variant }})
+    needs: [variants, build-docker-images]
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: ${{ fromJson(needs.variants.outputs.list) }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Download digests
         uses: actions/download-artifact@v4
         with:
           path: ${{ runner.temp }}/digests
-          pattern: digests-*
+          pattern: digests-${{ matrix.variant }}-*
           merge-multiple: true
 
       - name: Set up Docker Buildx
@@ -102,14 +127,26 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Resolve tags from docker-bake.hcl
+        id: tags
+        env:
+          TAG: ${{ env.IMAGE_TAG }}
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          tags=$(docker buildx bake --print "${{ matrix.variant }}" 2>/dev/null \
+            | jq -r --arg image "${{ env.REGISTRY_IMAGE }}:" '.target[].tags[] | select(startswith($image))')
+          echo "Tags: $tags"
+          echo "args=$(echo "$tags" | sed 's/^/-t /' | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
+          echo "first=$(echo "$tags" | head -1)" >> "$GITHUB_OUTPUT"
+
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
         run: |
-          docker buildx imagetools create -t ${{ env.REGISTRY_IMAGE }}:${{ env.IMAGE_TAG }} \
+          docker buildx imagetools create ${{ steps.tags.outputs.args }} \
             $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
 
       - name: Inspect image
-        run: docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ env.IMAGE_TAG }}
+        run: docker buildx imagetools inspect ${{ steps.tags.outputs.first }}
 
   send-finish-tg-msg:
     name: Send TG message

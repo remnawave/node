@@ -30,6 +30,9 @@ RUN apk add --no-cache curl \
     && rm -f /tmp/asn-prefixes-lmdb.tar.gz
 
 
+FROM scratch AS integration-bin
+
+
 FROM node:24.19-trixie-slim
 
 ARG S6_OVERLAY_VERSION=3.2.3.0
@@ -80,6 +83,7 @@ RUN apt-get update \
 ARG INTEGRATIONS=""
 
 RUN --mount=type=bind,source=docker/integrations,target=/mnt/integrations \
+    --mount=type=bind,from=integration-bin,target=/mnt/bin \
     sh /mnt/integrations/install.sh "${INTEGRATIONS}"
 
 ENV NODE_ENV=production

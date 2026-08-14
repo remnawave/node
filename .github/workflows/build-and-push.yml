@@ -192,10 +192,6 @@ jobs:
             - `remnawave/node:${{github.ref_name}}`
             - `ghcr.io/remnawave/node:${{github.ref_name}}`
 
-            Docker images with bundled HAProxy:
-            - `remnawave/node:latest-hp` / `remnawave/node:${{github.ref_name}}-hp`
-            - `ghcr.io/remnawave/node:latest-hp` / `ghcr.io/remnawave/node:${{github.ref_name}}-hp`
-
   send-telegram-message:
     name: Send Telegram message
     needs: [merge, create-release]

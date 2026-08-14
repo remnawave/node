@@ -1,5 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
+import { TNodeMetadata } from '@libs/contracts/models';
+
 import {
     INodeIntegration,
     INodeIntegrationResult,
@@ -18,14 +20,21 @@ export class IntegrationsService {
         }
     }
 
-    public async sync(coreConfig: unknown): Promise<INodeIntegrationResult> {
+    public async sync(
+        integrationConfig: unknown | undefined,
+        nodeMetadata: TNodeMetadata | undefined,
+    ): Promise<INodeIntegrationResult> {
         if (this.integrations.length === 0) return { error: null };
+        if (!nodeMetadata) return { error: 'Node metadata is missing.' };
 
         const errors: string[] = [];
 
         for (const integration of this.integrations) {
             try {
-                const { error } = await integration.sync(coreConfig);
+                const { error } = await integration.sync({
+                    integrationConfig: this.asRecord(integrationConfig),
+                    nodeMetadata,
+                });
 
                 if (error) errors.push(`[${integration.name}] ${error}`);
             } catch (error) {
@@ -48,5 +57,11 @@ export class IntegrationsService {
                 this.logger.warn(`Failed to stop integration "${integration.name}": ${error}`);
             }
         }
+    }
+
+    private asRecord(value: unknown): Record<string, unknown> {
+        return typeof value === 'object' && value !== null && !Array.isArray(value)
+            ? (value as Record<string, unknown>)
+            : {};
     }
 }

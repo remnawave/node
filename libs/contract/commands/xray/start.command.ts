@@ -1,12 +1,13 @@
 import { z } from 'zod';
 
-import { NodeSystemSchema } from '../../models';
 import { REST_API } from '../../api';
+import { NodeMetadataSchema, NodeSystemSchema } from '../../models';
 
 export namespace StartXrayCommand {
     export const url = REST_API.XRAY.START;
     export const RequestSchema = z.object({
         internals: z.object({
+            metadata: NodeMetadataSchema.optional(),
             forceRestart: z.boolean().default(false),
             hashes: z.object({
                 emptyConfig: z.string(),

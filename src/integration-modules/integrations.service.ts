@@ -31,10 +31,10 @@ export class IntegrationsService {
 
         for (const integration of this.integrations) {
             try {
-                const { error } = await integration.sync(
-                    this.asRecord(integrationConfig),
+                const { error } = await integration.sync({
+                    integrationConfig: this.asRecord(integrationConfig),
                     nodeMetadata,
-                );
+                });
 
                 if (error) errors.push(`[${integration.name}] ${error}`);
             } catch (error) {

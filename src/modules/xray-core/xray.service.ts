@@ -125,7 +125,7 @@ export class XrayService implements OnApplicationBootstrap {
 
         try {
             const integrations = await this.integrations.sync(
-                body.xrayConfig.integrations,
+                body.internals.integrations,
                 body.internals.metadata,
             );
 

@@ -1,6 +1,7 @@
 export const PLUGIN_CONTROLLER = 'plugin' as const;
 
 export const TORRENT_BLOCKER_ROUTE = 'torrent-blocker' as const;
+export const ABUSE_BLOCKER_ROUTE = 'abuse-blocker' as const;
 export const NFTABLES_ROUTE = 'nftables' as const;
 
 export const PLUGIN_ROUTES = {
@@ -8,6 +9,10 @@ export const PLUGIN_ROUTES = {
 
     TORRENT_BLOCKER: {
         COLLECT: `${TORRENT_BLOCKER_ROUTE}/collect`,
+    },
+    ABUSE_BLOCKER: {
+        COLLECT: `${ABUSE_BLOCKER_ROUTE}/collect`,
+        REFRESH_BLOCK: `${ABUSE_BLOCKER_ROUTE}/refresh-block`,
     },
     NFTABLES: {
         UNBLOCK_IPS: `${NFTABLES_ROUTE}/unblock-ips`,

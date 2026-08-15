@@ -23,7 +23,10 @@ import { getStartMessage } from '@common/utils/get-start-message';
 import { isDevelopment } from '@common/utils/is-development';
 import { ROOT } from '@libs/contracts/api';
 import {
+    XRAY_INTERNAL_FULL_ABUSE_WEBHOOK_PATH,
+    XRAY_INTERNAL_FULL_COMBINED_WEBHOOK_PATH,
     XRAY_INTERNAL_FULL_PATH,
+    XRAY_INTERNAL_FULL_TORRENT_WEBHOOK_PATH,
     XRAY_INTERNAL_FULL_WEBHOOK_PATH,
 } from '@libs/contracts/constants';
 
@@ -95,7 +98,13 @@ async function bootstrap(): Promise<void> {
     app.useGlobalFilters(new NotFoundExceptionFilter());
 
     app.setGlobalPrefix(ROOT, {
-        exclude: [XRAY_INTERNAL_FULL_PATH, XRAY_INTERNAL_FULL_WEBHOOK_PATH],
+        exclude: [
+            XRAY_INTERNAL_FULL_PATH,
+            XRAY_INTERNAL_FULL_WEBHOOK_PATH,
+            XRAY_INTERNAL_FULL_TORRENT_WEBHOOK_PATH,
+            XRAY_INTERNAL_FULL_ABUSE_WEBHOOK_PATH,
+            XRAY_INTERNAL_FULL_COMBINED_WEBHOOK_PATH,
+        ],
     });
 
     app.useGlobalPipes(new ZodValidationPipe());
@@ -110,7 +119,13 @@ async function bootstrap(): Promise<void> {
 
     // '/' + REST_API.VISION.BLOCK_IP, '/' + REST_API.VISION.UNBLOCK_IP
     internalApp.use(
-        [XRAY_INTERNAL_FULL_PATH, XRAY_INTERNAL_FULL_WEBHOOK_PATH],
+        [
+            XRAY_INTERNAL_FULL_PATH,
+            XRAY_INTERNAL_FULL_WEBHOOK_PATH,
+            XRAY_INTERNAL_FULL_TORRENT_WEBHOOK_PATH,
+            XRAY_INTERNAL_FULL_ABUSE_WEBHOOK_PATH,
+            XRAY_INTERNAL_FULL_COMBINED_WEBHOOK_PATH,
+        ],
         (req, res, next) => {
             req.url = req.originalUrl;
 

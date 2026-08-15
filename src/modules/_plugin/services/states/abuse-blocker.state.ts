@@ -193,11 +193,7 @@ export class AbuseBlockerState {
         }
 
         if (detections.length === 0) {
-            this.updateBufferedEvidence(
-                observation.userId,
-                user,
-                observation.destinationPort,
-            );
+            this.updateBufferedEvidence(observation.userId, user, observation.destinationPort);
             return null;
         }
 
@@ -436,7 +432,8 @@ export class AbuseBlockerState {
 
         for (const report of this.reports.values()) {
             if (report.userId !== userId || report.destinationPort !== destinationPort) continue;
-            if (report.score.after < (this.config?.alertScore ?? Number.POSITIVE_INFINITY)) continue;
+            if (report.score.after < (this.config?.alertScore ?? Number.POSITIVE_INFINITY))
+                continue;
 
             report.evidence = this.collectEvidence(user, destinationPort, limit);
         }

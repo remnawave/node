@@ -1,7 +1,7 @@
 import ems from 'enhanced-ms';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import pRetry from 'p-retry';
+import pRetry, { AbortError } from 'p-retry';
 
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -34,6 +34,13 @@ import { XrayProcessService } from './xray-process.service';
 
 const XRAY_LOG_FILE = '/var/log/xray/current' as const;
 const execFileAsync = promisify(execFile);
+
+class XrayProcessDownError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'XrayProcessDownError';
+    }
+}
 
 @Injectable()
 export class XrayService implements OnApplicationBootstrap {
@@ -211,7 +218,7 @@ export class XrayService implements OnApplicationBootstrap {
                 };
             }
 
-            const isStarted = await this.getXrayInternalStatus();
+            const { isStarted, error: startError } = await this.getXrayInternalStatus();
 
             if (!isStarted) {
                 this.isXrayOnline = false;
@@ -221,14 +228,15 @@ export class XrayService implements OnApplicationBootstrap {
                     ...KNOWN_ERRORS.XRAY_FAILED_TO_START,
                 });
 
-                await this.dumpTailBlock(XRAY_LOG_FILE, 5);
+                const tail = await this.dumpTailBlock(XRAY_LOG_FILE, 5);
+                const logReason = tail.at(-1)?.trim().slice(0, 500);
 
                 return {
                     isOk: true,
                     response: new StartXrayResponseModel(
                         isStarted,
                         this.xrayVersion,
-                        'Xray Core did not become ready in time',
+                        logReason ? `${startError} · ${logReason}` : startError,
                         {
                             version: this.nodeVersion,
                         },
@@ -372,16 +380,33 @@ export class XrayService implements OnApplicationBootstrap {
         };
     }
 
-    private async getXrayInternalStatus(): Promise<boolean> {
+    private async getXrayInternalStatus(): Promise<{
+        isStarted: boolean;
+        error: string | null;
+    }> {
         const tm = performance.now();
+
+        const startedPid = (await this.xrayProcess.getStatus()).pid;
+
         try {
-            return await pRetry(
+            await pRetry(
                 async () => {
                     const { isOk, message } = await this.xtlsSdk.stats.getSysStats();
-                    if (!isOk) {
-                        throw new Error(message);
+                    if (isOk) {
+                        return;
                     }
-                    return true;
+
+                    const status = await this.xrayProcess.getStatus();
+
+                    if (!status.up || (startedPid !== null && status.pid !== startedPid)) {
+                        throw new AbortError(
+                            new XrayProcessDownError(
+                                `Xray Core process is not running anymore (s6: ${await this.xrayProcess.getStatusLine()})`,
+                            ),
+                        );
+                    }
+
+                    throw new Error(message);
                 },
                 {
                     retries: 30,
@@ -401,9 +426,18 @@ export class XrayService implements OnApplicationBootstrap {
                     },
                 },
             );
+
+            return { isStarted: true, error: null };
         } catch (error) {
             this.logger.error(`Failed to get Xray internal status: ${error}`);
-            return false;
+
+            return {
+                isStarted: false,
+                error:
+                    error instanceof XrayProcessDownError
+                        ? error.message
+                        : 'Xray Core did not become ready in time',
+            };
         }
     }
 
@@ -434,9 +468,9 @@ export class XrayService implements OnApplicationBootstrap {
         }
     }
 
-    private async dumpTailBlock(path: string, lines: number): Promise<void> {
+    private async dumpTailBlock(path: string, lines: number): Promise<string[]> {
         const tail = await this.tailLogLines(path, lines);
-        if (tail.length === 0) return;
+        if (tail.length === 0) return tail;
 
         this.logger.error(
             [
@@ -445,5 +479,7 @@ export class XrayService implements OnApplicationBootstrap {
                 ...tail.map((l) => `│ ${l}`),
             ].join('\n'),
         );
+
+        return tail;
     }
 }

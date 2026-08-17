@@ -17,8 +17,10 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 
 import { NotFoundExceptionFilter } from '@common/exception';
+import { acquireInstanceLock } from '@common/utils/acquire-instance-lock';
 import { parseNodePayload } from '@common/utils/decode-node-payload';
 import { customLogFilter } from '@common/utils/filter-logs';
+import { getDuplicateInstanceMessage } from '@common/utils/get-duplicate-instance-message';
 import { getStartMessage } from '@common/utils/get-start-message';
 import { isDevelopment } from '@common/utils/is-development';
 import { ROOT } from '@libs/contracts/api';
@@ -145,6 +147,10 @@ async function bootstrap(): Promise<void> {
             )) +
             '\n',
     );
+
+    if (!(await acquireInstanceLock())) {
+        logger.error('\n' + getDuplicateInstanceMessage() + '\n');
+    }
 
     if (import.meta.webpackHot) {
         import.meta.webpackHot.accept();

@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "jsPlugins": ["eslint-plugin-perfectionist"],
+  "jsPlugins": [],
   "plugins": ["typescript", "eslint", "import", "unicorn", "oxc", "node", "promise"],
   "env": { "node": true },
   "categories": { "correctness": "error" },

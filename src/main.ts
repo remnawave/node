@@ -8,7 +8,7 @@ import { Server } from 'https';
 import morgan from 'morgan';
 import { utilities as nestWinstonModuleUtilities, WinstonModule } from 'nest-winston';
 import { ZodValidationPipe } from 'nestjs-zod';
-import { SecureVersion } from 'node:tls';
+import { createSecureContext, SecureContext, SecureVersion } from 'node:tls';
 import { createLogger } from 'winston';
 import * as winston from 'winston';
 
@@ -19,6 +19,10 @@ import { NestFactory } from '@nestjs/core';
 import { NotFoundExceptionFilter } from '@common/exception';
 import { acquireInstanceLock } from '@common/utils/acquire-instance-lock';
 import { parseNodePayload } from '@common/utils/decode-node-payload';
+import {
+    deriveSni,
+    makeSniVerifier,
+} from '@common/utils/decode-node-payload/decode-servername.util';
 import { customLogFilter } from '@common/utils/filter-logs';
 import { getDuplicateInstanceMessage } from '@common/utils/get-duplicate-instance-message';
 import { getStartMessage } from '@common/utils/get-start-message';
@@ -55,14 +59,24 @@ async function bootstrap(): Promise<void> {
 
     const nodePayload = parseNodePayload();
 
-    const httpsOptions: { minVersion?: SecureVersion } & HttpsOptions = {
+    const realCtx: SecureContext = createSecureContext({
         key: nodePayload.nodeKeyPem,
         cert: nodePayload.nodeCertPem,
         ca: [nodePayload.caCertPem],
+        minVersion: 'TLSv1.3',
+    });
+
+    logger.info(`Expected SNI: ${deriveSni(nodePayload.caCertPem, nodePayload.jwtPublicKey)}`);
+
+    const verifySni = makeSniVerifier(nodePayload.caCertPem, nodePayload.jwtPublicKey);
+
+    const httpsOptions: { minVersion?: SecureVersion } & HttpsOptions = {
+        SNICallback: (servername: string, cb: (err: Error | null, ctx?: SecureContext) => void) =>
+            verifySni(servername) ? cb(null, realCtx) : cb(new Error('unknown sni')),
         requestCert: true,
         rejectUnauthorized: true,
         minVersion: 'TLSv1.3',
-    };
+    } as { minVersion?: SecureVersion } & HttpsOptions;
 
     const app = await NestFactory.create(AppModule, {
         httpsOptions,

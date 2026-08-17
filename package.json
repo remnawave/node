@@ -42,7 +42,7 @@
     "@nestjs/platform-express": "11.2.0",
     "@nestjs/schedule": "^6.1.3",
     "@remnawave/hashed-set": "^0.0.4",
-    "@remnawave/node-plugins": "0.6.3",
+    "@remnawave/node-plugins": "0.7.0",
     "@remnawave/xtls-sdk": "0.16.0",
     "@remnawave/xtls-sdk-nestjs": "0.6.1",
     "compression": "^1.8.1",

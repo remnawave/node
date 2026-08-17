@@ -13,7 +13,7 @@ import { RemoveOutboundCommand } from '../handler/commands/remove-outbound/remov
 import { StopXrayCommand } from '../xray-core/commands/stop-xray';
 import { SyncRequestDto } from './dtos';
 import { GenericResponseModel } from './models';
-import { TorrentBlockerReportsResponseModel } from './models/torrent-blocker-reports.response.model';
+import { AbuseBlockerReportsResponseModel, TorrentBlockerReportsResponseModel } from './models';
 import { NftService } from './services/nft.service';
 import { PluginStateService } from './services/plugin-state.service';
 
@@ -74,6 +74,7 @@ export class PluginService {
             }
 
             const currentTorrentBlocker = this.state.torrentBlocker.isEnabled;
+            const currentAbuseBlocker = this.state.abuseBlocker.isEnabled;
             const currentTorrentBlockerIncludeRuleTags = new Set(
                 this.state.torrentBlocker.includeRuleTagsSet,
             );
@@ -88,6 +89,7 @@ export class PluginService {
 
             this.syncConnectionDrop(pluginData, sharedMap);
             this.syncTorrentBlocker(pluginData, sharedMap);
+            this.syncAbuseBlocker(pluginData, sharedMap, configHash);
             this.syncPreStart(pluginData);
 
             await this.syncIngressFilter(pluginData, sharedMap);
@@ -100,6 +102,7 @@ export class PluginService {
 
             const wasEnabled = !!currentTorrentBlocker;
             const nowEnabled = !!pluginData.torrentBlocker?.enabled;
+            const abuseNowEnabled = !!pluginData.abuseBlocker?.enabled;
 
             if (wasEnabled && !nowEnabled && !pluginData.torrentBlocker?.includeRuleTags) {
                 await this.commandBus.execute(
@@ -107,6 +110,7 @@ export class PluginService {
                 );
             } else {
                 const needsRestart =
+                    currentAbuseBlocker !== abuseNowEnabled ||
                     (wasEnabled && !nowEnabled) ||
                     (!wasEnabled && nowEnabled) ||
                     (wasEnabled &&
@@ -217,6 +221,32 @@ export class PluginService {
         );
     }
 
+    private syncAbuseBlocker(
+        pluginData: TNodePlugin,
+        sharedMap: Map<string, string[]>,
+        configFingerprint: string,
+    ): void {
+        const config = pluginData.abuseBlocker;
+        if (!config?.enabled) return;
+        if (!this.nftService.isAvailable) return;
+
+        const ignoredSources = this.resolveIpList(config.ignoreLists.sourceIp, sharedMap);
+        const ignoredDestinations = this.resolveIpList(config.ignoreLists.destinationIp, sharedMap);
+        const ignoredUsers = config.ignoreLists.userId.map(String);
+
+        this.state.abuseBlocker.configure({
+            config,
+            configFingerprint,
+            ignoredUsers,
+            ignoredSources,
+            ignoredDestinations,
+        });
+
+        this.logger.log(
+            `[PLUGIN] Abuse-Blocker: scoreWindow=${config.scoreWindowSeconds}s, blockScore=${config.blockScore}, ${ignoredUsers.length} ignored users`,
+        );
+    }
+
     private resolveIpList(ips: string[], sharedMap: Map<string, string[]>): string[] {
         return ips.flatMap((ip) => {
             if (ip.startsWith('ext:')) {
@@ -278,6 +308,18 @@ export class PluginService {
         } catch (error) {
             this.logger.error(error);
             return { isOk: true, response: new TorrentBlockerReportsResponseModel([]) };
+        }
+    }
+
+    public async collectAbuseBlockerReports(): Promise<
+        ICommandResponse<AbuseBlockerReportsResponseModel>
+    > {
+        try {
+            const reports = this.state.abuseBlocker.flushReports();
+            return { isOk: true, response: new AbuseBlockerReportsResponseModel(reports) };
+        } catch (error) {
+            this.logger.error(error);
+            return { isOk: true, response: new AbuseBlockerReportsResponseModel([]) };
         }
     }
 }

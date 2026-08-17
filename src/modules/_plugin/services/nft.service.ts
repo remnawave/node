@@ -17,6 +17,7 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
     private readonly logger = new Logger(NftService.name);
     private nftManager: NftManager | null = null;
     private available = false;
+    private abuseRefreshQueue: Promise<void> = Promise.resolve();
 
     constructor(
         private readonly state: PluginStateService,
@@ -33,6 +34,7 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
         if (!capNetAdmin) return;
 
         this.state.setPlugins({
+            abuseBlocker: false,
             connectionDrop: true,
             ingressFilter: false,
             torrentBlocker: false,
@@ -46,6 +48,7 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
                 ingressAddrSets: [
                     NFT_TABLES_CONSTANTS.INGRESS_FILTER_IP_SET_NAME,
                     NFT_TABLES_CONSTANTS.TORRENT_BLOCKER_SET_NAME,
+                    NFT_TABLES_CONSTANTS.ABUSE_BLOCKER_SET_NAME,
                 ],
                 egressAddrSets: [NFT_TABLES_CONSTANTS.EGRESS_FILTER_IP_SET_NAME],
                 egressPortSets: [NFT_TABLES_CONSTANTS.EGRESS_FILTER_PORT_SET_NAME],
@@ -55,6 +58,7 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
             this.available = true;
 
             this.state.setPlugins({
+                abuseBlocker: true,
                 connectionDrop: true,
                 ingressFilter: true,
                 torrentBlocker: true,
@@ -121,6 +125,36 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
         this.eventBus.publish(new DropConnectionsEvent([ip]));
     }
 
+    public async blockAbuseIp(ip: string, timeoutSeconds: number): Promise<void> {
+        if (!this.nftManager) throw new Error('nftables is unavailable');
+        await this.nftManager.addAddress({
+            ip,
+            set: NFT_TABLES_CONSTANTS.ABUSE_BLOCKER_SET_NAME,
+            timeout: timeoutSeconds,
+        });
+        this.eventBus.publish(new DropConnectionsEvent([ip]));
+    }
+
+    public async refreshAbuseIp(ip: string, timeoutSeconds: number): Promise<void> {
+        const operation = this.abuseRefreshQueue.then(async () => {
+            if (!this.nftManager) throw new Error('nftables is unavailable');
+
+            try {
+                await this.nftManager.removeAddresses({
+                    ips: [ip],
+                    set: NFT_TABLES_CONSTANTS.ABUSE_BLOCKER_SET_NAME,
+                });
+            } catch {
+                this.logger.debug(`[ABUSE-BLOCKER] ${ip} was not present before refresh.`);
+            }
+
+            await this.blockAbuseIp(ip, timeoutSeconds);
+        });
+
+        this.abuseRefreshQueue = operation.catch(() => void 0);
+        return operation;
+    }
+
     public async recreateTables(): Promise<void> {
         if (!this.nftManager) return;
         await this.nftManager.createTable();
@@ -129,6 +163,7 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
     private logAvailablePlugins(): void {
         const plugins = this.state.plugins;
         [
+            { name: 'Abuse Blocker', enabled: plugins.abuseBlocker },
             { name: 'Ingress Filter', enabled: plugins.ingressFilter },
             { name: 'Egress Filter', enabled: plugins.egressFilter },
             { name: 'Torrent Blocker', enabled: plugins.torrentBlocker },
@@ -192,6 +227,11 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
             await this.nftManager.removeAddresses({
                 ips,
                 set: NFT_TABLES_CONSTANTS.INGRESS_FILTER_IP_SET_NAME,
+            });
+
+            await this.nftManager.removeAddresses({
+                ips,
+                set: NFT_TABLES_CONSTANTS.ABUSE_BLOCKER_SET_NAME,
             });
 
             return {

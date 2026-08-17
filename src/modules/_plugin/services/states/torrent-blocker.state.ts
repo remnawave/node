@@ -9,6 +9,7 @@ export class TorrentBlockerState {
     private includeRuleTags = new Set<string>();
     private webhookUrl: string | null = null;
     private reports: TorrentBlockerReportModel[] = [];
+    private lastProcessedUsers = new Map<string, number>();
 
     get isEnabled(): boolean {
         return this.enabled;
@@ -47,6 +48,13 @@ export class TorrentBlockerState {
         return this.ignoredUsers.has(userId);
     }
 
+    shouldProcess(userId: string, timestamp: number, deduplicationSeconds = 5): boolean {
+        const lastProcessedAt = this.lastProcessedUsers.get(userId) ?? 0;
+        if (timestamp - lastProcessedAt < deduplicationSeconds * 1000) return false;
+        this.lastProcessedUsers.set(userId, timestamp);
+        return true;
+    }
+
     addReport(report: TorrentBlockerReportModel): void {
         this.reports.push(report);
     }
@@ -67,6 +75,7 @@ export class TorrentBlockerState {
         this.ignoredIps.clear();
         this.ignoredUsers.clear();
         this.includeRuleTags.clear();
+        this.lastProcessedUsers.clear();
     }
 
     setIncludeRuleTags(tags: string[] | undefined): void {

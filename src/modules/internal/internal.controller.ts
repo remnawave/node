@@ -3,8 +3,11 @@ import { EventBus } from '@nestjs/cqrs';
 
 import { HttpExceptionFilter } from '@common/exception';
 import {
+    XRAY_INTERNAL_ABUSE_WEBHOOK_PATH,
     XRAY_INTERNAL_API_CONTROLLER,
     XRAY_INTERNAL_API_PATH,
+    XRAY_INTERNAL_COMBINED_WEBHOOK_PATH,
+    XRAY_INTERNAL_TORRENT_WEBHOOK_PATH,
     XRAY_INTERNAL_WEBHOOK_PATH,
 } from '@libs/contracts/constants';
 
@@ -33,6 +36,24 @@ export class InternalController {
     @HttpCode(200)
     @Post(XRAY_INTERNAL_WEBHOOK_PATH)
     public handleWebhook(@Body() body: unknown): void {
-        void this.eventBus.publish(new XrayWebhookEvent(body));
+        void this.eventBus.publish(new XrayWebhookEvent(body, 'torrent'));
+    }
+
+    @HttpCode(200)
+    @Post(XRAY_INTERNAL_TORRENT_WEBHOOK_PATH)
+    public handleTorrentWebhook(@Body() body: unknown): void {
+        void this.eventBus.publish(new XrayWebhookEvent(body, 'torrent'));
+    }
+
+    @HttpCode(200)
+    @Post(XRAY_INTERNAL_ABUSE_WEBHOOK_PATH)
+    public handleAbuseWebhook(@Body() body: unknown): void {
+        void this.eventBus.publish(new XrayWebhookEvent(body, 'abuse'));
+    }
+
+    @HttpCode(200)
+    @Post(XRAY_INTERNAL_COMBINED_WEBHOOK_PATH)
+    public handleCombinedWebhook(@Body() body: unknown): void {
+        void this.eventBus.publish(new XrayWebhookEvent(body, 'combined'));
     }
 }

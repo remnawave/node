@@ -10,16 +10,9 @@
     "strictPropertyInitialization": false,
     "skipLibCheck": true,
     "noEmit": false,
-    "lib": [
-      "es2020"
-    ],
+    "lib": ["es2020"],
     "declaration": true,
-    "declarationMap": true,
+    "declarationMap": true
   },
-  "exclude": [
-    "scripts/**/*",
-    "tests/**/*",
-    "**/*.spec.ts",
-    "**/*.test.ts"
-  ]
+  "exclude": ["build/**/*", "scripts/**/*", "tests/**/*", "**/*.spec.ts", "**/*.test.ts"]
 }

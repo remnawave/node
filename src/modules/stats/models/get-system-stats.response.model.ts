@@ -14,6 +14,19 @@ interface IXrayStats {
 }
 
 interface IPluginStats {
+    abuseBlocker: {
+        available: boolean;
+        enabled: boolean;
+        reportsCount: number;
+        trackedUsers: number;
+        activeIncidents: number;
+        coverageMode: 'full' | 'partial';
+        skippedWebhookRules: number;
+        evictedUsers: number;
+        evictedKeys: number;
+        droppedReports: number;
+        lastError: string | null;
+    };
     torrentBlocker: {
         reportsCount: number;
     };

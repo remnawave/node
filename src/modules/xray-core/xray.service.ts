@@ -20,6 +20,8 @@ import { IntegrationsService } from '@integration-modules/integrations.service';
 
 import { ResetPluginsCommand } from '../_plugin/commands/reset-plugins/reset-plugins.command';
 import { RunPreStartCommand } from '../_plugin/commands/run-pre-start/run-pre-start.command';
+import { SetAbuseBlockerCoverageCommand } from '../_plugin/commands/set-abuse-blocker-coverage';
+import { GetAbuseBlockerStateQuery } from '../_plugin/queries/get-abuse-blocker-state';
 import { GetTorrentBlockerStateQuery } from '../_plugin/queries/get-torrent-blocker-state';
 import { InternalService } from '../internal/internal.service';
 import { GetInterfaceStatsQuery } from '../network-stats/queries/get-interface-stats/get-interface-stats.query';
@@ -190,11 +192,22 @@ export class XrayService implements OnApplicationBootstrap {
                 new GetTorrentBlockerStateQuery(),
             );
 
-            const fullConfig = generateApiConfig({
+            const abuseBlockerState = await this.queryBus.execute(new GetAbuseBlockerStateQuery());
+
+            const generated = generateApiConfig({
                 config: body.xrayConfig,
                 torrentBlockerState: isTorrentBlockerEnabled,
+                abuseBlockerState,
                 internal: this.internal,
             });
+            const fullConfig = generated.config;
+
+            await this.commandBus.execute(
+                new SetAbuseBlockerCoverageCommand(
+                    generated.abuseCoverage.mode,
+                    generated.abuseCoverage.skippedWebhookRules,
+                ),
+            );
 
             await this.internalService.extractUsersFromConfig(body.internals.hashes, fullConfig);
 

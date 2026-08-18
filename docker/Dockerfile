@@ -32,16 +32,16 @@ RUN apk add --no-cache curl \
 
 FROM alpine:3.21 AS geocheck
 
-ARG GEOCHECK_VERSION=0.2.0
+ARG GEOCHECK_VERSION=0.3.0
 ARG GEOCHECK_RELEASE_URL=https://github.com/remnawave/geocheck/releases/download
 ARG TARGETARCH
 
 RUN apk add --no-cache curl \
     && cd /tmp \
-    && ARCHIVE="geocheck_${GEOCHECK_VERSION}_linux_${TARGETARCH}.tar.gz" \
+    && ARCHIVE="geocheck_linux_${TARGETARCH}.tar.gz" \
     && curl -fsSL -O "${GEOCHECK_RELEASE_URL}/v${GEOCHECK_VERSION}/${ARCHIVE}" \
-    && curl -fsSL -O "${GEOCHECK_RELEASE_URL}/v${GEOCHECK_VERSION}/geocheck_${GEOCHECK_VERSION}_checksums.txt" \
-    && grep "  ${ARCHIVE}\$" "geocheck_${GEOCHECK_VERSION}_checksums.txt" | sha256sum -c - \
+    && curl -fsSL -O "${GEOCHECK_RELEASE_URL}/v${GEOCHECK_VERSION}/checksums.txt" \
+    && grep "  ${ARCHIVE}\$" checksums.txt | sha256sum -c - \
     && tar -xzf "${ARCHIVE}" geocheck \
     && install -m 0755 geocheck /usr/local/bin/geocheck \
     && rm -rf /tmp/*

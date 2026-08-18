@@ -50,4 +50,9 @@ export const ERRORS = {
         message: 'Failed to get combined stats',
         httpCode: 500,
     },
+    FAILED_TO_GET_GEOCHECK: {
+        code: 'A018',
+        message: 'Failed to get geocheck report',
+        httpCode: 500,
+    },
 } as const;

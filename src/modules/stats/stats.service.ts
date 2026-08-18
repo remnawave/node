@@ -1,13 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
 
-import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 import { XtlsApi } from '@remnawave/xtls-sdk';
+import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
 
 import { ICommandResponse } from '@common/types/command-response.type';
 import { getSystemStats } from '@common/utils/get-system-stats';
 import { ERRORS } from '@libs/contracts/constants';
 
+import { GetTorrentBlockerReportsCountQuery } from '../_plugin/queries/get-torrent-blocker-reports-count';
+import { GetInterfaceStatsQuery } from '../network-stats/queries/get-interface-stats/get-interface-stats.query';
+import { IGetUserOnlineStatusRequest } from './interfaces';
 import {
     GetAllInboundsStatsResponseModel,
     GetAllOutboundsStatsResponseModel,
@@ -20,9 +23,7 @@ import {
     GetUsersIpListResponseModel,
     GetUsersStatsResponseModel,
 } from './models';
-import { GetInterfaceStatsQuery } from '../network-stats/queries/get-interface-stats/get-interface-stats.query';
-import { GetTorrentBlockerReportsCountQuery } from '../_plugin/queries/get-torrent-blocker-reports-count';
-import { IGetUserOnlineStatusRequest } from './interfaces';
+
 
 @Injectable()
 export class StatsService {

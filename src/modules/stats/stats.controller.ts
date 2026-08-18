@@ -12,6 +12,8 @@ import {
     GetAllOutboundsStatsResponseDto,
     GetCombinedStatsRequestDto,
     GetCombinedStatsResponseDto,
+    GetGeocheckRequestDto,
+    GetGeocheckResponseDto,
     GetInboundStatsRequestDto,
     GetInboundStatsResponseDto,
     GetOutboundStatsRequestDto,
@@ -24,19 +26,33 @@ import {
     GetUsersStatsResponseDto,
 } from './dto';
 import { GetUserIpListRequestDto, GetUserIpListResponseDto } from './dto/get-user-ip-list.dto';
+import { GeocheckService } from './geocheck.service';
 import { StatsService } from './stats.service';
 
 @UseFilters(HttpExceptionFilter)
 @UseGuards(JwtDefaultGuard)
 @Controller(STATS_CONTROLLER)
 export class StatsController {
-    constructor(private readonly statsService: StatsService) {}
+    constructor(
+        private readonly statsService: StatsService,
+        private readonly geocheckService: GeocheckService,
+    ) {}
 
     @Post(STATS_ROUTES.GET_USER_ONLINE_STATUS)
     public async getUserOnlineStatus(
         @Body() body: GetUserOnlineStatusRequestDto,
     ): Promise<GetUserOnlineStatusResponseDto> {
         const response = await this.statsService.getUserOnlineStatus(body);
+        const data = errorHandler(response);
+
+        return {
+            response: data,
+        };
+    }
+
+    @Post(STATS_ROUTES.GET_GEOCHECK)
+    public async getGeocheck(@Body() body: GetGeocheckRequestDto): Promise<GetGeocheckResponseDto> {
+        const response = await this.geocheckService.getGeocheck(body);
         const data = errorHandler(response);
 
         return {

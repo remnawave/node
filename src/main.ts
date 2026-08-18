@@ -76,6 +76,7 @@ async function bootstrap(): Promise<void> {
         requestCert: true,
         rejectUnauthorized: true,
         minVersion: 'TLSv1.3',
+        handshakeTimeout: 10_000,
     } as { minVersion?: SecureVersion } & HttpsOptions;
 
     const app = await NestFactory.create(AppModule, {

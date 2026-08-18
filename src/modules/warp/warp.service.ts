@@ -5,6 +5,11 @@ import type { THostConnectivity, TWarpOperation, TWarpStatus } from '@libs/contr
 
 import { Injectable, Logger } from '@nestjs/common';
 
+import {
+    getWarpEndpointCandidates,
+    hasDualStackWarpTrace,
+    WARP_ENDPOINT_CANDIDATES,
+} from './warp-endpoint-policy';
 import { TWarpCommandResult } from './warp.types';
 
 const WARP_INTERFACE = 'warp';
@@ -12,7 +17,7 @@ const WARP_CONFIG_PATH = '/etc/wireguard/warp.conf';
 const WARP_TOOL_PATH = '/usr/local/bin/wgcf';
 const WARP_TRACE_URL = 'https://www.cloudflare.com/cdn-cgi/trace';
 const WGCF_RELEASES_API_URL = 'https://api.github.com/repos/ViRb3/wgcf/releases/latest';
-const WARP_ENDPOINT = '162.159.192.1:2408';
+const WARP_DEFAULT_ENDPOINT = WARP_ENDPOINT_CANDIDATES[0];
 const WARP_IPV6_ROUTE_METRIC = 4242;
 const WARP_IPV6_ROUTE_POST_UP = `PostUp = ip -6 route replace ::/0 dev %i metric ${WARP_IPV6_ROUTE_METRIC}`;
 const WARP_IPV6_ROUTE_PRE_DOWN = `PreDown = ip -6 route del ::/0 dev %i metric ${WARP_IPV6_ROUTE_METRIC} 2>/dev/null || true`;
@@ -67,7 +72,7 @@ test -s wgcf-profile.conf
 
 echo "[warp] normalizing WireGuard profile"
 sed -i -E '/^DNS =/d' wgcf-profile.conf
-sed -i -E 's#^Endpoint = .*$#Endpoint = ${WARP_ENDPOINT}#' wgcf-profile.conf
+sed -i -E 's#^Endpoint = .*$#Endpoint = ${WARP_DEFAULT_ENDPOINT}#' wgcf-profile.conf
 grep -q '^Table = off$' wgcf-profile.conf || sed -i '/^MTU =/a Table = off' wgcf-profile.conf
 grep -q '^PersistentKeepalive = ' wgcf-profile.conf \
     || sed -i '/^Endpoint =/a PersistentKeepalive = 25' wgcf-profile.conf
@@ -213,6 +218,7 @@ export class WarpService {
                 await this.execFixed('/usr/bin/wg-quick', ['up', WARP_INTERFACE], 20_000, {
                     onOutput: (line) => this.appendOperationLog(line),
                 });
+                await this.ensureReachableWarpEndpoint();
                 this.finishOperation('WARP enabled');
                 return await this.getStatus();
             } catch (error) {
@@ -335,7 +341,9 @@ export class WarpService {
         if (!this.hasWarpConfig()) return;
 
         const original = readFileSync(WARP_CONFIG_PATH, 'utf8');
-        let updated = original.replace(/^Endpoint = .*$/m, `Endpoint = ${WARP_ENDPOINT}`);
+        const configuredEndpoint = this.getConfiguredWarpEndpoint(original);
+        const preferredEndpoint = getWarpEndpointCandidates(configuredEndpoint)[0];
+        let updated = original.replace(/^Endpoint = .*$/m, `Endpoint = ${preferredEndpoint}`);
 
         if (!/^Table = off$/m.test(updated)) {
             updated = updated.replace(/^MTU = .*$/m, (line) => `${line}\nTable = off`);
@@ -382,6 +390,38 @@ export class WarpService {
         } catch {
             return false;
         }
+    }
+
+    private async ensureReachableWarpEndpoint(): Promise<void> {
+        const configuredEndpoint = this.getConfiguredWarpEndpoint();
+        const peer = (
+            await this.execFixed('/usr/bin/wg', ['show', WARP_INTERFACE, 'peers'], 5_000)
+        ).stdout
+            .split('\n')
+            .map((line) => line.trim())
+            .find(Boolean);
+
+        if (!peer) {
+            throw new Error('WARP peer is missing');
+        }
+
+        for (const endpoint of getWarpEndpointCandidates(configuredEndpoint)) {
+            this.appendOperationLog(`Testing WARP endpoint ${endpoint}`);
+            await this.execFixed(
+                '/usr/bin/wg',
+                ['set', WARP_INTERFACE, 'peer', peer, 'endpoint', endpoint],
+                5_000,
+            );
+
+            const [ipv4, ipv6] = await Promise.all([this.getTrace('4'), this.getTrace('6')]);
+            if (!hasDualStackWarpTrace(ipv4, ipv6)) continue;
+
+            this.persistWarpEndpoint(endpoint);
+            this.appendOperationLog(`Using WARP endpoint ${endpoint}`);
+            return;
+        }
+
+        throw new Error('No WARP endpoint provided working IPv4 and IPv6 traces');
     }
 
     private async installIfMissingOrSingleStack(): Promise<void> {
@@ -446,7 +486,24 @@ export class WarpService {
         if (config === null && !this.hasWarpConfig()) return false;
 
         const warpConfig = config ?? readFileSync(WARP_CONFIG_PATH, 'utf8');
-        return warpConfig.includes(`Endpoint = ${WARP_ENDPOINT}`);
+        const configuredEndpoint = this.getConfiguredWarpEndpoint(warpConfig);
+        return getWarpEndpointCandidates(configuredEndpoint)[0] === configuredEndpoint;
+    }
+
+    private getConfiguredWarpEndpoint(config: string | null = null): string | null {
+        if (config === null && !this.hasWarpConfig()) return null;
+
+        const warpConfig = config ?? readFileSync(WARP_CONFIG_PATH, 'utf8');
+        return warpConfig.match(/^Endpoint = (.+)$/m)?.[1].trim() ?? null;
+    }
+
+    private persistWarpEndpoint(endpoint: string): void {
+        const original = readFileSync(WARP_CONFIG_PATH, 'utf8');
+        const updated = original.replace(/^Endpoint = .*$/m, `Endpoint = ${endpoint}`);
+
+        if (updated !== original) {
+            writeFileSync(WARP_CONFIG_PATH, updated, { mode: 0o600 });
+        }
     }
 
     private hasDeprecatedIpv6EndpointRouteConfig(config: string | null = null): boolean {

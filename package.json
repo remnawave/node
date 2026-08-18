@@ -19,7 +19,9 @@
   },
   "scripts": {
     "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format": "prettier --write package.json \"src/**/*.ts\" \"test/**/*.{ts,mjs,cjs}\"",
+    "format:check": "prettier --check package.json \"src/**/*.ts\" \"test/**/*.{ts,mjs,cjs}\"",
+    "test": "node --require ts-node/register --test test/*.test.*",
     "start": "nest start",
     "start:dev": "NODE_ENV=development nest start --watch",
     "start:debug": "NODE_ENV=development nest start --debug --watch",

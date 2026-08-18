@@ -70,9 +70,6 @@ describe('WARP contract shape', () => {
         assert.match(service, /wgcf generate/);
         assert.doesNotMatch(service, /s#\^\(Address = \[\^,\]\+\),\.\*#\\1#/);
         assert.match(service, /WGCF_RELEASES_API_URL/);
-        assert.match(service, /WARP_ENDPOINT = '162\.159\.192\.1:2408'/);
-        assert.match(service, /Endpoint = \$\{WARP_ENDPOINT\}/);
-        assert.doesNotMatch(service, /WARP_ENDPOINT = 'engage\.cloudflareclient\.com:2408'/);
         assert.doesNotMatch(service, /WARP_IPV6_ENDPOINT_ROUTE_POST_UP/);
         assert.match(service, /getTrace\('4'\)/);
         assert.match(service, /getTrace\('6'\)/);

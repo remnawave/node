@@ -66,6 +66,16 @@ export class XrayProcessService {
         }
     }
 
+    public async getStatusLine(): Promise<string> {
+        try {
+            const { stdout } = await execFileAsync(XrayProcessService.S6_SVSTAT, [this.serviceDir]);
+
+            return stdout.trim();
+        } catch (error) {
+            return `unavailable (${error instanceof Error ? error.message : String(error)})`;
+        }
+    }
+
     public async getStatus(): Promise<IXrayProcessStatus> {
         try {
             const { stdout } = await execFileAsync(XrayProcessService.S6_SVSTAT, [

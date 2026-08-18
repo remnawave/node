@@ -21,7 +21,7 @@ export function errorHandler<T>(response: ICommandResponse<T>): T {
             throw new InternalServerErrorException('Unknown error');
         }
         throw new HttpExceptionWithErrorCodeType(
-            errorObject.message,
+            response.message || errorObject.message,
             errorObject.code,
             errorObject.httpCode,
         );

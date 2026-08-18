@@ -15,4 +15,6 @@ export const STATS_ROUTES = {
 
     GET_USER_IP_LIST: 'get-user-ip-list',
     GET_USERS_IP_LIST: 'get-users-ip-list',
+
+    GET_GEOCHECK: 'get-geocheck',
 } as const;

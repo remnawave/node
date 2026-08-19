@@ -168,4 +168,7 @@ async function bootstrap(): Promise<void> {
     }
 }
 
-void bootstrap();
+void bootstrap().catch((e) => {
+    logger.error(e instanceof Error ? e.message : String(e));
+    process.exit(1);
+});

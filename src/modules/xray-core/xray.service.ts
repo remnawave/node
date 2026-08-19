@@ -186,13 +186,11 @@ export class XrayService implements OnApplicationBootstrap {
                 this.logger.warn('Force restart requested');
             }
 
-            const isTorrentBlockerEnabled = await this.queryBus.execute(
-                new GetTorrentBlockerStateQuery(),
-            );
+            const tblockerState = await this.queryBus.execute(new GetTorrentBlockerStateQuery());
 
             const fullConfig = generateApiConfig({
                 config: body.xrayConfig,
-                torrentBlockerState: isTorrentBlockerEnabled,
+                torrentBlockerState: tblockerState,
                 internal: this.internal,
             });
 

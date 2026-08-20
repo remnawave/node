@@ -1,9 +1,7 @@
-interface INodePayload {
-    caCertPem: string;
-    jwtPublicKey: string;
-    nodeCertPem: string;
-    nodeKeyPem: string;
-}
+import { Logger } from 'winston';
+
+import { INodePayload } from './node-payload.interface';
+import { assertPayloadIntegrity } from './validate-secret-key.util';
 
 function normalizePem(pem: string): string {
     let normalized = pem.replace(/\\n/g, '\n');
@@ -16,11 +14,11 @@ function normalizePem(pem: string): string {
     return normalized;
 }
 
-export function parseNodePayload(): INodePayload {
+export function parseNodePayload(logger: Logger): INodePayload {
     const nodePayload = process.env.SECRET_KEY;
 
     if (!nodePayload) {
-        throw new Error('SECRET_KEY is not set');
+        throw new Error('SECRET_KEY missing in environment variables.');
     }
 
     try {
@@ -30,12 +28,15 @@ export function parseNodePayload(): INodePayload {
             throw new Error('Invalid SECRET_KEY payload structure');
         }
 
-        return {
+        const result: INodePayload = {
             caCertPem: normalizePem(parsed.caCertPem),
             jwtPublicKey: normalizePem(parsed.jwtPublicKey),
             nodeCertPem: normalizePem(parsed.nodeCertPem),
             nodeKeyPem: normalizePem(parsed.nodeKeyPem),
         };
+
+        assertPayloadIntegrity(result, logger);
+        return result;
     } catch (error) {
         if (error instanceof SyntaxError) {
             throw new Error('SECRET_KEY contains invalid JSON');

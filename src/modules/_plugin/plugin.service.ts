@@ -77,6 +77,7 @@ export class PluginService {
             const currentTorrentBlockerIncludeRuleTags = new Set(
                 this.state.torrentBlocker.includeRuleTagsSet,
             );
+            const currentTorrentBlockerRulePosition = this.state.torrentBlocker.rulePosition;
 
             const pluginData = parsed.data;
 
@@ -106,15 +107,19 @@ export class PluginService {
                     new RemoveOutboundCommand(XRAY_TORRENT_BLOCKER_OUTBOUND_TAG),
                 );
             } else {
+                const stillEnabled = wasEnabled && nowEnabled;
+
                 const needsRestart =
                     (wasEnabled && !nowEnabled) ||
                     (!wasEnabled && nowEnabled) ||
-                    (wasEnabled &&
-                        nowEnabled &&
+                    (stillEnabled &&
                         this.hashFn([...currentTorrentBlockerIncludeRuleTags].sort()) !==
                             this.hashFn(
                                 [...(pluginData.torrentBlocker?.includeRuleTags ?? [])].sort(),
-                            ));
+                            )) ||
+                    (stillEnabled &&
+                        currentTorrentBlockerRulePosition !==
+                            (pluginData.torrentBlocker?.rulePlacement ?? 0));
 
                 if (needsRestart) {
                     await this.commandBus.execute(
@@ -201,14 +206,14 @@ export class PluginService {
         if (!pluginData.torrentBlocker.enabled) return;
         if (!this.nftService.isAvailable) return;
 
-        const { blockDuration, ignoreLists } = pluginData.torrentBlocker;
+        const { blockDuration, ignoreLists, rulePlacement } = pluginData.torrentBlocker;
 
         const ips = this.resolveIpList(ignoreLists.ip ?? [], sharedMap);
         const users = ignoreLists.userId?.map(String) ?? [];
 
         this.state.torrentBlocker.setIgnoredIps(ips);
         this.state.torrentBlocker.setIgnoredUsers(users);
-        this.state.torrentBlocker.configure(blockDuration);
+        this.state.torrentBlocker.configure(blockDuration, rulePlacement);
         this.state.torrentBlocker.setWebhookUrl(pluginData.torrentBlocker.webhookUrl);
         this.state.torrentBlocker.setIncludeRuleTags(pluginData.torrentBlocker.includeRuleTags);
 

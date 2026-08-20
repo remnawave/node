@@ -19,10 +19,7 @@ import { NestFactory } from '@nestjs/core';
 import { NotFoundExceptionFilter } from '@common/exception';
 import { acquireInstanceLock } from '@common/utils/acquire-instance-lock';
 import { parseNodePayload } from '@common/utils/decode-node-payload';
-import {
-    deriveSni,
-    makeSniVerifier,
-} from '@common/utils/decode-node-payload/decode-servername.util';
+import { makeSniVerifier } from '@common/utils/decode-node-payload/decode-servername.util';
 import { customLogFilter } from '@common/utils/filter-logs';
 import { getDuplicateInstanceMessage } from '@common/utils/get-duplicate-instance-message';
 import { getStartMessage } from '@common/utils/get-start-message';
@@ -57,7 +54,7 @@ const logger = createLogger({
 async function bootstrap(): Promise<void> {
     const internalSocketPath = process.env.INTERNAL_SOCKET_PATH!;
 
-    const nodePayload = parseNodePayload();
+    const nodePayload = parseNodePayload(logger);
 
     const realCtx: SecureContext = createSecureContext({
         key: nodePayload.nodeKeyPem,
@@ -65,8 +62,6 @@ async function bootstrap(): Promise<void> {
         ca: [nodePayload.caCertPem],
         minVersion: 'TLSv1.3',
     });
-
-    logger.info(`Expected SNI: ${deriveSni(nodePayload.caCertPem, nodePayload.jwtPublicKey)}`);
 
     const verifySni = makeSniVerifier(nodePayload.caCertPem, nodePayload.jwtPublicKey);
 
@@ -173,4 +168,7 @@ async function bootstrap(): Promise<void> {
     }
 }
 
-void bootstrap();
+void bootstrap().catch((e) => {
+    logger.error(e instanceof Error ? e.message : String(e));
+    process.exit(1);
+});

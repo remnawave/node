@@ -1,8 +1,8 @@
-import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { Logger } from '@nestjs/common';
+import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 
-import { GetTorrentBlockerStateQuery } from './get-torrent-blocker-state.query';
 import { PluginStateService } from '../../services/plugin-state.service';
+import { GetTorrentBlockerStateQuery } from './get-torrent-blocker-state.query';
 
 @QueryHandler(GetTorrentBlockerStateQuery)
 export class GetTorrentBlockerStateHandler implements IQueryHandler<GetTorrentBlockerStateQuery> {
@@ -16,12 +16,14 @@ export class GetTorrentBlockerStateHandler implements IQueryHandler<GetTorrentBl
             return {
                 enabled: isEnabled,
                 includeRuleTags: this.pluginState.torrentBlocker.includeRuleTagsSet,
+                rulePosition: this.pluginState.torrentBlocker.rulePosition,
             };
         } catch (error) {
             this.logger.error(error);
             return {
                 enabled: false,
                 includeRuleTags: new Set<string>(),
+                rulePosition: 0,
             };
         }
     }

@@ -8,6 +8,7 @@ export class TorrentBlockerState {
     private ignoredUsers = new Set<string>();
     private includeRuleTags = new Set<string>();
     private webhookUrl: string | null = null;
+    private rulePositionValue = 0;
     private reports: TorrentBlockerReportModel[] = [];
 
     get isEnabled(): boolean {
@@ -18,9 +19,10 @@ export class TorrentBlockerState {
         return this.blockDuration;
     }
 
-    configure(blockDuration: number): void {
+    configure(blockDuration: number, rulePosition: number | undefined): void {
         this.enabled = true;
         this.blockDuration = blockDuration;
+        this.rulePositionValue = rulePosition ?? 0;
     }
 
     setIgnoredIps(ips: string[]): void {
@@ -67,6 +69,7 @@ export class TorrentBlockerState {
         this.ignoredIps.clear();
         this.ignoredUsers.clear();
         this.includeRuleTags.clear();
+        this.rulePositionValue = 0;
     }
 
     setIncludeRuleTags(tags: string[] | undefined): void {
@@ -76,5 +79,9 @@ export class TorrentBlockerState {
 
     get includeRuleTagsSet(): Set<string> {
         return this.includeRuleTags;
+    }
+
+    get rulePosition(): number {
+        return this.rulePositionValue;
     }
 }

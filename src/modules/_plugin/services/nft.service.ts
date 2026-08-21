@@ -2,6 +2,7 @@ import { NftManager } from 'nftables-napi';
 import { hasCapNetAdmin } from 'sockdestroy';
 
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 
 import { ICommandResponse } from '@common/types/command-response.type';
@@ -21,6 +22,7 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
     constructor(
         private readonly state: PluginStateService,
         private readonly eventBus: EventBus,
+        private readonly configService: ConfigService,
     ) {}
 
     get isAvailable(): boolean {
@@ -29,6 +31,10 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
 
     public async onModuleInit(): Promise<void> {
         const capNetAdmin = hasCapNetAdmin();
+        const logging = this.configService.getOrThrow<boolean>('NFTABLES_LOGGING');
+        const acceptReplyTraffic = this.configService.getOrThrow<boolean>(
+            'NFTABLES_ACCEPT_REPLY_TRAFFIC',
+        );
 
         if (!capNetAdmin) return;
 
@@ -49,6 +55,8 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
                 ],
                 egressAddrSets: [NFT_TABLES_CONSTANTS.EGRESS_FILTER_IP_SET_NAME],
                 egressPortSets: [NFT_TABLES_CONSTANTS.EGRESS_FILTER_PORT_SET_NAME],
+                logging,
+                acceptReplyTraffic,
             });
             await this.recreateTables();
 

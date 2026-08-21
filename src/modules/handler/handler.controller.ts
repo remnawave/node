@@ -1,7 +1,7 @@
 import { Body, Controller, Post, UseFilters, UseGuards } from '@nestjs/common';
 
-import { JwtDefaultGuard } from '@common/guards/jwt-guards';
 import { HttpExceptionFilter } from '@common/exception';
+import { JwtDefaultGuard } from '@common/guards/jwt-guards';
 import { errorHandler } from '@common/helpers';
 import { HANDLER_CONTROLLER, HANDLER_ROUTES } from '@libs/contracts/api/controllers/handler';
 
@@ -17,14 +17,6 @@ import {
     RemoveUsersRequestDto,
     RemoveUsersResponseDto,
 } from './dtos';
-import {
-    GetInboundUsersCountRequestDto,
-    GetInboundUsersCountResponseDto,
-} from './dtos/get-inbound-users-count.dto';
-import {
-    GetInboundUsersRequestDto,
-    GetInboundUsersResponseDto,
-} from './dtos/get-inbound-users.dto';
 import { AddUserRequestDto, AddUserResponseDto } from './dtos/add-user.dto';
 import { HandlerService } from './handler.service';
 
@@ -44,33 +36,9 @@ export class HandlerController {
         };
     }
 
-    @Post(HANDLER_ROUTES.GET_INBOUND_USERS)
-    public async getInboundUsers(
-        @Body() body: GetInboundUsersRequestDto,
-    ): Promise<GetInboundUsersResponseDto> {
-        const response = await this.handlerService.getInboundUsers(body.tag);
-        const data = errorHandler(response);
-
-        return {
-            response: data,
-        };
-    }
-
     @Post(HANDLER_ROUTES.REMOVE_USER)
     public async removeUser(@Body() body: RemoveUserRequestDto): Promise<RemoveUserResponseDto> {
         const response = await this.handlerService.removeUser(body);
-        const data = errorHandler(response);
-
-        return {
-            response: data,
-        };
-    }
-
-    @Post(HANDLER_ROUTES.GET_INBOUND_USERS_COUNT)
-    public async getInboundUsersCount(
-        @Body() body: GetInboundUsersCountRequestDto,
-    ): Promise<GetInboundUsersCountResponseDto> {
-        const response = await this.handlerService.getInboundUsersCount(body.tag);
         const data = errorHandler(response);
 
         return {

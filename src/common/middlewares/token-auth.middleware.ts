@@ -1,14 +1,15 @@
 import { NextFunction, Request, Response } from 'express';
 
 import { Injectable, NestMiddleware } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+
+import { TypedConfigService } from '@common/config/app-config';
 
 @Injectable()
 export class TokenAuthMiddleware implements NestMiddleware {
     private readonly token: string;
 
-    constructor(private readonly configService: ConfigService) {
-        this.token = this.configService.getOrThrow<string>('INTERNAL_REST_TOKEN');
+    constructor(private readonly configService: TypedConfigService) {
+        this.token = this.configService.getOrThrow('INTERNAL_REST_TOKEN');
     }
 
     use(req: Request, res: Response, next: NextFunction): void {

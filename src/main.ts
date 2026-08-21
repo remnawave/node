@@ -13,9 +13,9 @@ import { createLogger } from 'winston';
 import * as winston from 'winston';
 
 import { HttpsOptions } from '@nestjs/common/interfaces/external/https-options.interface';
-import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 
+import { TypedConfigService } from '@common/config/app-config/typed-config.service';
 import { NotFoundExceptionFilter } from '@common/exception';
 import { acquireInstanceLock } from '@common/utils/acquire-instance-lock';
 import { parseNodePayload } from '@common/utils/decode-node-payload';
@@ -96,7 +96,7 @@ async function bootstrap(): Promise<void> {
 
     app.use(compression());
 
-    const config = app.get(ConfigService);
+    const config = app.get(TypedConfigService);
 
     app.use(helmet());
 
@@ -112,7 +112,7 @@ async function bootstrap(): Promise<void> {
 
     app.useGlobalPipes(new ZodValidationPipe());
 
-    await app.listen(Number(config.getOrThrow<string>('NODE_PORT')));
+    await app.listen(config.getOrThrow('NODE_PORT'));
 
     const httpAdapter = app.getHttpAdapter();
     const httpServer = httpAdapter.getInstance();
@@ -151,7 +151,7 @@ async function bootstrap(): Promise<void> {
     logger.info(
         '\n' +
             (await getStartMessage(
-                Number(config.getOrThrow<string>('NODE_PORT')),
+                config.getOrThrow('NODE_PORT'),
 
                 app,
             )) +

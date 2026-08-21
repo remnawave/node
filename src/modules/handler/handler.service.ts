@@ -1,20 +1,22 @@
-import { hasCapNetAdmin } from 'sockdestroy';
 import ems from 'enhanced-ms';
+import { hasCapNetAdmin } from 'sockdestroy';
 
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 
+import { XtlsApi } from '@remnawave/xtls-sdk';
+import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
+import { ISdkResponse } from '@remnawave/xtls-sdk/build/src/common/types';
 import {
     RemoveUserResponseModel as RemoveUserResponseModelFromSdk,
     AddUserResponseModel as AddUserResponseModelFromSdk,
 } from '@remnawave/xtls-sdk/build/src/handler/models';
-import { ISdkResponse } from '@remnawave/xtls-sdk/build/src/common/types';
-import { InjectXtls } from '@remnawave/xtls-sdk-nestjs';
-import { XtlsApi } from '@remnawave/xtls-sdk';
 
-import { ICommandResponse } from '@common/types/command-response.type';
+import { fail, ok, TResult } from '@common/types';
 import { ERRORS } from '@libs/contracts/constants/errors';
 
+import { DropConnectionsEvent } from '../_plugin/events/drop-connections';
+import { InternalService } from '../internal/internal.service';
 import {
     AddUserRequestDto,
     AddUsersRequestDto,
@@ -23,15 +25,7 @@ import {
     RemoveUserRequestDto,
     RemoveUsersRequestDto,
 } from './dtos';
-import {
-    GetInboundUsersCountResponseModel,
-    GetInboundUsersResponseModel,
-    AddUserResponseModel,
-    RemoveUserResponseModel,
-    GenericResponseModel,
-} from './models';
-import { DropConnectionsEvent } from '../_plugin/events/drop-connections';
-import { InternalService } from '../internal/internal.service';
+import { AddUserResponseModel, RemoveUserResponseModel, GenericResponseModel } from './models';
 
 @Injectable()
 export class HandlerService implements OnModuleInit {
@@ -58,7 +52,7 @@ export class HandlerService implements OnModuleInit {
         }
     }
 
-    public async addUser(data: AddUserRequestDto): Promise<ICommandResponse<AddUserResponseModel>> {
+    public async addUser(data: AddUserRequestDto): Promise<TResult<AddUserResponseModel>> {
         try {
             const { data: requestData, hashData } = data;
             const response: Array<ISdkResponse<AddUserResponseModelFromSdk>> = [];
@@ -171,36 +165,26 @@ export class HandlerService implements OnModuleInit {
 
             if (response.every((res) => !res.isOk)) {
                 this.logger.error('Error adding users: ' + JSON.stringify(response, null, 2));
-                return {
-                    isOk: true,
-                    response: new AddUserResponseModel(
+                return ok(
+                    new AddUserResponseModel(
                         false,
                         response.find((res) => !res.isOk)?.message ?? null,
                     ),
-                };
+                );
             }
 
-            return {
-                isOk: true,
-                response: new AddUserResponseModel(true, null),
-            };
+            return ok(new AddUserResponseModel(true, null));
         } catch (error) {
             this.logger.error(error);
             let message = '';
             if (error instanceof Error) {
                 message = error.message;
             }
-            return {
-                isOk: false,
-                code: ERRORS.INTERNAL_SERVER_ERROR.code,
-                response: new AddUserResponseModel(false, message),
-            };
+            return fail({ code: ERRORS.INTERNAL_SERVER_ERROR.code, message });
         }
     }
 
-    public async removeUser(
-        data: RemoveUserRequestDto,
-    ): Promise<ICommandResponse<RemoveUserResponseModel>> {
+    public async removeUser(data: RemoveUserRequestDto): Promise<TResult<RemoveUserResponseModel>> {
         try {
             const { username, hashData } = data;
             const response: Array<ISdkResponse<RemoveUserResponseModelFromSdk>> = [];
@@ -208,10 +192,7 @@ export class HandlerService implements OnModuleInit {
             const inboundTags = this.internalService.getXtlsConfigInbounds();
 
             if (inboundTags.size === 0) {
-                return {
-                    isOk: true,
-                    response: new RemoveUserResponseModel(true, null),
-                };
+                return ok(new RemoveUserResponseModel(true, null));
             }
 
             const userIps = await this.getUserIps(username);
@@ -229,36 +210,26 @@ export class HandlerService implements OnModuleInit {
 
             if (response.every((res) => !res.isOk)) {
                 this.logger.error(JSON.stringify(response, null, 2));
-                return {
-                    isOk: true,
-                    response: new RemoveUserResponseModel(
+                return ok(
+                    new RemoveUserResponseModel(
                         false,
                         response.find((res) => !res.isOk)?.message ?? null,
                     ),
-                };
+                );
             }
 
-            return {
-                isOk: true,
-                response: new RemoveUserResponseModel(true, null),
-            };
+            return ok(new RemoveUserResponseModel(true, null));
         } catch (error: unknown) {
             this.logger.error(error);
             let message = '';
             if (error instanceof Error) {
                 message = error.message;
             }
-            return {
-                isOk: false,
-                code: ERRORS.INTERNAL_SERVER_ERROR.code,
-                response: new RemoveUserResponseModel(false, message),
-            };
+            return fail({ code: ERRORS.INTERNAL_SERVER_ERROR.code, message });
         }
     }
 
-    public async addUsers(
-        data: AddUsersRequestDto,
-    ): Promise<ICommandResponse<AddUserResponseModel>> {
+    public async addUsers(data: AddUsersRequestDto): Promise<TResult<AddUserResponseModel>> {
         const tm = performance.now();
         try {
             const { affectedInboundTags, users } = data;
@@ -362,21 +333,14 @@ export class HandlerService implements OnModuleInit {
                 }
             }
 
-            return {
-                isOk: true,
-                response: new AddUserResponseModel(true, null),
-            };
+            return ok(new AddUserResponseModel(true, null));
         } catch (error) {
             this.logger.error(error);
             let message = '';
             if (error instanceof Error) {
                 message = error.message;
             }
-            return {
-                isOk: false,
-                code: ERRORS.INTERNAL_SERVER_ERROR.code,
-                response: new AddUserResponseModel(false, message),
-            };
+            return fail({ code: ERRORS.INTERNAL_SERVER_ERROR.code, message });
         } finally {
             this.logger.log(
                 'Users addition took: ' +
@@ -390,16 +354,13 @@ export class HandlerService implements OnModuleInit {
 
     public async removeUsers(
         data: RemoveUsersRequestDto,
-    ): Promise<ICommandResponse<RemoveUserResponseModel>> {
+    ): Promise<TResult<RemoveUserResponseModel>> {
         const tm = performance.now();
         try {
             const inboundTags = this.internalService.getXtlsConfigInbounds();
 
             if (inboundTags.size === 0) {
-                return {
-                    isOk: true,
-                    response: new RemoveUserResponseModel(true, null),
-                };
+                return ok(new RemoveUserResponseModel(true, null));
             }
 
             this.logger.log(
@@ -427,30 +388,22 @@ export class HandlerService implements OnModuleInit {
 
             if (removeUsersResponse.every((res) => !res.isOk)) {
                 this.logger.error(JSON.stringify(removeUsersResponse, null, 2));
-                return {
-                    isOk: true,
-                    response: new RemoveUserResponseModel(
+                return ok(
+                    new RemoveUserResponseModel(
                         false,
                         removeUsersResponse.find((res) => !res.isOk)?.message ?? null,
                     ),
-                };
+                );
             }
 
-            return {
-                isOk: true,
-                response: new RemoveUserResponseModel(true, null),
-            };
+            return ok(new RemoveUserResponseModel(true, null));
         } catch (error: unknown) {
             this.logger.error(error);
             let message = '';
             if (error instanceof Error) {
                 message = error.message;
             }
-            return {
-                isOk: false,
-                code: ERRORS.INTERNAL_SERVER_ERROR.code,
-                response: new RemoveUserResponseModel(false, message),
-            };
+            return fail({ code: ERRORS.INTERNAL_SERVER_ERROR.code, message });
         } finally {
             this.logger.log(
                 'Users removal took: ' +
@@ -462,66 +415,9 @@ export class HandlerService implements OnModuleInit {
         }
     }
 
-    public async getInboundUsers(
-        tag: string,
-    ): Promise<ICommandResponse<GetInboundUsersResponseModel>> {
-        try {
-            // TODO: add a better way to return users (trojan, vless, etc)
-            const response = await this.xtlsApi.handler.getInboundUsers(tag);
-
-            if (!response.isOk || !response.data) {
-                return {
-                    isOk: false,
-                    code: ERRORS.FAILED_TO_GET_INBOUND_USERS.code,
-                    response: new GetInboundUsersResponseModel([]),
-                };
-            }
-
-            return {
-                isOk: true,
-                response: new GetInboundUsersResponseModel(response.data.users),
-            };
-        } catch (error) {
-            this.logger.error(error);
-            return {
-                isOk: false,
-                code: ERRORS.FAILED_TO_GET_INBOUND_USERS.code,
-                response: new GetInboundUsersResponseModel([]),
-            };
-        }
-    }
-
-    public async getInboundUsersCount(
-        tag: string,
-    ): Promise<ICommandResponse<GetInboundUsersCountResponseModel>> {
-        try {
-            const response = await this.xtlsApi.handler.getInboundUsersCount(tag);
-
-            if (!response.isOk || !response.data) {
-                return {
-                    isOk: false,
-                    code: ERRORS.FAILED_TO_GET_INBOUND_USERS.code,
-                    response: new GetInboundUsersCountResponseModel(0),
-                };
-            }
-
-            return {
-                isOk: true,
-                response: new GetInboundUsersCountResponseModel(response.data),
-            };
-        } catch (error) {
-            this.logger.error(error);
-            return {
-                isOk: false,
-                code: ERRORS.FAILED_TO_GET_INBOUND_USERS.code,
-                response: new GetInboundUsersCountResponseModel(0),
-            };
-        }
-    }
-
     public async dropUsersConnections(
         data: DropUsersConnectionsRequestDto,
-    ): Promise<ICommandResponse<GenericResponseModel>> {
+    ): Promise<TResult<GenericResponseModel>> {
         try {
             const { userIds } = data;
 
@@ -530,35 +426,23 @@ export class HandlerService implements OnModuleInit {
                 this.eventBus.publish(new DropConnectionsEvent(userIps));
             }
 
-            return {
-                isOk: true,
-                response: new GenericResponseModel(true),
-            };
+            return ok(new GenericResponseModel(true));
         } catch (error) {
             this.logger.error(error);
-            return {
-                isOk: true,
-                response: new GenericResponseModel(false),
-            };
+            return ok(new GenericResponseModel(false));
         }
     }
 
-    public async dropIps(data: DropIpsRequestDto): Promise<ICommandResponse<GenericResponseModel>> {
+    public async dropIps(data: DropIpsRequestDto): Promise<TResult<GenericResponseModel>> {
         try {
             const { ips } = data;
 
             this.eventBus.publish(new DropConnectionsEvent(ips));
 
-            return {
-                isOk: true,
-                response: new GenericResponseModel(true),
-            };
+            return ok(new GenericResponseModel(true));
         } catch (error) {
             this.logger.error(error);
-            return {
-                isOk: true,
-                response: new GenericResponseModel(false),
-            };
+            return ok(new GenericResponseModel(false));
         }
     }
 

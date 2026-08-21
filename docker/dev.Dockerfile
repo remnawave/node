@@ -5,6 +5,7 @@ ARG S6_OVERLAY_VERSION=3.2.0.2
 RUN apt-get update && apt-get install -y \
     curl \
     xz-utils \
+    zstd \
     && rm -rf /var/lib/apt/lists/*
 
 RUN S6_ARCH="$(uname -m)" \
@@ -29,13 +30,13 @@ RUN curl -L https://raw.githubusercontent.com/remnawave/scripts/main/scripts/ins
     && ln -s /usr/local/bin/xray /usr/local/bin/rw-core
 
 
-ARG ASN_LMDB_URL=https://github.com/remnawave/asn-index/releases/latest/download/asn-prefixes-lmdb.tar.gz
+ARG ASN_LMDB_URL=https://github.com/remnawave/asn-index/releases/latest/download/asn-prefixes.lmdb.zst
 
 RUN mkdir -p /var/log/xray /var/lib/rnode/xray /app /usr/local/share/asn \
     && echo '{}' > /var/lib/rnode/xray/xray-config.json \
-    && curl -L ${ASN_LMDB_URL} -o /tmp/asn-prefixes-lmdb.tar.gz \
-    && tar -xzf /tmp/asn-prefixes-lmdb.tar.gz -C /usr/local/share/asn \
-    && rm -f /tmp/asn-prefixes-lmdb.tar.gz
+    && curl -fsSL "${ASN_LMDB_URL}" -o /tmp/asn-prefixes.lmdb.zst \
+    && zstd -d /tmp/asn-prefixes.lmdb.zst -o /usr/local/share/asn/asn-prefixes.lmdb \
+    && rm -f /tmp/asn-prefixes.lmdb.zst
 
 COPY docker/rootfs/ /
 RUN chmod +x /etc/s6-overlay/scripts/init-env.sh \

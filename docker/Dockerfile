@@ -19,15 +19,37 @@ FROM alpine:3.21 AS xray
 
 ARG XRAY_CORE_VERSION=v26.7.28
 ARG UPSTREAM_REPO=XTLS
-ARG XRAY_CORE_INSTALL_SCRIPT=https://raw.githubusercontent.com/remnawave/scripts/main/scripts/install-xray.sh
-ARG ASN_LMDB_URL=https://github.com/remnawave/asn-index/releases/latest/download/asn-prefixes-lmdb.tar.gz
+ARG TARGETARCH
 
 RUN apk add --no-cache curl \
-    && curl -L ${XRAY_CORE_INSTALL_SCRIPT} | sh -s -- ${XRAY_CORE_VERSION} ${UPSTREAM_REPO} \
-    && mkdir -p /usr/local/share/asn \
-    && curl -L ${ASN_LMDB_URL} -o /tmp/asn-prefixes-lmdb.tar.gz \
-    && tar -xzf /tmp/asn-prefixes-lmdb.tar.gz -C /usr/local/share/asn \
-    && rm -f /tmp/asn-prefixes-lmdb.tar.gz
+    && case "${TARGETARCH}" in \
+        amd64) ARCHIVE='Xray-linux-64.zip' ;; \
+        arm64) ARCHIVE='Xray-linux-arm64-v8a.zip' ;; \
+    esac \
+    && BASE="https://github.com/${UPSTREAM_REPO}/Xray-core/releases/download/${XRAY_CORE_VERSION}" \
+    && curl -fsSL -o "/tmp/${ARCHIVE}" "${BASE}/${ARCHIVE}" \
+    && curl -fsSL -o /tmp/xray.dgst "${BASE}/${ARCHIVE}.dgst" \
+    && echo "$(awk '/^SHA2-256=/ { print $2 }' /tmp/xray.dgst)  /tmp/${ARCHIVE}" | sha256sum -c - \
+    && unzip -q "/tmp/${ARCHIVE}" -d /tmp/xray \
+    && install -m 755 /tmp/xray/xray /usr/local/bin/xray \
+    && install -d /usr/local/share/xray \
+    && install -m 644 /tmp/xray/geoip.dat /usr/local/share/xray/geoip.dat \
+    && install -m 644 /tmp/xray/geosite.dat /usr/local/share/xray/geosite.dat \
+    && rm -rf "/tmp/${ARCHIVE}" /tmp/xray /tmp/xray.dgst
+
+
+FROM alpine:3.21 AS asn
+
+ARG ASN_LMDB_URL=https://github.com/remnawave/asn-index/releases/latest/download/asn-prefixes.lmdb.zst
+
+RUN apk add --no-cache zstd
+
+ADD ${ASN_LMDB_URL} /tmp/asn-prefixes.lmdb.zst
+
+RUN mkdir -p /usr/local/share/asn \
+    && zstd -d /tmp/asn-prefixes.lmdb.zst -o /usr/local/share/asn/asn-prefixes.lmdb \
+    && chmod 644 /usr/local/share/asn/asn-prefixes.lmdb \
+    && rm -f /tmp/asn-prefixes.lmdb.zst
 
 
 FROM alpine:3.21 AS geocheck
@@ -52,7 +74,7 @@ FROM scratch AS integration-bin
 
 FROM node:24.19-trixie-slim
 
-ARG S6_OVERLAY_VERSION=3.2.3.0
+ARG S6_OVERLAY_VERSION=3.2.3.2
 
 LABEL org.opencontainers.image.title="Remnawave Node"
 LABEL org.opencontainers.image.description="Remnawave Node with built-in XRay Core"
@@ -69,7 +91,7 @@ COPY --from=build /opt/app/dist ./dist
 COPY --from=xray /usr/local/bin/xray /usr/local/bin/xray
 COPY --from=xray /usr/local/share/xray/geoip.dat /usr/local/share/xray/geoip.dat
 COPY --from=xray /usr/local/share/xray/geosite.dat /usr/local/share/xray/geosite.dat
-COPY --from=xray /usr/local/share/asn /usr/local/share/asn
+COPY --from=asn /usr/local/share/asn /usr/local/share/asn
 COPY --from=geocheck /usr/local/bin/geocheck /usr/local/bin/geocheck
 
 COPY docker/rootfs/ /

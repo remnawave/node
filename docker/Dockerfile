@@ -12,6 +12,9 @@ COPY . .
 RUN npm run build \
     && npm run trace \
     && find dist/node_modules/@lmdb -name '*.node' ! -name 'node.napi.glibc.node' -delete \
+    && ARCH=$([ "$(uname -m)" = aarch64 ] && echo linux-arm64 || echo linux-x64) \
+    && find dist/node_modules/nftables-napi/prebuilds -name '*.musl.node' -delete \
+    && find dist/node_modules/nftables-napi/prebuilds -mindepth 1 -maxdepth 1 -type d ! -name "$ARCH" -exec rm -rf {} + \
     && chmod +x dist/cli.js
 
 
@@ -98,7 +101,7 @@ COPY docker/rootfs/ /
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        ca-certificates wget xz-utils libnftnl11 libmnl0 \
+        ca-certificates wget xz-utils \
     && S6_ARCH="$(uname -m)" \
     && wget -qO /tmp/s6-noarch.tar.xz "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" \
     && wget -qO /tmp/s6-arch.tar.xz "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz" \

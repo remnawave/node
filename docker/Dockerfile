@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:24.19-trixie-slim AS build
+FROM node:24.20-trixie-slim AS build
 
 WORKDIR /opt/app
 
@@ -75,7 +75,7 @@ RUN apk add --no-cache curl \
 FROM scratch AS integration-bin
 
 
-FROM node:24.19-trixie-slim
+FROM node:24.20-trixie-slim
 
 ARG S6_OVERLAY_VERSION=3.2.3.2
 

@@ -25,6 +25,7 @@ export const configSchema = z
         XTLS_API_SOCKET_PATH: z.string(),
         NFTABLES_LOGGING: booleanString('true'),
         NFTABLES_ACCEPT_REPLY_TRAFFIC: booleanString('false'),
+        SNI_VERIFICATION: booleanString('false'),
     })
 
     .superRefine((data, ctx) => {

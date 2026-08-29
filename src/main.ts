@@ -13,9 +13,9 @@ import { createLogger } from 'winston';
 import * as winston from 'winston';
 
 import { HttpsOptions } from '@nestjs/common/interfaces/external/https-options.interface';
-import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 
+import { TypedConfigService } from '@common/config/app-config/typed-config.service';
 import { NotFoundExceptionFilter } from '@common/exception';
 import { acquireInstanceLock } from '@common/utils/acquire-instance-lock';
 import { parseNodePayload } from '@common/utils/decode-node-payload';
@@ -53,21 +53,38 @@ const logger = createLogger({
 
 async function bootstrap(): Promise<void> {
     const internalSocketPath = process.env.INTERNAL_SOCKET_PATH!;
+    const sniVerification = process.env.SNI_VERIFICATION === 'true';
 
     const nodePayload = parseNodePayload(logger);
 
-    const realCtx: SecureContext = createSecureContext({
-        key: nodePayload.nodeKeyPem,
-        cert: nodePayload.nodeCertPem,
-        ca: [nodePayload.caCertPem],
-        minVersion: 'TLSv1.3',
-    });
+    let tlsCertOptions: HttpsOptions;
 
-    const verifySni = makeSniVerifier(nodePayload.caCertPem, nodePayload.jwtPublicKey);
+    if (sniVerification) {
+        const realCtx: SecureContext = createSecureContext({
+            key: nodePayload.nodeKeyPem,
+            cert: nodePayload.nodeCertPem,
+            ca: [nodePayload.caCertPem],
+            minVersion: 'TLSv1.3',
+        });
+
+        const verifySni = makeSniVerifier(nodePayload.caCertPem, nodePayload.jwtPublicKey);
+
+        tlsCertOptions = {
+            SNICallback: (
+                servername: string,
+                cb: (err: Error | null, ctx?: SecureContext) => void,
+            ) => (verifySni(servername) ? cb(null, realCtx) : cb(new Error('unknown sni'))),
+        } as HttpsOptions;
+    } else {
+        tlsCertOptions = {
+            key: nodePayload.nodeKeyPem,
+            cert: nodePayload.nodeCertPem,
+            ca: [nodePayload.caCertPem],
+        } satisfies HttpsOptions;
+    }
 
     const httpsOptions: { minVersion?: SecureVersion } & HttpsOptions = {
-        SNICallback: (servername: string, cb: (err: Error | null, ctx?: SecureContext) => void) =>
-            verifySni(servername) ? cb(null, realCtx) : cb(new Error('unknown sni')),
+        ...tlsCertOptions,
         requestCert: true,
         rejectUnauthorized: true,
         minVersion: 'TLSv1.3',
@@ -96,7 +113,7 @@ async function bootstrap(): Promise<void> {
 
     app.use(compression());
 
-    const config = app.get(ConfigService);
+    const config = app.get(TypedConfigService);
 
     app.use(helmet());
 
@@ -112,7 +129,7 @@ async function bootstrap(): Promise<void> {
 
     app.useGlobalPipes(new ZodValidationPipe());
 
-    await app.listen(Number(config.getOrThrow<string>('NODE_PORT')));
+    await app.listen(config.getOrThrow('NODE_PORT'));
 
     const httpAdapter = app.getHttpAdapter();
     const httpServer = httpAdapter.getInstance();
@@ -148,15 +165,7 @@ async function bootstrap(): Promise<void> {
     process.on('SIGINT', closeInternalServer);
     process.on('SIGTERM', closeInternalServer);
 
-    logger.info(
-        '\n' +
-            (await getStartMessage(
-                Number(config.getOrThrow<string>('NODE_PORT')),
-
-                app,
-            )) +
-            '\n',
-    );
+    logger.info('\n' + (await getStartMessage(config.getOrThrow('NODE_PORT'), app)) + '\n');
 
     if (!(await acquireInstanceLock())) {
         logger.error('\n' + getDuplicateInstanceMessage() + '\n');

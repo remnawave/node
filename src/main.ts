@@ -1,5 +1,5 @@
 process.title = 'rw-node';
-
+import 'zod/compile';
 import * as bodyParser from '@kastov/body-parser-with-zstd';
 import compression from 'compression';
 import express, { json } from 'express';

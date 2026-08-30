@@ -56,21 +56,31 @@ export class HandlerService implements OnModuleInit {
         try {
             const { data: requestData, hashData } = data;
             const response: Array<ISdkResponse<AddUserResponseModelFromSdk>> = [];
+            const userId = requestData[0].username;
+            let userIps: string[] | null = null;
 
             for (const item of requestData) {
                 this.internalService.addXtlsConfigInbound(item.tag);
             }
 
-            for (const tag of this.internalService.getXtlsConfigInbounds()) {
-                this.logger.debug(`Removing user: ${requestData[0].username} from tag: ${tag}`);
+            if (hashData.prevVlessUuid) {
+                userIps = await this.getUserIps(userId);
+            }
 
-                await this.xtlsApi.handler.removeUser(tag, requestData[0].username);
+            for (const tag of this.internalService.getXtlsConfigInbounds()) {
+                this.logger.debug(`Removing user: ${userId} from tag: ${tag}`);
+
+                await this.xtlsApi.handler.removeUser(tag, userId);
 
                 if (hashData.prevVlessUuid) {
                     await this.internalService.removeUserFromInbound(tag, hashData.prevVlessUuid);
                 } else {
                     await this.internalService.removeUserFromInbound(tag, hashData.vlessUuid);
                 }
+            }
+
+            if (userIps && hashData.prevVlessUuid) {
+                this.eventBus.publish(new DropConnectionsEvent(userIps));
             }
 
             for (const item of requestData) {
@@ -465,7 +475,7 @@ export class HandlerService implements OnModuleInit {
                 return null;
             }
 
-            this.logger.error(`Failed to get user IPs for user ${userId}:`, error);
+            this.logger.error(`Failed to get user IPs for user ${userId}: ${error}`);
             return null;
         }
     }

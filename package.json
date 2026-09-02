@@ -43,7 +43,7 @@
     "@nestjs/schedule": "^6.1.3",
     "@remnawave/hashed-set": "^0.0.4",
     "@remnawave/node-plugins": "0.8.2",
-    "@remnawave/xtls-sdk": "0.16.0",
+    "@remnawave/xtls-sdk": "0.17.0",
     "@remnawave/xtls-sdk-nestjs": "0.6.1",
     "compression": "^1.8.1",
     "consola": "^3.4.2",

@@ -10,6 +10,12 @@ import pkg from './package.json' with { type: 'json' };
 
 const isDev = process.env.NODE_ENV !== 'production';
 
+if (isDev) {
+    try {
+        process.loadEnvFile('.env');
+    } catch {}
+}
+
 export default defineConfig({
     context: import.meta.dirname,
     target: 'node',

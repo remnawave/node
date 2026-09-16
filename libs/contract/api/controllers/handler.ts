@@ -5,8 +5,6 @@ export const HANDLER_ROUTES = {
     ADD_USER: 'add-user',
     ADD_USERS: 'add-users',
     REMOVE_USERS: 'remove-users',
-    GET_INBOUND_USERS_COUNT: 'get-inbound-users-count',
-    GET_INBOUND_USERS: 'get-inbound-users',
 
     DROP_USERS_CONNECTIONS: 'drop-users-connections',
     DROP_IPS: 'drop-ips',

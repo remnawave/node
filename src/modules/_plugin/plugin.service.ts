@@ -5,7 +5,7 @@ import { CommandBus, QueryBus } from '@nestjs/cqrs';
 
 import { NodePluginSchema, type TNodePlugin } from '@remnawave/node-plugins';
 
-import { ICommandResponse } from '@common/types/command-response.type';
+import { ok, TResult } from '@common/types/result.type';
 import { XRAY_TORRENT_BLOCKER_OUTBOUND_TAG } from '@libs/contracts/constants';
 
 import { GetAsnPrefixesQuery } from '../asn-lmdb/queries/get-asn-prefixes/get-asn-prefixes.query';
@@ -29,13 +29,13 @@ export class PluginService {
         private readonly queryBus: QueryBus,
     ) {}
 
-    public async sync(body: SyncRequestDto): Promise<ICommandResponse<GenericResponseModel>> {
+    public async sync(body: SyncRequestDto): Promise<TResult<GenericResponseModel>> {
         try {
             const { plugin } = body;
 
             if (!plugin) {
                 if (!this.state.hasActivePlugin()) {
-                    return { isOk: true, response: new GenericResponseModel(false) };
+                    return ok(new GenericResponseModel(false));
                 }
 
                 this.logger.log(
@@ -49,14 +49,14 @@ export class PluginService {
                     }),
                 );
 
-                return { isOk: true, response: new GenericResponseModel(true) };
+                return ok(new GenericResponseModel(true));
             }
 
             const configHash = this.hashFn(plugin.config);
 
             if (!this.state.isConfigChanged(configHash)) {
                 this.logger.debug('[PLUGIN] Config unchanged. Skipping sync.');
-                return { isOk: true, response: new GenericResponseModel(true) };
+                return ok(new GenericResponseModel(true));
             }
 
             const parsed = await NodePluginSchema.safeParseAsync(plugin.config);
@@ -70,7 +70,7 @@ export class PluginService {
                         withPluginCleanup: false,
                     }),
                 );
-                return { isOk: true, response: new GenericResponseModel(false) };
+                return ok(new GenericResponseModel(false));
             }
 
             const currentTorrentBlocker = this.state.torrentBlocker.isEnabled;
@@ -128,10 +128,10 @@ export class PluginService {
                 }
             }
 
-            return { isOk: true, response: new GenericResponseModel(true) };
+            return ok(new GenericResponseModel(true));
         } catch (error) {
             this.logger.error(error);
-            return { isOk: true, response: new GenericResponseModel(false) };
+            return ok(new GenericResponseModel(false));
         }
     }
     public async resetPlugins(): Promise<void> {
@@ -272,17 +272,17 @@ export class PluginService {
         return sharedMap;
     }
 
-    public async collectReports(): Promise<ICommandResponse<TorrentBlockerReportsResponseModel>> {
+    public async collectReports(): Promise<TResult<TorrentBlockerReportsResponseModel>> {
         try {
             if (!this.state.torrentBlocker.reportsCount) {
-                return { isOk: true, response: new TorrentBlockerReportsResponseModel([]) };
+                return ok(new TorrentBlockerReportsResponseModel([]));
             }
 
             const reports = this.state.torrentBlocker.flushReports();
-            return { isOk: true, response: new TorrentBlockerReportsResponseModel(reports) };
+            return ok(new TorrentBlockerReportsResponseModel(reports));
         } catch (error) {
             this.logger.error(error);
-            return { isOk: true, response: new TorrentBlockerReportsResponseModel([]) };
+            return ok(new TorrentBlockerReportsResponseModel([]));
         }
     }
 }

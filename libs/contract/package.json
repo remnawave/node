@@ -1,6 +1,6 @@
 {
   "name": "@remnawave/node-contract",
-  "version": "3.2.3",
+  "version": "3.4.1",
   "description": "A node-contract library for Remnawave Panel",
   "keywords": [],
   "homepage": "https://github.com/remnawave",
@@ -23,7 +23,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "zod": "4.4.3"
+    "zod": "4.5.4"
   },
   "devDependencies": {
     "typescript": "~5.9.3"

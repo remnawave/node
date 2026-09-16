@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 
 import { Injectable, Logger } from '@nestjs/common';
 
-import { ICommandResponse } from '@common/types/command-response.type';
+import { fail, ok, TResult } from '@common/types';
 import { GetGeocheckCommand } from '@libs/contracts/commands';
 import { ERRORS } from '@libs/contracts/constants';
 
@@ -26,7 +26,7 @@ export class GeocheckService {
 
     public async getGeocheck(
         body: IGetGeocheckRequest,
-    ): Promise<ICommandResponse<GetGeocheckResponseModel>> {
+    ): Promise<TResult<GetGeocheckResponseModel>> {
         const ip = body.ip?.trim();
         const iface = body.interface?.trim();
 
@@ -34,11 +34,10 @@ export class GeocheckService {
 
         if (ip) {
             if (!isIP(ip)) {
-                return {
-                    isOk: false,
-                    ...ERRORS.FAILED_TO_GET_GEOCHECK,
+                return fail({
+                    code: ERRORS.FAILED_TO_GET_GEOCHECK.code,
                     message: `Geocheck: "${ip}" is not a valid IP address.`,
-                };
+                });
             }
 
             bindTo = ip;
@@ -47,11 +46,10 @@ export class GeocheckService {
         }
 
         if (this.isRunning) {
-            return {
-                isOk: false,
-                ...ERRORS.FAILED_TO_GET_GEOCHECK,
+            return fail({
+                code: ERRORS.FAILED_TO_GET_GEOCHECK.code,
                 message: 'Geocheck: a run is already in progress.',
-            };
+            });
         }
 
         const target = bindTo ?? 'default route';
@@ -79,10 +77,7 @@ export class GeocheckService {
                 })}`,
             );
 
-            return {
-                isOk: true,
-                response: new GetGeocheckResponseModel(report),
-            };
+            return ok(new GetGeocheckResponseModel(report));
         } catch (error) {
             const killed = (error as { killed?: boolean }).killed === true;
 
@@ -93,11 +88,10 @@ export class GeocheckService {
 
             this.logger.error(killedMessage);
 
-            return {
-                isOk: false,
-                ...ERRORS.FAILED_TO_GET_GEOCHECK,
+            return fail({
+                code: ERRORS.FAILED_TO_GET_GEOCHECK.code,
                 message: killedMessage,
-            };
+            });
         } finally {
             this.isRunning = false;
         }

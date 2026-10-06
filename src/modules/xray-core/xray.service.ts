@@ -19,6 +19,7 @@ import { KNOWN_ERRORS } from '@libs/contracts/constants';
 import { IntegrationsService } from '@integration-modules/integrations.service';
 
 import { ResetPluginsCommand } from '../_plugin/commands/reset-plugins/reset-plugins.command';
+import { RunPostStartCommand } from '../_plugin/commands/run-post-start/run-post-start.command';
 import { RunPreStartCommand } from '../_plugin/commands/run-pre-start/run-pre-start.command';
 import { GetTorrentBlockerStateQuery } from '../_plugin/queries/get-torrent-blocker-state';
 import { InternalService } from '../internal/internal.service';
@@ -241,6 +242,8 @@ export class XrayService implements OnApplicationBootstrap {
             await this.refreshXrayVersion();
 
             this.logger.log(`✔ XRay Core v${this.xrayVersion} is up and running.`);
+
+            await this.commandBus.execute(new RunPostStartCommand(body.internals.metadata));
 
             return ok(
                 new StartXrayResponseModel(

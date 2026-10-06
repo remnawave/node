@@ -42,6 +42,7 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
             torrentBlocker: false,
             egressFilter: false,
             preStart: true,
+            postStart: true,
         });
 
         try {
@@ -66,6 +67,7 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
                 torrentBlocker: true,
                 egressFilter: true,
                 preStart: true,
+                postStart: true,
             });
         } catch (error) {
             this.logger.error(error);

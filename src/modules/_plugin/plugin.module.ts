@@ -8,6 +8,7 @@ import { PluginService } from './plugin.service';
 import { QUERIES } from './queries';
 import { NftService } from './services/nft.service';
 import { PluginStateService } from './services/plugin-state.service';
+import { PostStartService } from './services/post-start.service';
 import { PreStartService } from './services/pre-start.service';
 
 @Module({
@@ -18,6 +19,7 @@ import { PreStartService } from './services/pre-start.service';
         PluginStateService,
         NftService,
         PreStartService,
+        PostStartService,
         ...QUERIES,
         ...EVENTS,
         ...COMMANDS,

@@ -90,6 +90,7 @@ export class PluginService {
             this.syncConnectionDrop(pluginData, sharedMap);
             this.syncTorrentBlocker(pluginData, sharedMap);
             this.syncPreStart(pluginData);
+            this.syncPostStart(pluginData);
 
             await this.syncIngressFilter(pluginData, sharedMap);
             await this.syncEgressFilter(pluginData, sharedMap);
@@ -168,6 +169,18 @@ export class PluginService {
         this.logger.log(
             `[PLUGIN] Pre-Start: socket cleanup ${enabled ? `enabled, ${files.length} path(s)` : 'disabled'}.`,
         );
+    }
+
+    private syncPostStart(pluginData: TNodePlugin): void {
+        if (!pluginData.postStart) return;
+        if (!pluginData.postStart.enabled) return;
+        if (!this.state.plugins.postStart) return;
+
+        this.state.postStart.configure(pluginData.postStart);
+
+        const { enabled } = this.state.postStart.webhookConfig;
+
+        this.logger.log(`[PLUGIN] Post-Start: webhook ${enabled ? 'enabled' : 'disabled'}.`);
     }
 
     private async syncIngressFilter(

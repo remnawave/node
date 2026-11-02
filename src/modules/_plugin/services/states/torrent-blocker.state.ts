@@ -46,7 +46,12 @@ export class TorrentBlockerState {
     }
 
     isUserIgnored(userId: string): boolean {
-        return this.ignoredUsers.has(userId);
+        if (this.ignoredUsers.has(userId)) return true;
+
+        const inboundEmail = userId.match(
+            /^(\d+)@[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+        );
+        return inboundEmail !== null && this.ignoredUsers.has(inboundEmail[1]);
     }
 
     addReport(report: TorrentBlockerReportModel): void {

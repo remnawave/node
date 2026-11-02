@@ -45,7 +45,7 @@
     "@remnawave/node-plugins": "0.8.3",
     "@remnawave/xtls-sdk": "0.17.0",
     "@remnawave/xtls-sdk-nestjs": "0.6.1",
-    "compression": "^1.8.1",
+    "compression": "^1.8.2",
     "consola": "^3.4.2",
     "enhanced-ms": "^4.2.0",
     "helmet": "^8.3.0",

@@ -23,9 +23,18 @@ export const configSchema = z
         INTERNAL_REST_TOKEN: z.string(),
         INTERNAL_SOCKET_PATH: z.string(),
         XTLS_API_SOCKET_PATH: z.string(),
+        NFTABLES_TABLE_NAME: z
+            .string()
+            .default('remnanode')
+            .transform((val) => (val.trim() === '' ? 'remnanode' : val.trim()))
+            .refine(
+                (val) => /^[A-Za-z_][A-Za-z0-9_-]{0,62}$/.test(val),
+                'Must start with a letter or underscore and contain only letters, digits, "_" or "-" (max 63 chars).',
+            ),
         NFTABLES_LOGGING: booleanString('true'),
         NFTABLES_ACCEPT_REPLY_TRAFFIC: booleanString('false'),
         SNI_VERIFICATION: booleanString('false'),
+        SUPPRESS_DUPLICATE_INSTANCE_WARNING: booleanString('false'),
     })
 
     .superRefine((data, ctx) => {

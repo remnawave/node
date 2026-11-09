@@ -68,7 +68,7 @@
     "semver": "^7.8.6",
     "sockdestroy": "2.0.1",
     "winston": "^3.19.0",
-    "zod": "4.5.4"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@nestjs/cli": "11.0.24",

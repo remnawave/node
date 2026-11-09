@@ -14,6 +14,7 @@ import {
 import { IPolicyConfig } from './interfaces';
 
 interface IRoutingXrayConfig {
+    script?: string;
     rules: {
         ruleTag?: string;
         webhook?: {
@@ -56,6 +57,8 @@ export const generateApiConfig = (args: IGenerateApiConfigParams): Record<string
         system: XRAY_DEFAULT_POLICY_MODEL.policy.system,
     };
 
+    const routing = config.routing as unknown as IRoutingXrayConfig | undefined;
+
     const result = {
         ...config,
         ...XRAY_DEFAULT_STATS_MODEL,
@@ -69,12 +72,10 @@ export const generateApiConfig = (args: IGenerateApiConfigParams): Record<string
         outbounds: [...(Array.isArray(config.outbounds) ? config.outbounds : [])],
         policy: builtPolicy,
         routing: {
-            ...(config.routing as unknown as Record<string, unknown>),
+            ...routing,
             rules: [
-                XRAY_ROUTING_RULES_MODEL,
-                ...((config.routing as unknown as IRoutingXrayConfig)?.rules ?? []).filter(
-                    (rule) => rule.outboundTag !== 'REMNAWAVE_API',
-                ),
+                ...(routing?.script ? [] : [XRAY_ROUTING_RULES_MODEL]),
+                ...(routing?.rules ?? []).filter((rule) => rule.outboundTag !== 'REMNAWAVE_API'),
             ],
         },
     };

@@ -33,6 +33,7 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
         const capNetAdmin = hasCapNetAdmin();
         const logging = this.configService.getOrThrow('NFTABLES_LOGGING');
         const acceptReplyTraffic = this.configService.getOrThrow('NFTABLES_ACCEPT_REPLY_TRAFFIC');
+        const tableName = this.configService.getOrThrow('NFTABLES_TABLE_NAME');
 
         if (!capNetAdmin) return;
 
@@ -47,7 +48,7 @@ export class NftService implements OnModuleDestroy, OnModuleInit {
 
         try {
             this.nftManager = new NftManager({
-                tableName: NFT_TABLES_CONSTANTS.TABLE_NAME,
+                tableName,
                 ingressAddrSets: [
                     NFT_TABLES_CONSTANTS.INGRESS_FILTER_IP_SET_NAME,
                     NFT_TABLES_CONSTANTS.TORRENT_BLOCKER_SET_NAME,

@@ -167,7 +167,9 @@ async function bootstrap(): Promise<void> {
 
     logger.info('\n' + (await getStartMessage(config.getOrThrow('NODE_PORT'), app)) + '\n');
 
-    if (!(await acquireInstanceLock())) {
+    const instanceLockAcquired = await acquireInstanceLock();
+
+    if (!instanceLockAcquired && !config.getOrThrow('SUPPRESS_DUPLICATE_INSTANCE_WARNING')) {
         logger.error('\n' + getDuplicateInstanceMessage() + '\n');
     }
 

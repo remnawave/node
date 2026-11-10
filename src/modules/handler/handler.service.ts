@@ -64,7 +64,13 @@ export class HandlerService implements OnModuleInit {
             }
 
             if (hashData.prevVlessUuid) {
-                userIps = await this.getUserIps(userId);
+                const ips = new Set<string>();
+                for (const username of new Set(requestData.map((item) => item.username))) {
+                    for (const ip of (await this.getUserIps(username)) ?? []) {
+                        ips.add(ip);
+                    }
+                }
+                if (ips.size > 0) userIps = [...ips];
             }
 
             for (const tag of this.internalService.getXtlsConfigInbounds()) {

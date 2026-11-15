@@ -168,7 +168,22 @@ export class HandlerService implements OnModuleInit {
                             );
                         }
                         response.push(tempRes);
+                        break;
 
+                    case 'masque':
+                        tempRes = await this.xtlsApi.handler.addMasqueUser({
+                            tag: item.tag,
+                            username: item.username,
+                            password: item.password,
+                            level: 0,
+                        });
+                        if (tempRes.isOk) {
+                            await this.internalService.addUserToInbound(
+                                item.tag,
+                                hashData.vlessUuid,
+                            );
+                        }
+                        response.push(tempRes);
                         break;
                 }
             }
@@ -336,6 +351,21 @@ export class HandlerService implements OnModuleInit {
                                     user.userData.vlessUuid,
                                 );
                             }
+                            break;
+                        case 'masque':
+                            tempRes = await this.xtlsApi.handler.addMasqueUser({
+                                tag: item.tag,
+                                username: user.userData.userId,
+                                password: user.userData.vlessUuid,
+                                level: 0,
+                            });
+                            if (tempRes.isOk) {
+                                await this.internalService.addUserToInbound(
+                                    item.tag,
+                                    user.userData.vlessUuid,
+                                );
+                            }
+
                             break;
                         default:
                             break;

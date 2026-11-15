@@ -31,6 +31,11 @@ export namespace AddUsersCommand {
         tag: z.string(),
     });
 
+    const BaseMasqueUser = z.object({
+        type: z.literal('masque'),
+        tag: z.string(),
+    });
+
     export const RequestSchema = z.object({
         affectedInboundTags: z.array(z.string()),
         users: z.array(
@@ -42,6 +47,7 @@ export namespace AddUsersCommand {
                         BaseShadowsocksUser,
                         BaseShadowsocks22User,
                         BaseHysteriaUser,
+                        BaseMasqueUser,
                     ]),
                 ),
 
